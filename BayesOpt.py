@@ -123,10 +123,11 @@ class BayesianOpt():
 
         invKopt = []
         # --- loop over outputs (GPs) --- #
-        for i in range(ny_dim):    
+        for i in range(ny_dim):
+
             # --- multistart loop --- # 
             for j in range(multi_start):
-                print('multi_start hyper parameter optimization iteration = ',j,'  input = ',i)
+                print('multi_start hyper parameter optimization iteration = ',j,'  input dimension = ',i)
                 hyp_init    = lb + (ub-lb)*multi_startvec[j,:]
                 # --- hyper-parameter optimization --- #
                 res = minimize(self.negative_loglikelihood,hyp_init,args=(X_norm,Y_norm[:,i])\
@@ -164,7 +165,7 @@ class BayesianOpt():
         invKsample               = self.invKopt
         Xsample, Ysample         = self.X_norm, self.Y_norm
         var_out                  = self.var_out
-        # Sigma_w                = self.Sigma_w (if input noise)
+        # Sigma_w                  = self.Sigma_w  # (if input noise)
 
         xnorm = (x - meanX)/stdX
         mean  = np.zeros(ny_dim)
@@ -179,7 +180,7 @@ class BayesianOpt():
             k       = calc_cov_sample(xnorm,Xsample,ellopt,sf2opt)
             mean[i] = np.matmul(np.matmul(k.T,invK),Ysample[:,i])
             var[i]  = max(0, sf2opt - np.matmul(np.matmul(k.T,invK),k)) # numerical error
-            #var[i] = sf2opt + Sigma_w[i,i]/stdY[i]**2 - np.matmul(np.matmul(k.T,invK),k) (if input noise)
+            # var[i] = sf2opt + Sigma_w[i,i]/stdY[i]**2 - np.matmul(np.matmul(k.T,invK),k)  # (if input noise)
 
         # --- compute un-normalized mean --- #    
         mean_sample = mean*stdY + meanY
@@ -225,65 +226,67 @@ class BayesianOpt():
         pass
 
 ##### --- Data ---#####
-# --- define training data --- #
-Xtrain = np.array([-4, -1, 1, 2])
-ndata  = Xtrain.shape[0]
-Xtrain = Xtrain.reshape(ndata,1)
-fx     = np.sin(Xtrain)
-eps    = np.random.normal(0, 1e-3, ndata)
-ytrain = fx + eps.reshape(ndata,1)
-
-# --- define test data --- #
-n_test      = 30
-Xtest       = np.linspace(-7.0, 5.0, num=n_test)
-fx_test     = np.sin(Xtest)
-Ytest_mean  = np.zeros(n_test)
-Ytest_std   = np.zeros(n_test)
 
 
-##### --- Test for Bayesian Optimization ---#####
-# --- build a GP model --- #
-GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
 
-# --- build Bayesian Optimization --- #
-rng = np.random.default_rng()
-x0 = rng.choice(Xtrain) # random choice from the train data
-for i in range(7):
-    x_new = GP_m.optimize_acquisition(x0,b=3)
-    y_new = np.sin(x_new)
-    GP_m.add_sample(x_new,y_new)
+# ##### --- Data ---#####
+# # --- define training data --- #
+# Xtrain = np.array([-4, -1, 1, 2])
+# ndata  = Xtrain.shape[0]
+# Xtrain = Xtrain.reshape(ndata,1)
+# fx     = np.sin(Xtrain)
+# ytrain = fx
+# # eps    = np.random.normal(0, 1e-3, ndata)
+# # ytrain = fx + eps.reshape(ndata,1)
 
-    # For next iteration
-    x0 = x_new
-    print(f"optimal input: {x_new}")
+# # --- define test data --- #
+# n_test      = 30
+# Xtest       = np.linspace(-7.0, 5.0, num=n_test)
+# fx_test     = np.sin(Xtest)
+# Ytest_mean  = np.zeros(n_test)
+# Ytest_std   = np.zeros(n_test)
 
-# --- use GP to predict test data --- #
-for ii in range(n_test):
-    m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
-    Ytest_mean[ii] = m_ii 
-    Ytest_std[ii]  = std_ii
 
-####### --- Plotting --- #######
-# plot observed points
-plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
+# ##### --- Test for Bayesian Optimization ---#####
+# # --- build a GP model --- #
+# GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
 
-# plot the samples of posteriors
-plt.plot(Xtest, fx_test, 'black', linewidth=1)
+# # --- build Bayesian Optimization --- #
+# rng = np.random.default_rng()
+# x0 = rng.choice(Xtrain) # random choice from the train data
+# for i in range(2):
+#     x_new = GP_m.optimize_acquisition(x0,b=3)
+#     y_new = np.sin(x_new)
+#     GP_m.add_sample(x_new,y_new)
 
-# plot GP confidence intervals (+- 3 * standard deviation)
-plt.gca().fill_between(Xtest.flat, 
-                       Ytest_mean - 3*np.sqrt(Ytest_std), 
-                       Ytest_mean + 3*np.sqrt(Ytest_std), 
-                       color='C0', alpha=0.2)
+#     # For next iteration
+#     x0 = x_new
+#     print(f"optimal input: {x_new}")
 
-# plot GP mean
-plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
+# # --- use GP to predict test data --- #
+# for ii in range(n_test):
+#     m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
+#     Ytest_mean[ii] = m_ii 
+#     Ytest_std[ii]  = std_ii
 
-plt.axis([-7, 5, -2, 2])
-plt.title('Gaussian Process Regression')
-plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
-           loc='lower right')
-plt.show()
+# ####### --- Plotting --- #######
+# # plot observed points
+# plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
 
-print(GP_m.GP_inference_np(4))
-print(GP_m.GP_inference_np(-2))
+# # plot the samples of posteriors
+# plt.plot(Xtest, fx_test, 'black', linewidth=1)
+
+# # plot GP confidence intervals (+- 3 * standard deviation)
+# plt.gca().fill_between(Xtest.flat, 
+#                        Ytest_mean - 3*np.sqrt(Ytest_std), 
+#                        Ytest_mean + 3*np.sqrt(Ytest_std), 
+#                        color='C0', alpha=0.2)
+
+# # plot GP mean
+# plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
+
+# plt.axis([-7, 5, -2, 2])
+# plt.title('Gaussian Process Regression')
+# plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
+#            loc='lower right')
+# plt.show()
