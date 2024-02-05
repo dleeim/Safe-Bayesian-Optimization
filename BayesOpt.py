@@ -127,7 +127,7 @@ class BayesianOpt():
 
             # --- multistart loop --- # 
             for j in range(multi_start):
-                print('multi_start hyper parameter optimization iteration = ',j,'  input dimension = ',i)
+                # print('multi_start hyper parameter optimization iteration = ',j,'  input dimension = ',i)
                 hyp_init    = lb + (ub-lb)*multi_startvec[j,:]
                 # --- hyper-parameter optimization --- #
                 res = minimize(self.negative_loglikelihood,hyp_init,args=(X_norm,Y_norm[:,i])\
@@ -225,10 +225,6 @@ class BayesianOpt():
 
         pass
 
-##### --- Data ---#####
-
-
-
 # ##### --- Data ---#####
 # # --- define training data --- #
 # Xtrain = np.array([-4, -1, 1, 2])
@@ -254,9 +250,10 @@ class BayesianOpt():
 # # --- build Bayesian Optimization --- #
 # rng = np.random.default_rng()
 # x0 = rng.choice(Xtrain) # random choice from the train data
-# for i in range(2):
+# for i in range(5):
 #     x_new = GP_m.optimize_acquisition(x0,b=3)
 #     y_new = np.sin(x_new)
+#     print(x_new,y_new)
 #     GP_m.add_sample(x_new,y_new)
 
 #     # For next iteration
