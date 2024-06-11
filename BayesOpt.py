@@ -225,65 +225,67 @@ class BayesianOpt():
 
         pass
 
-# ##### --- Data ---#####
-# # --- define training data --- #
-# Xtrain = np.array([-4, -1, 1, 2])
-# ndata  = Xtrain.shape[0]
-# Xtrain = Xtrain.reshape(ndata,1)
-# fx     = np.sin(Xtrain)
-# ytrain = fx
-# # eps    = np.random.normal(0, 1e-3, ndata)
-# # ytrain = fx + eps.reshape(ndata,1)
+if __name__ == '__main__':
+    
+    ##### --- Data ---#####
+    # --- define training data --- #
+    Xtrain = np.array([-4, -1, 1, 2])
+    ndata  = Xtrain.shape[0]
+    Xtrain = Xtrain.reshape(ndata,1)
+    fx     = np.sin(Xtrain)
+    ytrain = fx
+    # eps    = np.random.normal(0, 1e-3, ndata)
+    # ytrain = fx + eps.reshape(ndata,1)
 
-# # --- define test data --- #
-# n_test      = 30
-# Xtest       = np.linspace(-7.0, 5.0, num=n_test)
-# fx_test     = np.sin(Xtest)
-# Ytest_mean  = np.zeros(n_test)
-# Ytest_std   = np.zeros(n_test)
+    # --- define test data --- #
+    n_test      = 30
+    Xtest       = np.linspace(-7.0, 5.0, num=n_test)
+    fx_test     = np.sin(Xtest)
+    Ytest_mean  = np.zeros(n_test)
+    Ytest_std   = np.zeros(n_test)
 
 
-# ##### --- Test for Bayesian Optimization ---#####
-# # --- build a GP model --- #
-# GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
+    ##### --- Test for Bayesian Optimization ---#####
+    # --- build a GP model --- #
+    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
 
-# # --- build Bayesian Optimization --- #
-# rng = np.random.default_rng()
-# x0 = rng.choice(Xtrain) # random choice from the train data
-# for i in range(5):
-#     x_new = GP_m.optimize_acquisition(x0,b=3)
-#     y_new = np.sin(x_new)
-#     print(x_new,y_new)
-#     GP_m.add_sample(x_new,y_new)
+    # --- build Bayesian Optimization --- #
+    rng = np.random.default_rng()
+    x0 = rng.choice(Xtrain) # random choice from the train data
+    for i in range(5):
+        x_new = GP_m.optimize_acquisition(x0,b=3)
+        y_new = np.sin(x_new)
+        print(x_new,y_new)
+        GP_m.add_sample(x_new,y_new)
 
-#     # For next iteration
-#     x0 = x_new
-#     print(f"optimal input: {x_new}")
+        # For next iteration
+        x0 = x_new
+        print(f"optimal input: {x_new}")
 
-# # --- use GP to predict test data --- #
-# for ii in range(n_test):
-#     m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
-#     Ytest_mean[ii] = m_ii 
-#     Ytest_std[ii]  = std_ii
+    # --- use GP to predict test data --- #
+    for ii in range(n_test):
+        m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
+        Ytest_mean[ii] = m_ii 
+        Ytest_std[ii]  = std_ii
 
-# ####### --- Plotting --- #######
-# # plot observed points
-# plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
+    ####### --- Plotting --- #######
+    # plot observed points
+    plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
 
-# # plot the samples of posteriors
-# plt.plot(Xtest, fx_test, 'black', linewidth=1)
+    # plot the samples of posteriors
+    plt.plot(Xtest, fx_test, 'black', linewidth=1)
 
-# # plot GP confidence intervals (+- 3 * standard deviation)
-# plt.gca().fill_between(Xtest.flat, 
-#                        Ytest_mean - 3*np.sqrt(Ytest_std), 
-#                        Ytest_mean + 3*np.sqrt(Ytest_std), 
-#                        color='C0', alpha=0.2)
+    # plot GP confidence intervals (+- 3 * standard deviation)
+    plt.gca().fill_between(Xtest.flat, 
+                        Ytest_mean - 3*np.sqrt(Ytest_std), 
+                        Ytest_mean + 3*np.sqrt(Ytest_std), 
+                        color='C0', alpha=0.2)
 
-# # plot GP mean
-# plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
+    # plot GP mean
+    plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
 
-# plt.axis([-7, 5, -2, 2])
-# plt.title('Gaussian Process Regression')
-# plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
-#            loc='lower right')
-# plt.show()
+    plt.axis([-7, 5, -2, 2])
+    plt.title('Gaussian Process Regression')
+    plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
+            loc='lower right')
+    plt.show()
