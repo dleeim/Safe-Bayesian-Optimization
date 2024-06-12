@@ -1,17 +1,6 @@
-from dataclasses import dataclass
+import numpy as np
 
-@dataclass
-class Point:
-    x : float
-    y : float
-
-class test(Point):
-    def __init__(self) -> None:
-        Point.__init__(self)
-
-    def create():
-        point = Point(1,2)
-        return point
-
-a = test()
-print(a.create())
+a = np.array([2,2])
+b = a**2
+print(b)
+print(np.sum(b))

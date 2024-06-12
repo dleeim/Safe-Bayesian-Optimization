@@ -37,18 +37,10 @@ def con1_system_tight(u, noise = 0):
 
 
 # Model of Plant System
-def Benoit_Model_1(theta, u, noise = 0):
-
+def Benoit_Model_1(theta, u):
     f = theta[0] * u[0] ** 2 + theta[1] * u[1] ** 2
-    if noise: 
-        f += np.random.normal(0., np.sqrt(noise))
-
     return f
 
-def con1_Model(theta, u, noise = 0):
-        
+def con1_Model(theta, u):
     g1 = 1. - theta[2]*u[0] + theta[3]*u[1] ** 2
-    if noise: 
-        g1 += np.random.normal(0., np.sqrt(noise))
-
     return -g1
