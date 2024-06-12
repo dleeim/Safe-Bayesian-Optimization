@@ -37,7 +37,7 @@ def con1_system_tight(u, noise = 0):
 
 
 # Model of Plant System
-def Benoit_Model(theta, u, noise = 0):
+def Benoit_Model_1(theta, u, noise = 0):
 
     f = theta[0] * u[0] ** 2 + theta[1] * u[1] ** 2
     if noise: 
