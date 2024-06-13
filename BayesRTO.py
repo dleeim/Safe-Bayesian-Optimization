@@ -16,13 +16,13 @@ class Bayesian_RTO():
         Global Variables:
             n_sample                        : number of sample given
             u_dim                           : dimension of input
-            n_function                      : number of obj functions and constraints we want to measure
+            n_fun                      : number of obj functions and constraints we want to measure
             plant_system                    : array with obj functions and constraints for plant system
             model                           : array with obj functions and constraints for model
         '''
         self.n_sample                       = 0
         self.u_dim                          = 0
-        self.n_function                     = 0
+        self.n_fun                          = 0
         self.plant_system                   = 0
         self.model                          = 0
 
@@ -36,11 +36,9 @@ class Bayesian_RTO():
             This function samples randomly at (0,0) within a ball of radius r_i.
             By adding sampled point onto initial point (u1,u2) you will get 
             randomly sampled points around (u1,u2)
-
         Arguments:
             ndim                            : no of dimensions required for sampled point
             r_i                             : radius from (0,0) of circle area for sampling
-
         Returns: 
             d_init                          : sampled distances from (0,0)
         '''
@@ -56,21 +54,17 @@ class Bayesian_RTO():
             This function finds the sum of weighted least square between
             plant system and model. This is used as an min objective function
             for parameter estimation of a model using sampled data.
-
         Argument: 
             theta                           : parameter used in model obj func and cons.
             u_sample                        : sample data 
-
         Returns:
             error                           : weighted least square between plant and model with input as sample data
         '''
         error = 0
-
         for i in range(self.n_sample):
-            u                               = u_sample[i,:]
-
-            for j in range(self.n_function):
-                error                       += (self.plant_system[j](u) - self.model[j](theta,u))**2/np.abs(self.plant_system[j](u))
+            u = u_sample[i,:]
+            for j in range(self.n_fun):
+                error += (self.plant_system[j](u) - self.model[j](theta,u))**2/np.abs(self.plant_system[j](u))
 
         return error     
 
@@ -80,16 +74,14 @@ class Bayesian_RTO():
             Uses scipy minimize to find the optimal parameter theta for model that has 
             smallest difference to plant system using input as sample data. This is used 
             at method GP_initialization to find optimal theta for model using sampled data.
-        
         Argument:
             theta                           : parameter used in model obj func and cons
             u_sample                        : sample data 
-        
         Returns:
             theta_opt                       : parameter theta that makes minimal difference between plant system 
                                                 and model using input as sample data
         '''
-        sol                                 = minimize(self.WLS, args=(u_sample), x0=theta, method='SLSQP')
+        sol = minimize(self.WLS, args=(u_sample), x0=theta, method='SLSQP')
         return sol.x
 
     def modifier_calc(self,u_sample,theta):
@@ -97,11 +89,9 @@ class Bayesian_RTO():
         Description:
             Finds difference between plant systema and model which will be used in 
             various methods such as GP_initialization.
-
         Argument:
             u_sample                        : sample data 
             theta                           : parameter used in model obj func and cons.
-        
         Returns:
             modifier                        : A matrix as follows
                                             | diff obj func (sample 1) diff cons(sample 1) ... |
@@ -109,13 +99,12 @@ class Bayesian_RTO():
                                             | diff obj func (sample 3) diff cons(sample 3) ... |
                                             | ...                      ...                 ... |
         '''
-        modifier                            = np.zeros((self.n_sample,self.n_function))
+        modifier = np.zeros((self.n_sample,self.n_fun))
 
         for i in range(self.n_sample):
-            u                               = u_sample[i,:]
-
-            for j in range(self.n_function):
-                modifier[i][j]              = self.plant_system[j](u) - self.model[j](theta,u)
+            u = u_sample[i,:]
+            for j in range(self.n_fun):
+                modifier[i][j] = self.plant_system[j](u) - self.model[j](theta,u)
 
         return modifier
 
@@ -130,7 +119,6 @@ class Bayesian_RTO():
                     (= matrix of difference between plant and model with 
                     the optimal theta in all sampled data)
                 4) Finally, use modifier to initialize GP using BayesOpt
-
         Argument:
             n_sample                        : number of sample points that can be collected
             u_0                             : initial input
@@ -138,37 +126,63 @@ class Bayesian_RTO():
             r                               : radius of area where samples are collected in Ball_sampling
             plant_system                    : numpy array with objective functions and constraints for plant system
             model                           : numpy array with objective functions and constraints for model
-
         Returns:
             GP_m                            : GP model that is initialized using random sampling around initial input
         '''
         # === Define relavent parameters and arrays === #
         self.n_sample                       = n_sample
         self.u_dim                          = np.shape(u_0)[0]
-        self.n_function                     = len(plant_system)
+        self.n_fun                          = len(plant_system)
         self.plant_system                   = plant_system
         self.model                          = model
         u_sample                            = np.zeros((self.n_sample,self.u_dim))
 
         # === Collect Training Dataset (Input) === #
         for sample_i in range(n_sample):
-            u_trial                         = u_0 + self.Ball_sampling(self.u_dim,r)
-            u_sample[sample_i]              = u_trial
+            u_trial = u_0 + self.Ball_sampling(self.u_dim,r)
+            u_sample[sample_i] = u_trial
         
         # === Estimate the parameter theta === #
-        theta                               = self.parameter_estimation(u_sample,theta_0)
+        theta = self.parameter_estimation(u_sample,theta_0)
 
         # === Collect Training Dataset === #
-        modifier                            = self.modifier_calc(u_sample,theta)
+        modifier = self.modifier_calc(u_sample,theta)
 
         # === Initialize GP with modifier === #
-        GP_m                                = BayesOpt.BayesianOpt(u_sample, modifier, 'RBF', multi_hyper=1, var_out=True)
+        GP_m = BayesOpt.BayesianOpt(u_sample, modifier, 'RBF', multi_hyper=1, var_out=True)
 
         return u_sample,theta,GP_m
 
-    # 2. Cost Function Optimization
-    # 3. Trust Region Update
-    # 4. 
+    ####################################################
+    #######______Cost Function Optimization______#######
+    ####################################################
+    def observation_trustregion(self,r,u_0,theta,GP_m):
+        '''
+        Description:
+        Argument:
+            r:
+            u_0:
+            theta:
+            GP_m:
+        Results:
+            d_new: a distance from center u_0 to observe the corresponding output of function
+        '''
+        d0 = [0,0]
+        cons = []
+
+        for i in range(self.n_fun):
+            if i == 0:
+                obj_fun = lambda x: self.model[0]
+            else:
+                ### !! NEED TO make an array cons with constraints in form of ({'type': 'ineq', 'fun': lambda d: model[i]...})
+                ### and change to tuple for cons and insert into constraints argument in scipy minimize
+
+
+    #############################################
+    #######______Trust Region Update______#######
+    #############################################
+    def update_trustregion(self):
+        pass
 
 
 if __name__ == '__main__':
@@ -192,8 +206,8 @@ if __name__ == '__main__':
 
     print(f"plant obj: {plant_system[0](u)}")
     print(f"model obj: {model[0](theta,u)+modifier[0][0]}")
-    print(f"var obj: {model[0](theta,u)+modifier[1][0]}")
 
     print(f"plant con: {plant_system[1](u)}")
     print(f"model con: {model[1](theta,u)+modifier[0][1]}")
-    print(f"var con: {model[1](theta,u)+modifier[1][1]}")
+    
+    print(f"var: {modifier[1]}")
