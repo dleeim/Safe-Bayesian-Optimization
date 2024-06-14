@@ -8,7 +8,7 @@ from scipy.spatial.distance import cdist
 import sobol_seq
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
-import imageio
+import imageio.v2 as imageio
 import os
 
 class BayesianOpt():
@@ -231,43 +231,16 @@ class BayesianOpt():
 
 # Test Cases
 if __name__ == '__main__':
-    ##### --- Test for Bayesian Optimization ---#####
-    print(f"##### --- Test for Bayesian Optimization ---#####")
-
-    # --- define training data --- #
-    Xtrain = np.array([-4, -1, 1, 2])
-    ndata  = Xtrain.shape[0]
-    Xtrain = Xtrain.reshape(ndata,1)
-    fx     = np.sin(Xtrain)
-    ytrain = fx
-    # eps    = np.random.normal(0, 1e-3, ndata)
-    # ytrain = fx + eps.reshape(ndata,1)
-    print(f"Train data: \n Xtrain: \n {Xtrain.reshape(1,-1)} \n ytrain: \n {ytrain.reshape(1,-1)}")
-
-    # --- build a GP model --- #
-    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
-
-    # --- check for Gaussian Process Model at initial state --- #
-    print(f"# --- check for Gaussian Process Model at initial state --- #")
-    print(f"Mean and Variance at x = -4: {GP_m.GP_inference_np(-4)})")
-    print(f"Mean and Variance at x = -7: {GP_m.GP_inference_np(-7)})")
-
-    # --- build Bayesian Optimization --- #
-    n_iter = 6
-    rng = np.random.default_rng()
-    # x0 = rng.choice(Xtrain) # random choice from the train data
-    x0 = 2
-    b = 2
-
-    # --- function for creating file for a frame --- #
-    # --- Create GIF --- #
-    n_test      = 100
-    Xtest       = np.linspace(-20.0, 20.0, num=n_test)
-    fx_test     = np.sin(Xtest)
-    Ytest_mean  = np.zeros(n_test)
-    Ytest_std   = np.zeros(n_test)
-
+    
+    # --- (can ignore this function) function for creating file for a frame --- #
     def create_frame(t,filename):
+        n_test      = 100
+        Xtest       = np.linspace(-10,10,n_test)
+        fx_test     = np.sin(Xtest)
+        Ytest_mean  = np.zeros(n_test)
+        Ytest_std   = np.zeros(n_test)
+        b           = 2
+        
         plt.figure()
 
         # plot observed points
@@ -282,7 +255,7 @@ if __name__ == '__main__':
             Ytest_mean[ii] = m_ii 
             Ytest_std[ii]  = std_ii
 
-        # plot GP confidence intervals (+- 3 * standard deviation)
+        # plot GP confidence intervals (+- b * standard deviation)
         plt.gca().fill_between(Xtest.flat, 
                             Ytest_mean - b*np.sqrt(Ytest_std), 
                             Ytest_mean + b*np.sqrt(Ytest_std), 
@@ -299,10 +272,35 @@ if __name__ == '__main__':
         plt.savefig(filename)
         plt.close()
 
+    ##### --- Test for Bayesian Optimization ---#####
+    print(f"##### --- Test for Bayesian Optimization ---#####")
+
+    # --- define training data --- #
+    Xtrain = np.array([-4, -1, 1, 2])
+    ndata  = Xtrain.shape[0]
+    Xtrain = Xtrain.reshape(ndata,1)
+    fx     = np.sin(Xtrain)
+    ytrain = fx
+    print(f"Train data: \n Xtrain: {Xtrain.reshape(1,-1)} \n ytrain: {ytrain.reshape(1,-1)} \n")
+
+    # --- build a GP model --- #
+    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
+
+    # --- check for Gaussian Process Model at initial state --- #
+    print(f"# --- check for Gaussian Process Model after initialization --- # \n")
+    print(f"Mean and Variance at x = -4: {GP_m.GP_inference_np(-4)})")
+    print(f"Mean and Variance at x = -7: {GP_m.GP_inference_np(-7)})")
+
+    # --- build Bayesian Optimization --- #
+    n_iter = 10
+    rng = np.random.default_rng()
+    x0 = rng.choice(Xtrain) # random choice from the train data
+    b = 2   # exploration factor
 
     # --- Do Bayesian Optmization --- #
     filenames = []
     for i in range(n_iter):
+        
         # create a frame
         t = i * 0.1
         filename = f'frame_{i:02d}.png'
@@ -337,8 +335,34 @@ if __name__ == '__main__':
         os.remove(filename)
 
 
-    print(f"# --- check result on bayesian optimization --- #")
+    print(f"# --- check result on bayesian optimization --- # \n")
     print(f"no of iteration: {n_iter}")
     print(f"observation x: {GP_m.X.reshape(1,-1)}")
     print(f"observation y: {GP_m.Y.reshape(1,-1)}")
+
+
+    # # Test for Irregular Case   
+    # print(f"# --- Test for Irregular Case with Error --- #") 
+    # x = np.array([[ 8.14987947],
+    #               [ 8.14987947],
+    #               [ 8.14987947],
+    #               [ 8.14987947],
+    #               [-8.92389378],
+    #               [-8.92389378]])
     
+    # y = np.array([[ 0.95654072],
+    #               [ 0.95654072],
+    #               [ 0.95654072],
+    #               [ 0.95654072],
+    #               [-0.48020129],
+    #               [-0.48020129]])
+
+    # GP_m = BayesianOpt(x, y, 'RBF', multi_hyper=2, var_out=True)
+
+    # t = 0
+    # filename = 'TestforIrregularCase'
+    # create_frame(t,filename)
+
+    # x1 = -8.92389378
+    # print(GP_m.GP_inference_np(x1))
+
