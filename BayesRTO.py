@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize
-from scipy.optimize import approx_fprime
+from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 import random
 import BayesOpt
@@ -16,15 +16,19 @@ class Bayesian_RTO():
         Global Variables:
             n_sample                        : number of sample given
             u_dim                           : dimension of input
-            n_fun                      : number of obj functions and constraints we want to measure
+            n_fun                           : number of obj functions and constraints we want to measure
             plant_system                    : array with obj functions and constraints for plant system
             model                           : array with obj functions and constraints for model
+            theta                           : parameter theta estimated that allows model to be as close as plant system
+            input_sample                    : sampled input data made from Ball_sampling and used for GP initialization
         '''
         self.n_sample                       = 0
         self.u_dim                          = 0
         self.n_fun                          = 0
         self.plant_system                   = 0
         self.model                          = 0
+        self.theta                          = 0
+        self.input_sample                   = 0
 
     ###########################################
     #######______GP Initialization______#######
@@ -42,13 +46,13 @@ class Bayesian_RTO():
         Returns: 
             d_init                          : sampled distances from (0,0)
         '''
-        u                                   = np.random.normal(0,1,ndim)  
+        u                                   = np.random.normal(0,1,ndim)
         norm                                = np.sum(u**2)**(0.5)
-        d_init                              = u/norm*r_i      
+        d_init                              = u/norm*r_i   
 
         return d_init
 
-    def WLS(self,theta,u_sample) -> float:
+    def WLS(self,theta,input_sample) -> float:
         '''
         Description:
             This function finds the sum of weighted least square between
@@ -61,14 +65,13 @@ class Bayesian_RTO():
             error                           : weighted least square between plant and model with input as sample data
         '''
         error = 0
-        for i in range(self.n_sample):
-            u = u_sample[i,:]
-            for j in range(self.n_fun):
+        for i in range(self.n_sample): 
+            u = input_sample[i,:]
+            for j in range(self.n_fun): 
                 error += (self.plant_system[j](u) - self.model[j](theta,u))**2/np.abs(self.plant_system[j](u))
-
         return error     
 
-    def parameter_estimation(self,u_sample,theta):
+    def parameter_estimation(self,theta,input_sample):
         '''
         Description:
             Uses scipy minimize to find the optimal parameter theta for model that has 
@@ -81,10 +84,10 @@ class Bayesian_RTO():
             theta_opt                       : parameter theta that makes minimal difference between plant system 
                                                 and model using input as sample data
         '''
-        sol = minimize(self.WLS, args=(u_sample), x0=theta, method='SLSQP')
+        sol = minimize(self.WLS, x0=theta, args=(input_sample), method='SLSQP')
         return sol.x
 
-    def modifier_calc(self,u_sample,theta):
+    def modifier_calc(self,theta,input_sample):
         '''
         Description:
             Finds difference between plant systema and model which will be used in 
@@ -102,7 +105,7 @@ class Bayesian_RTO():
         modifier = np.zeros((self.n_sample,self.n_fun))
 
         for i in range(self.n_sample):
-            u = u_sample[i,:]
+            u = input_sample[i,:]
             for j in range(self.n_fun):
                 modifier[i][j] = self.plant_system[j](u) - self.model[j](theta,u)
 
@@ -135,23 +138,27 @@ class Bayesian_RTO():
         self.n_fun                          = len(plant_system)
         self.plant_system                   = plant_system
         self.model                          = model
-        u_sample                            = np.zeros((self.n_sample,self.u_dim))
+        input_sample                        = np.zeros((self.n_sample,self.u_dim))
 
         # === Collect Training Dataset (Input) === #
         for sample_i in range(n_sample):
             u_trial = u_0 + self.Ball_sampling(self.u_dim,r)
-            u_sample[sample_i] = u_trial
+            input_sample[sample_i] = u_trial
         
+        # To store the sampled input data and to see when using the class
+        self.input_sample = input_sample
+
         # === Estimate the parameter theta === #
-        theta = self.parameter_estimation(u_sample,theta_0)
+        theta = self.parameter_estimation(theta_0,input_sample)
+        self.theta = theta
 
         # === Collect Training Dataset === #
-        modifier = self.modifier_calc(u_sample,theta)
+        modifier = self.modifier_calc(theta,input_sample)
 
         # === Initialize GP with modifier === #
-        GP_m = BayesOpt.BayesianOpt(u_sample, modifier, 'RBF', multi_hyper=1, var_out=True)
+        GP_m = BayesOpt.BayesianOpt(input_sample, modifier, 'RBF', multi_hyper=1, var_out=True)
 
-        return u_sample,theta,GP_m
+        return GP_m
 
     ####################################################
     #######______Cost Function Optimization______#######
@@ -160,22 +167,34 @@ class Bayesian_RTO():
         '''
         Description:
         Argument:
-            r:
-            u_0:
-            theta:
-            GP_m:
+            r: radius of trust region area
+            u_0: previous input observed
+            theta: parameter for model
+            GP_m: Gaussian Process Model
         Results:
-            d_new: a distance from center u_0 to observe the corresponding output of function
+            result.x: a distance from input u_0 to observe the corresponding output of function
         '''
         d0 = [0,0]
         cons = []
 
+        # Collect All objective function and constraints(model constraint + trust region)
         for i in range(self.n_fun):
             if i == 0:
-                obj_fun = lambda x: self.model[0]
+                obj_fun = lambda d: self.model[i](theta, u_0, d, GP_m)
             else:
-                ### !! NEED TO make an array cons with constraints in form of ({'type': 'ineq', 'fun': lambda d: model[i]...})
-                ### and change to tuple for cons and insert into constraints argument in scipy minimize
+                cons.append({'type': 'ineq',
+                             'fun': lambda d: self.model[i](theta, u_0, d, GP_m)})
+        
+        cons.append({'type': 'ineq',
+                     'fun': lambda d: r - np.linalg.norm(d)})
+        
+        result = minimize((obj_fun),
+                        d0,
+                        constraints = cons,
+                        method      ='SLSQP',
+                        options     = {'ftol': 1e-9})
+        
+        return result.x
 
 
     #############################################
@@ -186,28 +205,90 @@ class Bayesian_RTO():
 
 
 if __name__ == '__main__':
-    # Test Case 1: Test on GP Initialization
+    # Test Case 1: Test on GP_Initialization
+    ## Initial Parameters
     BRTO = Bayesian_RTO()
-    theta_0 = [1,1,1,1]
-    u_0 = [4,-1]
-    r_i = 1
+    theta_0 = np.array([1.,1.,1.,1.])
+    u_0 = np.array([4.,-1.])
+    u_dim = u_0.shape[0]
+    r_i = 1.
     n_s = 4
-    plant_system = [Benoit_Problem.Benoit_System_1
-                    ,Benoit_Problem.con1_system]
+    plant_system = [Benoit_Problem.Benoit_System_1,
+                    Benoit_Problem.con1_system]
 
     model = [Benoit_Problem.Benoit_Model_1,
             Benoit_Problem.con1_Model]
 
-    u_sample,theta,GP_m = BRTO.GP_Initialization(n_s,u_0,theta_0,r_i,plant_system,model)
-    theta = [ 0.91169766, -0.70738436, 1.51734629, -0.26877567]
-    
-    u = u_sample[0]
-    modifier = GP_m.GP_inference_np(u)
+    ## GP Initialization
+    print("\n #######______Test Case: GP_Initialization______#######")
+    GP_m = BRTO.GP_Initialization(n_s,u_0,theta_0,r_i,plant_system,model)
+    print("sampled input:")
+    print(BRTO.input_sample)
+    u_0 = np.array([10,-10])
+    d_0 = np.array([0,0])
+    print(f"input = {u_0}")
+    ## Test if GP model is working fine
+    modifier = GP_m.GP_inference_np(u_0)
+    theta = BRTO.theta
 
-    print(f"plant obj: {plant_system[0](u)}")
-    print(f"model obj: {model[0](theta,u)+modifier[0][0]}")
+    ## Check if plant and model provides same output using sampled data as input
+    print("#___Check if plant and model provides similar output using sampled data as input___#")
+    print(f"plant obj: {plant_system[0](u_0)}")
+    print(f"model obj: {model[0](theta,u_0)+modifier[0][0]}")
 
-    print(f"plant con: {plant_system[1](u)}")
-    print(f"model con: {model[1](theta,u)+modifier[0][1]}")
+    print(f"plant con: {plant_system[1](u_0)}")
+    print(f"model con: {model[1](theta,u_0)+modifier[0][1]}")
     
+    ## Check if variance is approx 0 at sampled input
+    print("Check if variance is around 0")
     print(f"var: {modifier[1]}")
+
+    # Test Case 2: Test on observation_trustregion
+    print("\n #######______Test Case: observation_trustregion______#######")
+    ## Find info on old observation
+    print("#___Find info on old observation___#")
+    d_new = BRTO.observation_trustregion(r_i,u_0,theta,GP_m)
+    print(f"optimal old input(model): {u_0}")
+    print(f"optimal old output(model): {model[0](theta,u_0,d_0,GP_m)}")
+    print(f"old constraint(model): {model[1](theta,u_0,d_0,GP_m)}")
+
+    ## Find info on new observation
+    print("#___Find info on new observation and see if improved___#")
+    print(f"optimal new input(model): {u_0+d_new}")
+    print(f"Euclidean norm of d_new(model): {np.linalg.norm(d_new)}")
+    print(f"optimal new output(model): {model[0](theta,u_0,d_new,GP_m)}")
+    print(f"new constraint(model): {model[1](theta,u_0,d_new,GP_m)}")
+
+    ## Check if new observation provides min in trust region
+    print("#___Check if plant system agrees with new observation___#")
+    cons = []
+    cons.append({'type': 'ineq',
+                 'fun': lambda u: plant_system[1](u)})
+    cons.append({'type': 'ineq',
+                 'fun': lambda u: r_i - np.linalg.norm(u-u_0)})
+    result = minimize((plant_system[0]),
+                u_0,
+                constraints = cons,
+                method      ='SLSQP',
+                options     = {'ftol': 1e-9})
+    print(f"optimal new input(plant system): {result.x}")
+    print(f"Euclidean norm of new input(plant system): {np.linalg.norm(result.x-u_0)}")
+    print(f"optimal new output(plant system): {result.fun}")
+    print(f"new constraint(plant system): {plant_system[1](result.x)}")
+
+
+
+####____Might be useful for graph____####
+# d_trial_x = np.linspace(-r_i, r_i, 50)
+# d_trial_ypos= []
+# d_trial_yneg = []
+# for j in d_trial_x: 
+#     def equations(d):
+#         eq1 = r_i - np.linalg.norm(d)
+#         eq2 = d[0] - j
+#         return [eq1,eq2]
+    
+#     initial_guess = [j,0]
+#     d = fsolve(equations,initial_guess)
+#     d_trial_ypos.append(d[1])
+#     d_trial_yneg.append(-d[1]) 
