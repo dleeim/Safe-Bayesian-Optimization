@@ -201,7 +201,7 @@ class BayesianOpt():
         return mean - b*var
 
     def optimize_acquisition(self,x0,b):
-        result = minimize(self.aquisition_func,x0,args=(b),method='SLsQP',options={'ftol': 1e-9})
+        result = minimize(self.aquisition_func,x0,args=(b),method='SLSQP',options={'ftol': 1e-9})
 
         return result.x
     
@@ -289,3 +289,6 @@ if __name__ == '__main__':
     plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
             loc='lower right')
     plt.show()
+
+    x = -2
+    print(f"infer test: {GP_m.GP_inference_np(x)}")

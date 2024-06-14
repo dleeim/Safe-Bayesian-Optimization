@@ -48,7 +48,8 @@ class Bayesian_RTO():
         '''
         u                                   = np.random.normal(0,1,ndim)
         norm                                = np.sum(u**2)**(0.5)
-        d_init                              = u/norm*r_i   
+        r                                   = random.random()**(1.0/ndim)
+        d_init                              = r*u/norm*r_i*2 
 
         return d_init
 
@@ -224,7 +225,7 @@ if __name__ == '__main__':
     GP_m = BRTO.GP_Initialization(n_s,u_0,theta_0,r_i,plant_system,model)
     print("sampled input:")
     print(BRTO.input_sample)
-    u_0 = np.array([10,-10])
+    u_0 = np.array([4,-1])
     d_0 = np.array([0,0])
     print(f"input = {u_0}")
     ## Test if GP model is working fine
@@ -240,8 +241,7 @@ if __name__ == '__main__':
     print(f"model con: {model[1](theta,u_0)+modifier[0][1]}")
     
     ## Check if variance is approx 0 at sampled input
-    print("Check if variance is around 0")
-    print(f"var: {modifier[1]}")
+    print(f"variance: {modifier[1]}")
 
     # Test Case 2: Test on observation_trustregion
     print("\n #######______Test Case: observation_trustregion______#######")
@@ -251,6 +251,8 @@ if __name__ == '__main__':
     print(f"optimal old input(model): {u_0}")
     print(f"optimal old output(model): {model[0](theta,u_0,d_0,GP_m)}")
     print(f"old constraint(model): {model[1](theta,u_0,d_0,GP_m)}")
+    print(f"GP model: {GP_m.GP_inference_np(u_0)}")
+
 
     ## Find info on new observation
     print("#___Find info on new observation and see if improved___#")
@@ -258,6 +260,7 @@ if __name__ == '__main__':
     print(f"Euclidean norm of d_new(model): {np.linalg.norm(d_new)}")
     print(f"optimal new output(model): {model[0](theta,u_0,d_new,GP_m)}")
     print(f"new constraint(model): {model[1](theta,u_0,d_new,GP_m)}")
+    print(f"GP model: {GP_m.GP_inference_np(u_0+d_new)}")
 
     ## Check if new observation provides min in trust region
     print("#___Check if plant system agrees with new observation___#")
@@ -275,7 +278,6 @@ if __name__ == '__main__':
     print(f"Euclidean norm of new input(plant system): {np.linalg.norm(result.x-u_0)}")
     print(f"optimal new output(plant system): {result.fun}")
     print(f"new constraint(plant system): {plant_system[1](result.x)}")
-
 
 
 ####____Might be useful for graph____####
