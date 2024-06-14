@@ -226,10 +226,14 @@ class BayesianOpt():
         # determine hyperparameters
         self.hypopt, self.invKopt   = self.determine_hyperparameters() 
 
+
+
+
 # Test Cases
 if __name__ == '__main__':
-    
-    ##### --- Data ---#####
+    ##### --- Test for Bayesian Optimization ---#####
+    print(f"##### --- Test for Bayesian Optimization ---#####")
+
     # --- define training data --- #
     Xtrain = np.array([-4, -1, 1, 2])
     ndata  = Xtrain.shape[0]
@@ -238,63 +242,103 @@ if __name__ == '__main__':
     ytrain = fx
     # eps    = np.random.normal(0, 1e-3, ndata)
     # ytrain = fx + eps.reshape(ndata,1)
+    print(f"Train data: \n Xtrain: \n {Xtrain.reshape(1,-1)} \n ytrain: \n {ytrain.reshape(1,-1)}")
 
-    # --- Illustration --- #
-    def illustration():
-        n_test      = 30
-        Xtest       = np.linspace(-7.0, 5.0, num=n_test)
-        fx_test     = np.sin(Xtest)
-        Ytest_mean  = np.zeros(n_test)
-        Ytest_std   = np.zeros(n_test)
-
-
-
-    ##### --- Test for Bayesian Optimization ---#####
     # --- build a GP model --- #
     GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
 
-    # --- Plot graph on 
+    # --- check for Gaussian Process Model at initial state --- #
+    print(f"# --- check for Gaussian Process Model at initial state --- #")
+    print(f"Mean and Variance at x = -4: {GP_m.GP_inference_np(-4)})")
+    print(f"Mean and Variance at x = -7: {GP_m.GP_inference_np(-7)})")
 
     # --- build Bayesian Optimization --- #
+    n_iter = 6
     rng = np.random.default_rng()
-    x0 = rng.choice(Xtrain) # random choice from the train data
-    for i in range(5):
-        x_new = GP_m.optimize_acquisition(x0,b=3)
+    # x0 = rng.choice(Xtrain) # random choice from the train data
+    x0 = 2
+    b = 2
+
+    # --- function for creating file for a frame --- #
+    # --- Create GIF --- #
+    n_test      = 100
+    Xtest       = np.linspace(-20.0, 20.0, num=n_test)
+    fx_test     = np.sin(Xtest)
+    Ytest_mean  = np.zeros(n_test)
+    Ytest_std   = np.zeros(n_test)
+
+    def create_frame(t,filename):
+        plt.figure()
+
+        # plot observed points
+        plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
+
+        # plot the samples of posteriors
+        plt.plot(Xtest, fx_test, 'black', linewidth=1)
+
+        # --- use GP to predict test data --- #
+        for ii in range(n_test):
+            m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
+            Ytest_mean[ii] = m_ii 
+            Ytest_std[ii]  = std_ii
+
+        # plot GP confidence intervals (+- 3 * standard deviation)
+        plt.gca().fill_between(Xtest.flat, 
+                            Ytest_mean - b*np.sqrt(Ytest_std), 
+                            Ytest_mean + b*np.sqrt(Ytest_std), 
+                            color='C0', alpha=0.2)
+
+        # plot GP mean
+        plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
+
+        plt.axis([-20, 20, -2, 3])
+        plt.title(f'Gaussian Process Regression at iteration: {int(t*10)}')
+        plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
+                loc='lower right')
+        
+        plt.savefig(filename)
+        plt.close()
+
+
+    # --- Do Bayesian Optmization --- #
+    filenames = []
+    for i in range(n_iter):
+        # create a frame
+        t = i * 0.1
+        filename = f'frame_{i:02d}.png'
+        create_frame(t,filename)
+        filenames.append(filename)
+
+        # New Observation
+        x_new = GP_m.optimize_acquisition(x0,b)
         y_new = np.sin(x_new)
-        print(x_new,y_new)
         GP_m.add_sample(x_new,y_new)
 
         # For next iteration
         x0 = x_new
-        print(f"optimal input: {x_new}")
 
-    # --- use GP to predict test data --- #
-    for ii in range(n_test):
-        m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
-        Ytest_mean[ii] = m_ii 
-        Ytest_std[ii]  = std_ii
 
-    ####### --- Plotting --- #######
-    # plot observed points
-    plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
+        if i == n_iter-1:
+            # create a last frame
+            t = n_iter * 0.1
+            filename = f'frame_{n_iter:02d}.png'
+            create_frame(t,filename)
+            filenames.append(filename)
 
-    # plot the samples of posteriors
-    plt.plot(Xtest, fx_test, 'black', linewidth=1)
+    # create a GIF from saved frames
+    frame_duration = 1000
+    with imageio.get_writer('BayesOptforsine.gif', mode='I', duration=frame_duration) as writer:
+        for filename in filenames:
+            image = imageio.imread(filename)
+            writer.append_data(image)
+    
+    # remove individual frame files
+    for filename in filenames:
+        os.remove(filename)
 
-    # plot GP confidence intervals (+- 3 * standard deviation)
-    plt.gca().fill_between(Xtest.flat, 
-                        Ytest_mean - 3*np.sqrt(Ytest_std), 
-                        Ytest_mean + 3*np.sqrt(Ytest_std), 
-                        color='C0', alpha=0.2)
 
-    # plot GP mean
-    plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
-
-    plt.axis([-7, 5, -2, 2])
-    plt.title('Gaussian Process Regression')
-    plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
-            loc='lower right')
-    plt.show()
-
-    x = -2
-    print(f"infer test: {GP_m.GP_inference_np(x)}")
+    print(f"# --- check result on bayesian optimization --- #")
+    print(f"no of iteration: {n_iter}")
+    print(f"observation x: {GP_m.X.reshape(1,-1)}")
+    print(f"observation y: {GP_m.Y.reshape(1,-1)}")
+    

@@ -7,8 +7,6 @@ import BayesOpt
 import Benoit_Problem
 from dataclasses import dataclass
 
-np.random.seed(42)
-
 class Bayesian_RTO():
 
     def __init__(self) -> None:
@@ -208,6 +206,7 @@ class Bayesian_RTO():
 if __name__ == '__main__':
     # Test Case 1: Test on GP_Initialization
     ## Initial Parameters
+    np.random.seed(42)
     BRTO = Bayesian_RTO()
     theta_0 = np.array([1.,1.,1.,1.])
     u_0 = np.array([4.,-1.])

@@ -1,40 +1,44 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import imageio
-import os
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import ipywidgets as widgets
+from IPython.display import display, clear_output
 
-# Create a function to generate and save plots
-def create_frame(t, filename):
-    x = np.linspace(0, 2 * np.pi, 100)
-    y = np.sin(x - t)
-    plt.figure()
-    plt.plot(x, y)
-    plt.title(f'Sine wave at t={t:.2f}')
-    plt.xlabel('x')
-    plt.ylabel('sin(x - t)')
-    plt.grid(True)
-    plt.savefig(filename)
-    plt.close()
+# Create the figure and axis
+fig, ax = plt.subplots()
+x = np.linspace(0, 2 * np.pi, 100)
+line, = ax.plot(x, np.sin(x))
 
-# Generate and save individual frames
-filenames = []
-for i in range(20):
-    t = i * 0.1
-    filename = f'frame_{i:02d}.png'
-    create_frame(t, filename)
-    filenames.append(filename)
+# Update function for the animation
+def update(frame):
+    line.set_ydata(np.sin(x - 0.1 * frame))
+    return line,
 
-# Set the duration for each frame in the GIF (e.g., 0.05 seconds per frame)
-frame_duration = 1000  # Adjust this value to control the speed of the GIF
+# Create the animation
+ani = FuncAnimation(fig, update, frames=np.arange(0, 100), blit=True)
 
-# Create a GIF from the saved frames
-with imageio.get_writer('sine_wave.gif', mode='I', duration=frame_duration) as writer:
-    for filename in filenames:
-        image = imageio.imread(filename)
-        writer.append_data(image)
+# Control buttons
+start_button = widgets.Button(description="Start")
+stop_button = widgets.Button(description="Stop")
+pause_button = widgets.Button(description="Pause")
 
-# Optionally, remove the individual frame files after creating the GIF
-for filename in filenames:
-    os.remove(filename)
+# Animation control functions
+def start_animation(b):
+    ani.event_source.start()
 
-print('GIF created successfully!')
+def stop_animation(b):
+    ani.event_source.stop()
+
+def pause_animation(b):
+    ani.event_source.stop()
+
+# Link buttons to functions
+start_button.on_click(start_animation)
+stop_button.on_click(stop_animation)
+pause_button.on_click(pause_animation)
+
+# Display the plot and buttons
+display(start_button, pause_button, stop_button, fig)
+
+# Show the initial plot
+plt.show()
