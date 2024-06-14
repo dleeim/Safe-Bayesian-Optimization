@@ -17,7 +17,6 @@ class Bayesian_RTO():
             n_fun                           : number of obj functions and constraints we want to measure
             plant_system                    : array with obj functions and constraints for plant system
             model                           : array with obj functions and constraints for model
-            theta                           : parameter theta estimated that allows model to be as close as plant system
             input_sample                    : sampled input data made from Ball_sampling and used for GP initialization
         '''
         self.n_sample                       = 0
@@ -25,7 +24,6 @@ class Bayesian_RTO():
         self.n_fun                          = 0
         self.plant_system                   = 0
         self.model                          = 0
-        self.theta                          = 0
         self.input_sample                   = 0
 
     ###########################################
@@ -101,10 +99,12 @@ class Bayesian_RTO():
                                             | diff obj func (sample 3) diff cons(sample 3) ... |
                                             | ...                      ...                 ... |
         '''
-        modifier = np.zeros((self.n_sample,self.n_fun))
+        input_sample = np.atleast_2d(input_sample)
+        n_sample = input_sample.shape[0]
+        modifier = np.zeros((n_sample,self.n_fun))
 
-        for i in range(self.n_sample):
-            u = input_sample[i,:]
+        for i in range(n_sample):
+            u = input_sample[i]
             for j in range(self.n_fun):
                 modifier[i][j] = self.plant_system[j](u) - self.model[j](theta,u)
 
@@ -129,6 +129,7 @@ class Bayesian_RTO():
             plant_system                    : numpy array with objective functions and constraints for plant system
             model                           : numpy array with objective functions and constraints for model
         Returns:
+            theta                           : parameter theta for model that makes minimal difference between plant and model
             GP_m                            : GP model that is initialized using random sampling around initial input
         '''
         # === Define relavent parameters and arrays === #
@@ -149,7 +150,6 @@ class Bayesian_RTO():
 
         # === Estimate the parameter theta === #
         theta = self.parameter_estimation(theta_0,input_sample)
-        self.theta = theta
 
         # === Collect Training Dataset === #
         modifier = self.modifier_calc(theta,input_sample)
@@ -157,7 +157,7 @@ class Bayesian_RTO():
         # === Initialize GP with modifier === #
         GP_m = BayesOpt.BayesianOpt(input_sample, modifier, 'RBF', multi_hyper=1, var_out=True)
 
-        return GP_m
+        return theta, GP_m
 
     ####################################################
     #######______Cost Function Optimization______#######
@@ -168,7 +168,6 @@ class Bayesian_RTO():
         Argument:
             r: radius of trust region area
             u_0: previous input observed
-            theta: parameter for model
             GP_m: Gaussian Process Model
         Results:
             result.x: a distance from input u_0 to observe the corresponding output of function
@@ -207,6 +206,7 @@ if __name__ == '__main__':
     # Test Case 1: Test on GP_Initialization
     ## Initial Parameters
     np.random.seed(42)
+    random.seed(42)
     BRTO = Bayesian_RTO()
     theta_0 = np.array([1.,1.,1.,1.])
     u_0 = np.array([4.,-1.])
@@ -220,19 +220,19 @@ if __name__ == '__main__':
             Benoit_Problem.con1_Model]
 
     ## GP Initialization
-    print("\n #######______Test Case: GP_Initialization______#######")
-    GP_m = BRTO.GP_Initialization(n_s,u_0,theta_0,r_i,plant_system,model)
+    print("#######______Test Case: GP_Initialization______#######")
+    theta,GP_m = BRTO.GP_Initialization(n_s,u_0,theta_0,r_i,plant_system,model)
     print("sampled input:")
     print(BRTO.input_sample)
+    print(f'parameter theta: {theta}')
     u_0 = np.array([4,-1])
     d_0 = np.array([0,0])
     print(f"input = {u_0}")
     ## Test if GP model is working fine
     modifier = GP_m.GP_inference_np(u_0)
-    theta = BRTO.theta
 
     ## Check if plant and model provides same output using sampled data as input
-    print("#___Check if plant and model provides similar output using sampled data as input___#")
+    print("\n #___Check if plant and model provides similar output using sampled data as input___#")
     print(f"plant obj: {plant_system[0](u_0)}")
     print(f"model obj: {model[0](theta,u_0)+modifier[0][0]}")
 
@@ -254,7 +254,7 @@ if __name__ == '__main__':
 
 
     ## Find info on new observation
-    print("#___Find info on new observation and see if improved___#")
+    print("\n#___Find info on new observation and see if improved___#")
     print(f"optimal new input(model): {u_0+d_new}")
     print(f"Euclidean norm of d_new(model): {np.linalg.norm(d_new)}")
     print(f"optimal new output(model): {model[0](theta,u_0,d_new,GP_m)}")
@@ -262,7 +262,7 @@ if __name__ == '__main__':
     print(f"GP model: {GP_m.GP_inference_np(u_0+d_new)}")
 
     ## Check if new observation provides min in trust region
-    print("#___Check if plant system agrees with new observation___#")
+    print("\n#___Check if plant system agrees with new observation___#")
     cons = []
     cons.append({'type': 'ineq',
                  'fun': lambda u: plant_system[1](u)})

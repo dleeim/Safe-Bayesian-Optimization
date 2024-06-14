@@ -1,6 +1,8 @@
 import numpy as np
-n_test = 10
-Xtest = np.linspace(-10,10,n_test).reshape(-1,1)
+# u is a list of lists (2D array)
+u = np.array([1, 2, 3])
+u = np.atleast_2d(u)
 
-print(Xtest)
-
+# Print all columns of the second row
+print(u.shape)  
+print(u)
