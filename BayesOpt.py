@@ -1,12 +1,15 @@
 # GP model from https://github.com/OptiMaL-PSE-Lab/Gaussian-Process-from-scratch
+# Reference: [1] E. Bradford, A. M. Schweidtmann, D. Zhang, K. Jing, E. A. del Rio-Chanona, Dynamic modeling and optimization of sustainable algal production with uncertainty using multivariate Gaussian processes, Comp. Chem. Eng., 118, 143-158, 2018
+# Reference: [2] Gaussian Processes for Machine Learning, C.E. Rasmussen and C.K.I. Williams, The MIT Press, 2006. ISBN 0-262-18253-X.
 
 import numpy as np
-import time
 import numpy.random as rnd
 from scipy.spatial.distance import cdist
 import sobol_seq
 from scipy.optimize import minimize
 import matplotlib.pyplot as plt
+import imageio
+import os
 
 class BayesianOpt():
     
@@ -223,8 +226,7 @@ class BayesianOpt():
         # determine hyperparameters
         self.hypopt, self.invKopt   = self.determine_hyperparameters() 
 
-        pass
-
+# Test Cases
 if __name__ == '__main__':
     
     ##### --- Data ---#####
@@ -237,17 +239,21 @@ if __name__ == '__main__':
     # eps    = np.random.normal(0, 1e-3, ndata)
     # ytrain = fx + eps.reshape(ndata,1)
 
-    # --- define test data --- #
-    n_test      = 30
-    Xtest       = np.linspace(-7.0, 5.0, num=n_test)
-    fx_test     = np.sin(Xtest)
-    Ytest_mean  = np.zeros(n_test)
-    Ytest_std   = np.zeros(n_test)
+    # --- Illustration --- #
+    def illustration():
+        n_test      = 30
+        Xtest       = np.linspace(-7.0, 5.0, num=n_test)
+        fx_test     = np.sin(Xtest)
+        Ytest_mean  = np.zeros(n_test)
+        Ytest_std   = np.zeros(n_test)
+
 
 
     ##### --- Test for Bayesian Optimization ---#####
     # --- build a GP model --- #
     GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
+
+    # --- Plot graph on 
 
     # --- build Bayesian Optimization --- #
     rng = np.random.default_rng()
