@@ -44,6 +44,7 @@ def Benoit_Model_1(theta, u, d=np.array([0,0]), GP_m=None):
 
 
     f = theta[0]*(u[0]+d[0]) ** 2 + theta[1]*(u[1]+d[1]) ** 2
+
     if GP_m != None:
         modifier = GP_m.GP_inference_np(u+d)
         modifier_obj_m = modifier[0][0]
@@ -57,6 +58,7 @@ def con1_Model(theta, u, d=np.array([0,0]), GP_m=None):
         raise ValueError("Define u and d as np.array")
 
     g1 = 1. - theta[2]*(u[0]+d[0]) + theta[3]*(u[1]+d[1]) ** 2
+
     if GP_m != None:
         modifier = GP_m.GP_inference_np(u+d)
         modifier_con_m = modifier[0][1]

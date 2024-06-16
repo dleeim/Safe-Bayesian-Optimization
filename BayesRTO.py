@@ -11,7 +11,7 @@ class Bayesian_RTO():
 
     def __init__(self) -> None:
         '''
-        Global Variables:
+        Global Variables:```
             n_sample                        : number of sample given
             u_dim                           : dimension of input
             n_fun                           : number of obj functions and constraints we want to measure
@@ -160,7 +160,7 @@ class Bayesian_RTO():
         return theta, GP_m
 
     ####################################################
-    #######______Cost Function Optimization______#######
+    #######______New Observation______#######
     ####################################################
     def observation_trustregion(self,r,u_0,theta,GP_m):
         '''
@@ -172,22 +172,25 @@ class Bayesian_RTO():
         Results:
             result.x: a distance from input u_0 to observe the corresponding output of function
         '''
-        d0 = [0,0]
+        d0 = np.array([0,0])
         cons = []
 
         # Collect All objective function and constraints(model constraint + trust region)
         for i in range(self.n_fun):
             if i == 0:
-                obj_fun = lambda d: self.model[i](theta, u_0, d, GP_m)
+                obj_fun = lambda d,theta,u_0,GP_m: self.model[i](theta, u_0, d, GP_m)
             else:
                 cons.append({'type': 'ineq',
-                             'fun': lambda d: self.model[i](theta, u_0, d, GP_m)})
+                             'fun': lambda d,theta,u_0,GP_m: self.model[i](theta, u_0, d, GP_m)})
         
         cons.append({'type': 'ineq',
                      'fun': lambda d: r - np.linalg.norm(d)})
         
+        cons = tuple(cons)
+        
         result = minimize((obj_fun),
                         d0,
+                        args=(theta, u_0, GP_m),
                         constraints = cons,
                         method      ='SLSQP',
                         options     = {'ftol': 1e-9})
@@ -225,7 +228,7 @@ if __name__ == '__main__':
     print("sampled input:")
     print(BRTO.input_sample)
     print(f'parameter theta: {theta}')
-    u_0 = np.array([4,-1])
+    u_0 = np.array([2.15956118, -1.42712019])
     d_0 = np.array([0,0])
     print(f"input = {u_0}")
     ## Test if GP model is working fine
