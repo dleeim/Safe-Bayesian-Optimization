@@ -49,7 +49,7 @@ def Benoit_Model_1(theta, u, d=np.array([0,0]), GP_m=None):
         modifier = GP_m.GP_inference_np(u+d)
         modifier_obj_m = modifier[0][0]
         f += modifier_obj_m
-    
+
     return f
 
 def con1_Model(theta, u, d=np.array([0,0]), GP_m=None):
@@ -63,6 +63,5 @@ def con1_Model(theta, u, d=np.array([0,0]), GP_m=None):
         modifier = GP_m.GP_inference_np(u+d)
         modifier_con_m = modifier[0][1]
         g1 -= modifier_con_m
-        # print(f"modifier: {modifier_con_m}")
     
     return -g1

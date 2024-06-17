@@ -162,7 +162,7 @@ class Bayesian_RTO():
     ####################################################
     #######______New Observation______#######
     ####################################################
-    def observation_trustregion(self,r,u_0,theta,GP_m):
+    def optimize_acquisition(self,r,u_0,theta,GP_m):
         '''
         Description:
         Argument:
@@ -178,23 +178,22 @@ class Bayesian_RTO():
         # Collect All objective function and constraints(model constraint + trust region)
         for i in range(self.n_fun):
             if i == 0:
-                obj_fun = lambda d,theta,u_0,GP_m: self.model[i](theta, u_0, d, GP_m)
+                obj_fun = lambda d: self.model[0](theta, u_0, d, GP_m)
             else:
                 cons.append({'type': 'ineq',
-                             'fun': lambda d,theta,u_0,GP_m: self.model[i](theta, u_0, d, GP_m)})
-        
+                             'fun': lambda d: self.model[i](theta, u_0, d, GP_m)})
+                
         cons.append({'type': 'ineq',
                      'fun': lambda d: r - np.linalg.norm(d)})
         
         cons = tuple(cons)
-        
+
         result = minimize((obj_fun),
                         d0,
-                        args=(theta, u_0, GP_m),
                         constraints = cons,
                         method      ='SLSQP',
                         options     = {'ftol': 1e-9})
-        
+
         return result.x
 
 
@@ -246,10 +245,10 @@ if __name__ == '__main__':
     print(f"variance: {modifier[1]}")
 
     # Test Case 2: Test on observation_trustregion
-    print("\n #######______Test Case: observation_trustregion______#######")
+    print("\n #######______Test Case: optimization aquisition______#######")
     ## Find info on old observation
     print("#___Find info on old observation___#")
-    d_new = BRTO.observation_trustregion(r_i,u_0,theta,GP_m)
+    d_new = BRTO.optimize_acquisition(r_i,u_0,theta,GP_m)
     print(f"optimal old input(model): {u_0}")
     print(f"optimal old output(model): {model[0](theta,u_0,d_0,GP_m)}")
     print(f"old constraint(model): {model[1](theta,u_0,d_0,GP_m)}")
@@ -257,7 +256,7 @@ if __name__ == '__main__':
 
 
     ## Find info on new observation
-    print("\n#___Find info on new observation and see if improved___#")
+    print("\n #___Find info on new observation and see if improved___#")
     print(f"optimal new input(model): {u_0+d_new}")
     print(f"Euclidean norm of d_new(model): {np.linalg.norm(d_new)}")
     print(f"optimal new output(model): {model[0](theta,u_0,d_new,GP_m)}")
@@ -281,6 +280,35 @@ if __name__ == '__main__':
     print(f"optimal new output(plant system): {result.fun}")
     print(f"new constraint(plant system): {plant_system[1](result.x)}")
 
+    ########_________Test case 3: Real Time Optimization_________########
+    print("\n ########_________Test case 3: Real Time Optimization_________########")
+    n_sample            = 4
+    u_0                 = np.array([4.,-1.])
+    theta_0             = np.array([1.,1.,1.,1.])
+    r                   = 1
+    n_iter = 20
+    for i in range(n_iter):
+
+        # New observation
+        d_new = BRTO.optimize_acquisition(r,u_0,theta,GP_m)
+        # Collect data on new observation
+        u_new = u_0 + d_new
+        modifier = BRTO.modifier_calc(theta,u_new)
+
+        # Improve GP model using collected data on new observation
+        GP_m.add_sample(u_new,modifier)
+
+        # for next iter + data collection
+        u_0 = u_new
+
+        print(f"u_new: {u_new}")
+        print(f"d_new: {d_new}")
+        print(f"mag d_new: {np.linalg.norm(d_new)}")
+
+    print(f"obj func after RTO : {Benoit_Problem.Benoit_Model_1(theta,u_new,np.array([0,0]),GP_m)}")
+    print(f"const after RTO : {Benoit_Problem.con1_Model(theta,u_new,np.array([0,0]),GP_m)}")
+    print(f"plant obj func after RTO : {Benoit_Problem.Benoit_System_1(u_new)}")
+    print(f"plant const after RTO: {Benoit_Problem.con1_system(u_new)}")
 
 ####____Might be useful for graph____####
 # d_trial_x = np.linspace(-r_i, r_i, 50)

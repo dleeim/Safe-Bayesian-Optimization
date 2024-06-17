@@ -1,4 +1,7 @@
-import numpy as np
+a = [1,2,3,4]
 
-a = np.array([1,2,3])
-print(tuple(a))
+for i in range(4):
+    if i == 0:
+        print(a[i])
+    else:
+        print(2)
