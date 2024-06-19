@@ -162,7 +162,7 @@ class Bayesian_RTO():
     ####################################################
     #######______New Observation______#######
     ####################################################
-    def optimize_acquisition(self,r,u_0,theta,GP_m):
+    def optimize_acquisition(self,r,u_0,theta,GP_m,b=0):
         '''
         Description:
         Argument:
@@ -178,7 +178,7 @@ class Bayesian_RTO():
         # Collect All objective function and constraints(model constraint + trust region)
         for i in range(self.n_fun):
             if i == 0:
-                obj_fun = lambda d: self.model[0](theta, u_0, d, GP_m)
+                obj_fun = lambda d: self.model[0](theta, u_0, d, GP_m, b)
             else:
                 cons.append({'type': 'ineq',
                              'fun': lambda d: self.model[i](theta, u_0, d, GP_m)})
@@ -192,6 +192,7 @@ class Bayesian_RTO():
                         d0,
                         constraints = cons,
                         method      ='SLSQP',
+                        jac         = '3-point',
                         options     = {'ftol': 1e-9})
 
         return result.x
@@ -286,11 +287,11 @@ if __name__ == '__main__':
     u_0                 = np.array([4.,-1.])
     theta_0             = np.array([1.,1.,1.,1.])
     r                   = 1
-    n_iter = 20
+    n_iter = 2
     for i in range(n_iter):
 
         # New observation
-        d_new = BRTO.optimize_acquisition(r,u_0,theta,GP_m)
+        d_new = BRTO.optimize_acquisition(r,u_0,theta,GP_m,b=0.1)
         # Collect data on new observation
         u_new = u_0 + d_new
         modifier = BRTO.modifier_calc(theta,u_new)
@@ -305,22 +306,7 @@ if __name__ == '__main__':
         print(f"d_new: {d_new}")
         print(f"mag d_new: {np.linalg.norm(d_new)}")
 
-    print(f"obj func after RTO : {Benoit_Problem.Benoit_Model_1(theta,u_new,np.array([0,0]),GP_m)}")
-    print(f"const after RTO : {Benoit_Problem.con1_Model(theta,u_new,np.array([0,0]),GP_m)}")
-    print(f"plant obj func after RTO : {Benoit_Problem.Benoit_System_1(u_new)}")
-    print(f"plant const after RTO: {Benoit_Problem.con1_system(u_new)}")
-
-####____Might be useful for graph____####
-# d_trial_x = np.linspace(-r_i, r_i, 50)
-# d_trial_ypos= []
-# d_trial_yneg = []
-# for j in d_trial_x: 
-#     def equations(d):
-#         eq1 = r_i - np.linalg.norm(d)
-#         eq2 = d[0] - j
-#         return [eq1,eq2]
-    
-#     initial_guess = [j,0]
-#     d = fsolve(equations,initial_guess)
-#     d_trial_ypos.append(d[1])
-#     d_trial_yneg.append(-d[1]) 
+        print(f"obj func after RTO : {Benoit_Problem.Benoit_Model_1(theta,u_new,np.array([0,0]),GP_m)}")
+        print(f"const after RTO : {Benoit_Problem.con1_Model(theta,u_new,np.array([0,0]),GP_m)}")
+        print(f"plant obj func after RTO : {Benoit_Problem.Benoit_System_1(u_new)}")
+        print(f"plant const after RTO: {Benoit_Problem.con1_system(u_new)}")

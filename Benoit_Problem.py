@@ -37,7 +37,7 @@ def con1_system_tight(u, noise = 0):
 
 
 # Model of Plant System
-def Benoit_Model_1(theta, u, d=np.array([0,0]), GP_m=None):
+def Benoit_Model_1(theta, u, d=np.array([0,0]), GP_m=None, b=0):
 
     if type(u) != np.ndarray or type(d) != np.ndarray:
         raise ValueError("Define u and d as np.array")
@@ -47,12 +47,13 @@ def Benoit_Model_1(theta, u, d=np.array([0,0]), GP_m=None):
 
     if GP_m != None:
         modifier = GP_m.GP_inference_np(u+d)
-        modifier_obj_m = modifier[0][0]
-        f += modifier_obj_m
+        mean = modifier[0][0]
+        var = modifier[1][0]
+        f += mean - b*var
 
     return f
 
-def con1_Model(theta, u, d=np.array([0,0]), GP_m=None):
+def con1_Model(theta, u, d=np.array([0,0]), GP_m=None, b=0):
 
     if type(u) != np.ndarray or type(d) != np.ndarray:
         raise ValueError("Define u and d as np.array")
@@ -61,7 +62,8 @@ def con1_Model(theta, u, d=np.array([0,0]), GP_m=None):
 
     if GP_m != None:
         modifier = GP_m.GP_inference_np(u+d)
-        modifier_con_m = modifier[0][1]
-        g1 -= modifier_con_m
+        mean = modifier[0][1]
+        var = modifier[1][1]
+        g1 -= mean - b*var
     
     return -g1
