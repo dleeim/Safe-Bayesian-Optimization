@@ -158,6 +158,10 @@ class Bayesian_RTO():
         GP_m = BayesOpt.BayesianOpt(input_sample, modifier, 'RBF', multi_hyper=1, var_out=True)
 
         return theta, GP_m
+    
+    def GP_model(self,i,GP_m):
+        
+        pass
 
     ####################################################
     #######______New Observation______#######
@@ -178,11 +182,15 @@ class Bayesian_RTO():
         # Collect All objective function and constraints(model constraint + trust region)
         for i in range(self.n_fun):
             if i == 0:
-                obj_fun = lambda d: self.model[0](theta, u_0, d, GP_m, b)
+                obj_fun = lambda d: (self.model[0](theta, u_0+d) 
+                                     + GP_m.GP_inference_np(u_0+d)[0][0] # mean
+                                     - b*np.sqrt(GP_m.GP_inference_np(u_0+d)[1][0])) # std
             else:
                 cons.append({'type': 'ineq',
-                             'fun': lambda d: self.model[i](theta, u_0, d, GP_m)})
-                
+                             'fun': lambda d: (self.model[i](theta, u_0+d) 
+                                               + GP_m.GP_inference_np(u_0+d)[0][i] # mean 
+                                               - b*np.sqrt(GP_m.GP_inference_np(u_0+d)[1][i]))}) # std
+ 
         cons.append({'type': 'ineq',
                      'fun': lambda d: r - np.linalg.norm(d)})
         
@@ -232,18 +240,18 @@ if __name__ == '__main__':
     d_0 = np.array([0,0])
     print(f"input = {u_0}")
     ## Test if GP model is working fine
-    modifier = GP_m.GP_inference_np(u_0)
+    GP_modifier = GP_m.GP_inference_np(u_0)
 
     ## Check if plant and model provides same output using sampled data as input
     print("\n #___Check if plant and model provides similar output using sampled data as input___#")
     print(f"plant obj: {plant_system[0](u_0)}")
-    print(f"model obj: {model[0](theta,u_0)+modifier[0][0]}")
+    print(f"model obj: {model[0](theta,u_0)+GP_modifier[0][0]}")
 
     print(f"plant con: {plant_system[1](u_0)}")
-    print(f"model con: {model[1](theta,u_0)+modifier[0][1]}")
+    print(f"model con: {model[1](theta,u_0)+GP_modifier[0][1]}")
     
     ## Check if variance is approx 0 at sampled input
-    print(f"variance: {modifier[1]}")
+    print(f"variance: {GP_modifier[1]}")
 
     # Test Case 2: Test on observation_trustregion
     print("\n #######______Test Case: optimization aquisition______#######")
@@ -251,17 +259,18 @@ if __name__ == '__main__':
     print("#___Find info on old observation___#")
     d_new = BRTO.optimize_acquisition(r_i,u_0,theta,GP_m)
     print(f"optimal old input(model): {u_0}")
-    print(f"optimal old output(model): {model[0](theta,u_0,d_0,GP_m)}")
-    print(f"old constraint(model): {model[1](theta,u_0,d_0,GP_m)}")
+    print(f"optimal old output(model): {model[0](theta,u_0)+GP_modifier[0][0]}")
+    print(f"old constraint(model): {model[1](theta,u_0)+GP_modifier[0][1]}")
     print(f"GP model: {GP_m.GP_inference_np(u_0)}")
 
 
     ## Find info on new observation
+    GP_modifier = GP_m.GP_inference_np(u_0+d_new)
     print("\n #___Find info on new observation and see if improved___#")
     print(f"optimal new input(model): {u_0+d_new}")
     print(f"Euclidean norm of d_new(model): {np.linalg.norm(d_new)}")
-    print(f"optimal new output(model): {model[0](theta,u_0,d_new,GP_m)}")
-    print(f"new constraint(model): {model[1](theta,u_0,d_new,GP_m)}")
+    print(f"optimal new output(model): {model[0](theta,u_0+d_new)+GP_modifier[0][0]}")
+    print(f"new constraint(model): {model[1](theta,u_0+d_new)+GP_modifier[0][1]}")
     print(f"GP model: {GP_m.GP_inference_np(u_0+d_new)}")
 
     ## Check if new observation provides min in trust region
@@ -289,7 +298,7 @@ if __name__ == '__main__':
     r                   = 1
     n_iter = 2
     for i in range(n_iter):
-
+        print(f"####___Iteration: {i}___####")
         # New observation
         d_new = BRTO.optimize_acquisition(r,u_0,theta,GP_m,b=0.1)
         # Collect data on new observation
@@ -305,8 +314,8 @@ if __name__ == '__main__':
         print(f"u_new: {u_new}")
         print(f"d_new: {d_new}")
         print(f"mag d_new: {np.linalg.norm(d_new)}")
-
-        print(f"obj func after RTO : {Benoit_Problem.Benoit_Model_1(theta,u_new,np.array([0,0]),GP_m)}")
-        print(f"const after RTO : {Benoit_Problem.con1_Model(theta,u_new,np.array([0,0]),GP_m)}")
+        GP_modifier = GP_m.GP_inference_np(u_new)
+        print(f"obj func after RTO : {Benoit_Problem.Benoit_Model_1(theta,u_new)+GP_modifier[0][0]}")
+        print(f"const after RTO : {Benoit_Problem.con1_Model(theta,u_new)+GP_modifier[0][1]}")
         print(f"plant obj func after RTO : {Benoit_Problem.Benoit_System_1(u_new)}")
         print(f"plant const after RTO: {Benoit_Problem.con1_system(u_new)}")
