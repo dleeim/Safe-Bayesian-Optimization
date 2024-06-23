@@ -158,10 +158,7 @@ class Bayesian_RTO():
         GP_m = BayesOpt.BayesianOpt(input_sample, modifier, 'RBF', multi_hyper=1, var_out=True)
 
         return theta, GP_m
-    
-    def GP_model(self,i,GP_m):
-        
-        pass
+
 
     ####################################################
     #######______New Observation______#######
