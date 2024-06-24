@@ -63,7 +63,6 @@ class BayesianOpt():
         '''    
         # internal parameters
         nx_dim = self.nx_dim
-
         dist = cdist(Xnorm, xnorm.reshape(1,nx_dim), 'seuclidean', V=ell)**2
         cov_matrix = sf2 * np.exp(-0.5*dist)
 
@@ -131,7 +130,6 @@ class BayesianOpt():
             for j in range(multi_start):
                 # print('multi_start hyper parameter optimization iteration = ',j,'  input dimension = ',i)
                 hyp_init    = lb + (ub-lb)*multi_startvec[j,:]
-
                 # --- hyper-parameter optimization --- #
                 res = minimize(self.negative_loglikelihood,hyp_init,args=(X_norm,Y_norm[:,i])\
                                ,method='SLSQP',options=options,bounds=bounds,tol=1e-12)
@@ -201,10 +199,11 @@ class BayesianOpt():
     def aquisition_func(self,x,b):
         mean, var = self.GP_inference_np(x)
 
-        return mean - b*var
+        return mean - b*np.sqrt(var)
 
     def optimize_acquisition(self,x0,b):
-        result = minimize(self.aquisition_func,x0,args=(b),method='SLSQP',options={'ftol': 1e-9})
+        result = minimize(self.aquisition_func,x0,args=(b),
+                          method='SLSQP',options={'ftol': 1e-9},jac='3-point')
 
         return result.x
     
@@ -253,76 +252,104 @@ if __name__ == '__main__':
     cov_matrix = GP_m.Cov_mat('RBF',GP_m.X_norm,W,sf2)
     print(f"covariance matrix: \n{cov_matrix}")
     
-    ########_________Test for negative log likelihood:
-    print("#########_________Test for negative log likelihood:")
-    hyper = np.array([0.,0.,-5.])
-    NLL = GP_m.negative_loglikelihood
-    print(NLL(hyper,GP_m.X_norm,GP_m.Y_norm))
+    # ########_________Test for negative log likelihood:
+    # print("#########_________Test for negative log likelihood:")
+    # hyper = np.array([0.,0.,-5.])
+    # NLL = GP_m.negative_loglikelihood
+    # print(f"NLL: {NLL(hyper,GP_m.X_norm,GP_m.Y_norm)}")
+    # lb = np.array([-4.] * (GP_m.nx_dim + 1) + [-8.])  # lb on parameters (this is inside the exponential)
+    # ub = np.array([4.] * (GP_m.nx_dim + 1) + [-2.])   # ub on parameters (this is inside the exponential)
+    # bounds = np.hstack((lb.reshape(-1,1),ub.reshape(-1,1)))
+    # options = {'disp':False, 'maxiter':10000}
 
-    ##### --- Test for Bayesian Optimization ---#####
-    print(f"##### --- Test for Bayesian Optimization ---#####")
+    # # optimal hyperparameters with bounds but using jax = '3points'
+    # res = minimize(GP_m.negative_loglikelihood, hyper, args=(GP_m.X_norm, GP_m.Y_norm),
+    #                            method='SLSQP', options=options, bounds=bounds, jac='3point', tol = 1e-12)
+    # print(f"optimal hyperparameters with bounds(scipy minimize SLSQP, jax = '3points'): \n {res.x}")
 
-    # --- (can ignore this function) function for creating file for a frame --- #
-    def create_frame(t,filename):
-        n_test      = 100
-        Xtest       = np.linspace(-10,10,n_test)
-        fx_test     = np.sin(Xtest)
-        Ytest_mean  = np.zeros(n_test)
-        Ytest_std   = np.zeros(n_test)
-        b           = 2
+    # #########_________Test for determining optimal hyperparameter:
+    # print("\n#########_________Test for determining optimal hyperparameter:")
+    # print(f"optimal hyperparameter: \n{GP_m.hypopt} \ninverse of covariance matrix: \n{GP_m.invKopt}")
+    
+    # #########_________Test for GP_inference:
+    # print("\n#########_________Test for GP_inference:")
+    # x_new = np.array([-6])
+    # print(GP_m.GP_inference_np(x_new))
+
+    # #########_________Test for acquisition_func:
+    # print("\n#########_________Test for acquisition_func:")
+    # b = 2
+    # print(GP_m.aquisition_func(x_new,2))
+
+    # #########_________Test for optimize acquisition_func:
+    # print("\n#########_________Test for optimize_acquisition_func:")
+    # x0 = np.array([-1.])
+    # print(GP_m.optimize_acquisition(x0,b))
+
+    # #########_________Test for add_sample:
+    # print("\n#########_________Test for add_sample:")
+    # x_new = np.array([-6.])
+    # y_new = np.sin(x_new)
+    # GP_m.add_sample(x_new,y_new)
+    # print(f"new Xnorm: {GP_m.X_norm}, \nnew Y norm: {GP_m.Y_norm}")
+    # print(f"new hypopt: {GP_m.hypopt}, \nnew invKopt: {GP_m.invKopt}")
+    
+    # ##### --- Test for Bayesian Optimization ---#####
+    # print(f"##### --- Test for Bayesian Optimization ---#####")
+
+    # # --- (can ignore this function) function for creating file for a frame --- #
+    # def create_frame(t,filename):
+    #     n_test      = 100
+    #     Xtest       = np.linspace(-15,15,n_test)
+    #     fx_test     = np.sin(Xtest)
+    #     Ytest_mean  = np.zeros(n_test)
+    #     Ytest_std   = np.zeros(n_test)
+    #     b           = 1.0
         
-        plt.figure()
+    #     plt.figure()
 
-        # plot observed points
-        plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
+    #     # plot observed points
+    #     plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
 
-        # plot the samples of posteriors
-        plt.plot(Xtest, fx_test, 'black', linewidth=1)
+    #     # plot the samples of posteriors
+    #     plt.plot(Xtest, fx_test, 'black', linewidth=1)
 
-        # --- use GP to predict test data --- #
-        for ii in range(n_test):
-            m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
-            Ytest_mean[ii] = m_ii 
-            Ytest_std[ii]  = std_ii
+    #     # --- use GP to predict test data --- #
+    #     for ii in range(n_test):
+    #         m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
+    #         Ytest_mean[ii] = m_ii 
+    #         Ytest_std[ii]  = std_ii
 
-        # plot GP confidence intervals (+- b * standard deviation)
-        plt.gca().fill_between(Xtest.flat, 
-                            Ytest_mean - b*np.sqrt(Ytest_std), 
-                            Ytest_mean + b*np.sqrt(Ytest_std), 
-                            color='C0', alpha=0.2)
+    #     # plot GP confidence intervals (+- b * standard deviation)
+    #     plt.gca().fill_between(Xtest.flat, 
+    #                         Ytest_mean - b*np.sqrt(Ytest_std), 
+    #                         Ytest_mean + b*np.sqrt(Ytest_std), 
+    #                         color='C0', alpha=0.2)
 
-        # plot GP mean
-        plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
+    #     # plot GP mean
+    #     plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
 
-        plt.axis([-20, 20, -2, 3])
-        plt.title(f'Gaussian Process Regression at iteration: {int(t*10)}')
-        plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
-                loc='lower right')
+    #     plt.axis([-20, 20, -2, 3])
+    #     plt.title(f'Gaussian Process Regression at iteration: {int(t*10)}')
+    #     plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
+    #             loc='lower right')
         
-        plt.savefig(filename)
-        plt.close()
+    #     plt.savefig(filename)
+    #     plt.close()
 
-    # --- define training data --- #
-    Xtrain = np.array([-4, -1, 1, 2])
-    ndata  = Xtrain.shape[0]
-    Xtrain = Xtrain.reshape(ndata,1)
-    fx     = np.sin(Xtrain)
-    ytrain = fx
-    print(f"Train data: \n Xtrain: {Xtrain.reshape(1,-1)} \n ytrain: {ytrain.reshape(1,-1)} \n")
-
-    # --- build a GP model --- #
-    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
-
-    # # --- check for Gaussian Process Model at initial state --- #
-    # print(f"# --- check for Gaussian Process Model after initialization --- # \n")
-    # print(f"Mean and Variance at x = -4: {GP_m.GP_inference_np(-4)})")
-    # print(f"Mean and Variance at x = -7: {GP_m.GP_inference_np(-7)})")
 
     # # --- build Bayesian Optimization --- #
     # n_iter = 10
     # rng = np.random.default_rng()
     # x0 = rng.choice(Xtrain) # random choice from the train data
-    # b = 2   # exploration factor
+    # x0 = np.array([-6.])
+    # b = 1.   # exploration factor
+
+    # # --- GP initialization --- #
+    # Xtrain = np.array([-4, -1, 1, 2]).reshape(-1,1)
+    # ytrain = np.sin(Xtrain)
+
+    # GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
 
     # # --- Do Bayesian Optmization --- #
     # filenames = []
@@ -341,7 +368,6 @@ if __name__ == '__main__':
 
     #     # For next iteration
     #     x0 = x_new
-
 
     #     if i == n_iter-1:
     #         # create a last frame

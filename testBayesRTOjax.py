@@ -127,22 +127,18 @@ class BayesianOpt():
         for i in range(ny_dim):
             for j in range(multi_start):
                 hyp_init    = lb + (ub - lb) * multi_startvec[j,:]
-                print(f"hyp_init: {hyp_init}, type: {type(hyp_init)}")
-                print(f"X norm, Y norm : {X_norm, Y_norm[:, i]}")
-                # res = minimize(self.negative_loglikelihood, hyp_init, args=(X_norm, Y_norm[:, i]),
-                #                method='SLSQP', options=options, bounds=bounds, jac='3-point', tol = 1e-12)
-                res = minimize(self.negative_loglikelihood,hyp_init,args=(X_norm, Y_norm[:, i]),method='BFGS',tol=1e-12)
+                res = minimize(self.negative_loglikelihood, hyp_init, args=(X_norm, Y_norm[:, i]),
+                               method='SLSQP', options=options, bounds=bounds, jac='3-point', tol = 1e-12)
+                # res = minimize(self.negative_loglikelihood,hyp_init,args=(X_norm, Y_norm[:, i]),method='BFGS',tol=1e-12)
                 localsol[j] = res.x
                 localval = localval.at[j].set(res.fun)
-            
-                print(f"results: {res.x, res.fun}")
 
             # --- choosing best solution --- #
             minindex    = jnp.argmin(localval)
             hypopt      = hypopt.at[:,i].set(localsol[minindex])
             ellopt      = jnp.exp(2. * hypopt[:nx_dim,i])
             sf2opt      = jnp.exp(2. * hypopt[nx_dim,i])
-            sn2opt      = jnp.exp(2. * hypopt[nx_dim+1,i]) + 1e-8
+            sn2opt      = jnp.exp(2. * hypopt[nx_dim+1,i])
 
             Kopt        = self.Cov_mat(kernel, X_norm, ellopt, sf2opt) + sn2opt * jnp.eye(n_point)
             invKopt     += [jnp.linalg.solve(Kopt, jnp.eye(n_point))]
