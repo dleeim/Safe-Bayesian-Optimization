@@ -231,26 +231,26 @@ class BayesianOpt():
 # Test Cases
 if __name__ == '__main__':
 
-    ##### --- Test for Gaussian Process ---#####
-    print("###########________Gaussian Process_________############")
+    # ##### --- Test for Gaussian Process ---#####
+    # print("###########________Gaussian Process_________############")
 
-    #########_________Test for __init__:
-    print("#########_________Test for __init__:")
-    # --- define training data --- #
-    Xtrain = np.array([-4, -1, 1, 2]).reshape(-1,1)
-    ytrain = np.sin(Xtrain)
-    print(f"Train data: \n Xtrain: {Xtrain.reshape(1,-1)} \n ytrain: {ytrain.reshape(1,-1)}")
+    # #########_________Test for __init__:
+    # print("#########_________Test for __init__:")
+    # # --- define training data --- #
+    # Xtrain = np.array([-4, -1, 1, 2]).reshape(-1,1)
+    # ytrain = np.sin(Xtrain)
+    # print(f"Train data: \n Xtrain: {Xtrain.reshape(1,-1)} \n ytrain: {ytrain.reshape(1,-1)}")
 
-    # --- GP initialization --- #
-    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
-    print(f"X norm: \n{GP_m.X_norm.reshape(1,-1)} \n Y norm: \n{GP_m.Y_norm.reshape(1,-1)}")
+    # # --- GP initialization --- #
+    # GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
+    # print(f"X norm: \n{GP_m.X_norm.reshape(1,-1)} \n Y norm: \n{GP_m.Y_norm.reshape(1,-1)}")
 
-    #########_________Test for Cov_mat:
-    print("#########_________Test for Cov_mat:")
-    W = np.exp(np.array([0.]))
-    sf2 = np.exp(np.array([0.]))
-    cov_matrix = GP_m.Cov_mat('RBF',GP_m.X_norm,W,sf2)
-    print(f"covariance matrix: \n{cov_matrix}")
+    # #########_________Test for Cov_mat:
+    # print("#########_________Test for Cov_mat:")
+    # W = np.exp(np.array([0.]))
+    # sf2 = np.exp(np.array([0.]))
+    # cov_matrix = GP_m.Cov_mat('RBF',GP_m.X_norm,W,sf2)
+    # print(f"covariance matrix: \n{cov_matrix}")
     
     # ########_________Test for negative log likelihood:
     # print("#########_________Test for negative log likelihood:")
@@ -294,104 +294,104 @@ if __name__ == '__main__':
     # print(f"new Xnorm: {GP_m.X_norm}, \nnew Y norm: {GP_m.Y_norm}")
     # print(f"new hypopt: {GP_m.hypopt}, \nnew invKopt: {GP_m.invKopt}")
     
-    # ##### --- Test for Bayesian Optimization ---#####
-    # print(f"##### --- Test for Bayesian Optimization ---#####")
+    ##### --- Test for Bayesian Optimization ---#####
+    print(f"##### --- Test for Bayesian Optimization ---#####")
 
-    # # --- (can ignore this function) function for creating file for a frame --- #
-    # def create_frame(t,filename):
-    #     n_test      = 100
-    #     Xtest       = np.linspace(-15,15,n_test)
-    #     fx_test     = np.sin(Xtest)
-    #     Ytest_mean  = np.zeros(n_test)
-    #     Ytest_std   = np.zeros(n_test)
-    #     b           = 1.0
+    # --- (can ignore this function) function for creating file for a frame --- #
+    def create_frame(t,filename):
+        n_test      = 100
+        Xtest       = np.linspace(-15,15,n_test)
+        fx_test     = np.sin(Xtest)
+        Ytest_mean  = np.zeros(n_test)
+        Ytest_std   = np.zeros(n_test)
+        b           = 1.0
         
-    #     plt.figure()
+        plt.figure()
 
-    #     # plot observed points
-    #     plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
+        # plot observed points
+        plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
 
-    #     # plot the samples of posteriors
-    #     plt.plot(Xtest, fx_test, 'black', linewidth=1)
+        # plot the samples of posteriors
+        plt.plot(Xtest, fx_test, 'black', linewidth=1)
 
-    #     # --- use GP to predict test data --- #
-    #     for ii in range(n_test):
-    #         m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
-    #         Ytest_mean[ii] = m_ii 
-    #         Ytest_std[ii]  = std_ii
+        # --- use GP to predict test data --- #
+        for ii in range(n_test):
+            m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
+            Ytest_mean[ii] = m_ii 
+            Ytest_std[ii]  = std_ii
 
-    #     # plot GP confidence intervals (+- b * standard deviation)
-    #     plt.gca().fill_between(Xtest.flat, 
-    #                         Ytest_mean - b*np.sqrt(Ytest_std), 
-    #                         Ytest_mean + b*np.sqrt(Ytest_std), 
-    #                         color='C0', alpha=0.2)
+        # plot GP confidence intervals (+- b * standard deviation)
+        plt.gca().fill_between(Xtest.flat, 
+                            Ytest_mean - b*np.sqrt(Ytest_std), 
+                            Ytest_mean + b*np.sqrt(Ytest_std), 
+                            color='C0', alpha=0.2)
 
-    #     # plot GP mean
-    #     plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
+        # plot GP mean
+        plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
 
-    #     plt.axis([-20, 20, -2, 3])
-    #     plt.title(f'Gaussian Process Regression at iteration: {int(t*10)}')
-    #     plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
-    #             loc='lower right')
+        plt.axis([-20, 20, -2, 3])
+        plt.title(f'Gaussian Process Regression at iteration: {int(t*10)}')
+        plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
+                loc='lower right')
         
-    #     plt.savefig(filename)
-    #     plt.close()
+        plt.savefig(filename)
+        plt.close()
 
 
-    # # --- build Bayesian Optimization --- #
-    # n_iter = 10
-    # rng = np.random.default_rng()
-    # x0 = rng.choice(Xtrain) # random choice from the train data
-    # x0 = np.array([-6.])
-    # b = 1.   # exploration factor
+    # --- GP initialization --- #
+    Xtrain = np.array([-4, -1, 1, 2]).reshape(-1,1)
+    ytrain = np.sin(Xtrain)
 
-    # # --- GP initialization --- #
-    # Xtrain = np.array([-4, -1, 1, 2]).reshape(-1,1)
-    # ytrain = np.sin(Xtrain)
+    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
 
-    # GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
+    # --- build Bayesian Optimization --- #
+    n_iter = 10
+    rng = np.random.default_rng()
+    x0 = rng.choice(Xtrain) # random choice from the train data
+    x0 = np.array([-6.])
+    b = 1.   # exploration factor
 
-    # # --- Do Bayesian Optmization --- #
-    # filenames = []
-    # for i in range(n_iter):
+    # --- Do Bayesian Optmization --- #
+    filenames = []
+    for i in range(n_iter):
         
-    #     # create a frame
-    #     t = i * 0.1
-    #     filename = f'frame_{i:02d}.png'
-    #     create_frame(t,filename)
-    #     filenames.append(filename)
+        # create a frame
+        t = i * 0.1
+        filename = f'frame_{i:02d}.png'
+        create_frame(t,filename)
+        filenames.append(filename)
 
-    #     # New Observation
-    #     x_new = GP_m.optimize_acquisition(x0,b)
-    #     y_new = np.sin(x_new)
-    #     GP_m.add_sample(x_new,y_new)
+        # New Observation
+        x_new = GP_m.optimize_acquisition(x0,b)
+        y_new = np.sin(x_new)
+        GP_m.add_sample(x_new,y_new)
 
-    #     # For next iteration
-    #     x0 = x_new
+        # For next iteration
+        x0 = x_new
 
-    #     if i == n_iter-1:
-    #         # create a last frame
-    #         t = n_iter * 0.1
-    #         filename = f'frame_{n_iter:02d}.png'
-    #         create_frame(t,filename)
-    #         filenames.append(filename)
+        if i == n_iter-1:
+            # create a last frame
+            t = n_iter * 0.1
+            filename = f'frame_{n_iter:02d}.png'
+            create_frame(t,filename)
+            filenames.append(filename)
 
-    # # create a GIF from saved frames
-    # frame_duration = 1000
-    # with imageio.get_writer('BayesOptforsine.gif', mode='I', duration=frame_duration) as writer:
-    #     for filename in filenames:
-    #         image = imageio.imread(filename)
-    #         writer.append_data(image)
+    # create a GIF from saved frames
+    frame_duration = 1000
+    with imageio.get_writer('BayesOptforsine.gif', mode='I', duration=frame_duration) as writer:
+        for filename in filenames:
+            image = imageio.imread(filename)
+            writer.append_data(image)
     
-    # # remove individual frame files
-    # for filename in filenames:
-    #     os.remove(filename)
+    # remove individual frame files
+    for filename in filenames:
+        os.remove(filename)
 
 
-    # print(f"# --- check result on bayesian optimization --- # \n")
-    # print(f"no of iteration: {n_iter}")
-    # print(f"observation x: {GP_m.X.reshape(1,-1)}")
-    # print(f"observation y: {GP_m.Y.reshape(1,-1)}")
+    print(f"# --- check result on bayesian optimization --- # \n")
+    print(f"no of iteration: {n_iter}")
+    print(f"observation x: {GP_m.X.reshape(1,-1)}")
+    print(f"observation y: {GP_m.Y.reshape(1,-1)}")
 
 
     # # Test for Irregular Case   

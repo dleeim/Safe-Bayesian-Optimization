@@ -37,7 +37,7 @@ class BayesianOpt():
         self.Y_mean, self.Y_std     = jnp.mean(Y, axis=0), jnp.std(Y, axis=0)
         self.X_norm, self.Y_norm    = (X-self.X_mean)/self.X_std, (Y-self.Y_mean)/self.Y_std
 
-        self.hypopt, self.invKopt   = self.determine_hyperparameters()
+        # self.hypopt, self.invKopt   = self.determine_hyperparameters()
 
     ######################################################
         # --- Standardized Euclidean Distance --- #
@@ -56,14 +56,14 @@ class BayesianOpt():
             dis_mat                 : matrix with elements as standardized euclidean distance 
                                       between two input data X and Y
         '''
+        # epsilon                     = jnp.finfo(jnp.float32).eps
         V_sqrt                      = V**-0.5
         X_adjusted                  = X*V_sqrt
         Y_adjusted                  = Y*V_sqrt
 
         # Need to add epsilon to prevent numerical instability caused when jax grad is used on 
         # negative log likelihood method
-        epsilon                     = jnp.finfo(jnp.float64).eps
-        dist_mat                    = jnp.linalg.norm(X_adjusted[:,None,:]-Y_adjusted[None,:,:]+epsilon,axis=-1)
+        dist_mat                    = jnp.linalg.norm(X_adjusted[:,None,:]-Y_adjusted[None,:,:])
         return dist_mat
     
     ######################################################
@@ -150,6 +150,7 @@ class BayesianOpt():
         logdetK                     = 2 * jnp.sum(jnp.log(jnp.diag(L))) # calculate the log of the determinant of K
         invLY                       = jax.scipy.linalg.solve_triangular(L, Y, lower=True) # obtain L^{-1}*Y
         alpha                       = jax.scipy.linalg.solve_triangular(L.T, invLY, lower=False) # obtain (L.T L)^{-1}*Y = K^{-1}*Y
+
         NLL                         = jnp.dot(Y.T, alpha)[0][0] + logdetK # construct the NLL
 
         return NLL
@@ -176,7 +177,6 @@ class BayesianOpt():
         
         multi_start                 = self.multi_hyper                          # multistart on hyperparameter optimization
         multi_startvec              = sobol_seq.i4_sobol_generate(self.nx_dim + 2, multi_start)
-        
         options                     = {'disp':False,'maxiter':10000}          # solver options
         hypopt                      = jnp.zeros((self.nx_dim+2, self.ny_dim))            # hyperparams w's + sf2+ sn2 (one for each GP i.e. output var)
         localsol                    = [0.]*multi_start                        # values for multistart
@@ -188,12 +188,10 @@ class BayesianOpt():
         for i in range(self.ny_dim):
             for j in range(multi_start):
                 hyp_init            = jnp.array(lb + (ub - lb) * multi_startvec[j,:])
-                res                 = minimize(NLL, hyp_init, args=(self.X_norm, self.Y_norm[:,i:i+1]),
-                                               method='SLSQP', options=options,bounds=bounds, jac="3-point", tol=1e-12)
+                res                 = minimize(NLL_value_and_grad, hyp_init, args=(self.X_norm, self.Y_norm[:,i:i+1]),
+                                               method='SLSQP', options=options,bounds=bounds, jac=True, tol=jnp.finfo(jnp.float32).eps)
                 localsol[j]         = res.x
                 localval            = localval.at[j].set(res.fun)
-            print("localsol: ",localsol)
-            print("localval: ",localval)
 
             # --- choosing best solution --- #
             minindex                = jnp.argmin(localval)
@@ -204,9 +202,6 @@ class BayesianOpt():
 
             Kopt                    = self.Cov_mat(self.kernel,self.X_norm,self.X_norm,ellopt,sf2opt) + sn2opt*jnp.eye(self.n_point)
             invKopt                 += [jnp.linalg.inv(Kopt)]
-
-            print("X norm: ", self.X_norm)
-            print("Kopt: ", Kopt)
 
         return hypopt, invKopt
     
@@ -266,7 +261,7 @@ class BayesianOpt():
     def optimize_acquisition(self, x0, b):     
         acquisition_func_value_and_grad = value_and_grad(self.aquisition_func, argnums=0)
         result = minimize(acquisition_func_value_and_grad,x0,args=(b),
-                          method='SLSQP',options={'ftol': 1e-9},jac=True)
+                          method='SLSQP',options={'ftol': jnp.finfo(jnp.float32).eps},jac=True)
 
         return result.x
     
@@ -289,17 +284,24 @@ class BayesianOpt():
 
 if __name__ == '__main__':
 
-    # #########_________Test for __init__:
-    # print("#########_________Test for __init__:")
-    # # --- define training data --- #
-    # Xtrain = jnp.array([0.6977621,0.68817824,0.7073464,0.7169304,-1.2094676,-1.6007491]).reshape(-1,1)
-    # ytrain    = jnp.sin(Xtrain)
-    # nx_dim = Xtrain.shape[1]
-    # print(f"Train data: \n Xtrain: {Xtrain.reshape(1,-1)} \n ytrain: {ytrain.reshape(1,-1)}")
+    #########_________Test for __init__:
+    print("#########_________Test for __init__:")
+    # --- define training data --- #
+    Xtrain = jnp.array([0.6977621,0.68817824,0.7073464,0.7169304,-1.2094676,-1.6007491]).reshape(-1,1)
+    ytrain    = jnp.sin(Xtrain)
+    nx_dim = Xtrain.shape[1]
+    print(f"Train data: \n Xtrain: {Xtrain.reshape(1,-1)} \n ytrain: {ytrain.reshape(1,-1)}")
 
-    # # --- GP initialization --- #
-    # GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
-    # print(f"X norm: \n{GP_m.X_norm.reshape(1,-1)} \n Y norm: \n{GP_m.Y_norm.reshape(1,-1)}")
+    # --- GP initialization --- #
+    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
+    print(f"X norm: \n{GP_m.X_norm.reshape(1,-1)} \n Y norm: \n{GP_m.Y_norm.reshape(1,-1)}")
+
+    #########_________Test for seuclidean_jax:
+    print("\n#########_________Test for seuclidean_jax:")
+    print(GP_m.seuclidean_jax(GP_m.X_norm,GP_m.X_norm,jnp.exp(2*jnp.array([0.]))))
+    s_grad = grad(GP_m.seuclidean_jax,argnums=2)
+    print(s_grad(GP_m.X_norm,GP_m.X_norm,jnp.array([1.])))
+
 
     # #########_________Test for Cov_mat:
     # print("\n#########_________Test for Cov_mat:")
@@ -358,94 +360,138 @@ if __name__ == '__main__':
     # print(f"new Xnorm: {GP_m.X_norm}, \nnew Y norm: {GP_m.Y_norm}")
     # print(f"new hypopt: {GP_m.hypopt}, \nnew invKopt: {GP_m.invKopt}")
     
-    #########_________Test for Bayesian Optimization:
-    print("\n#########_________Test for Bayesian Optimization:")
+    # #########_________Test for Bayesian Optimization:
+    # print("\n#########_________Test for Bayesian Optimization:")
 
-    # --- (can ignore this function) function for creating file for a frame --- #
-    def create_frame(t,filename):
-        n_test      = 200
-        Xtest       = jnp.linspace(-20.,20.,n_test)
-        fx_test     = jnp.sin(Xtest)
-        Ytest_mean  = jnp.zeros(n_test)
-        Ytest_std   = jnp.zeros(n_test)
-        b           = 1.
+    # # --- (can ignore this function) function for creating file for a frame --- #
+    # def create_frame(t,filename):
+    #     n_test      = 200
+    #     Xtest       = jnp.linspace(-20.,20.,n_test)
+    #     fx_test     = jnp.sin(Xtest)
+    #     Ytest_mean  = jnp.zeros(n_test)
+    #     Ytest_std   = jnp.zeros(n_test)
+    #     b           = 1.
         
-        plt.figure()
+    #     plt.figure()
 
-        # plot observed points
-        plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
+    #     # plot observed points
+    #     plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
 
-        # plot the samples of posteriors
-        plt.plot(Xtest, fx_test, 'black', linewidth=1)
+    #     # plot the samples of posteriors
+    #     plt.plot(Xtest, fx_test, 'black', linewidth=1)
 
-        # --- use GP to predict test data --- #
-        for ii in range(n_test):
-            m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
-            Ytest_mean = Ytest_mean.at[ii].set(m_ii[0]) 
-            Ytest_std = Ytest_std.at[ii].set(std_ii[0])
+    #     # --- use GP to predict test data --- #
+    #     for ii in range(n_test):
+    #         m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
+    #         Ytest_mean = Ytest_mean.at[ii].set(m_ii[0]) 
+    #         Ytest_std = Ytest_std.at[ii].set(std_ii[0])
 
-        # plot GP confidence intervals (+- b * standard deviation)
-        plt.gca().fill_between(Xtest, 
-                            Ytest_mean - b*jnp.sqrt(Ytest_std), 
-                            Ytest_mean + b*jnp.sqrt(Ytest_std), 
-                            color='C0', alpha=0.2)
+    #     # plot GP confidence intervals (+- b * standard deviation)
+    #     plt.gca().fill_between(Xtest, 
+    #                         Ytest_mean - b*jnp.sqrt(Ytest_std), 
+    #                         Ytest_mean + b*jnp.sqrt(Ytest_std), 
+    #                         color='C0', alpha=0.2)
 
-        # plot GP mean
-        plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
+    #     # plot GP mean
+    #     plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
 
-        plt.axis([-20, 20, -2, 3])
-        plt.title(f'Gaussian Process Regression at iteration: {int(t*10)}')
-        plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
-                loc='lower right')
+    #     plt.axis([-20, 20, -2, 3])
+    #     plt.title(f'Gaussian Process Regression at iteration: {int(t*10)}')
+    #     plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
+    #             loc='lower right')
         
-        plt.savefig(filename)
-        plt.close()
+    #     plt.savefig(filename)
+    #     plt.close()
 
-    # --- build Bayesian Optimization --- #
-    n_iter = 4
-    key = jax.random.PRNGKey(42)
-    # x0 = jax.random.choice(key, Xtrain, replace=True) # random choice from the train data
-    x0 = jnp.array([-6.])
-    b = 1.   # exploration factor
+    # # --- build Bayesian Optimization --- #
+    # n_iter = 4
+    # key = jax.random.PRNGKey(42)
+    # # x0 = jax.random.choice(key, Xtrain, replace=True) # random choice from the train data
+    # x0 = jnp.array([-6.])
+    # b = 1.   # exploration factor
 
-    # --- GP initialization --- #
-    Xtrain = jnp.array([-4.01, -4.02, -4., -3.99]).reshape(-1,1)
-    ytrain = jnp.sin(Xtrain)
+    # # --- GP initialization --- #
+    # Xtrain = jnp.array([-4.01, -4.02, -4., -3.99]).reshape(-1,1)
+    # ytrain = jnp.sin(Xtrain)
 
-    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
+    # GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
 
-    # --- Do Bayesian Optmization --- #
-    filenames = []
-    for i in range(n_iter):
+    # # --- Do Bayesian Optmization --- #
+    # filenames = []
+    # for i in range(n_iter):
         
-        # create a frame
-        t = i * 0.1
-        filename = f'frame_{i:02d}.png'
-        create_frame(t,filename)
-        filenames.append(filename)
+    #     # create a frame
+    #     t = i * 0.1
+    #     filename = f'frame_{i:02d}.png'
+    #     create_frame(t,filename)
+    #     filenames.append(filename)
 
-        # New Observation
-        x_new = GP_m.optimize_acquisition(x0,b)
-        y_new = jnp.sin(x_new)
-        GP_m.add_sample(x_new,y_new)
+    #     # New Observation
+    #     x_new = GP_m.optimize_acquisition(x0,b)
+    #     y_new = jnp.sin(x_new)
+    #     # Xtrain= jnp.vstack([GP_m.X,x_new])
+    #     # ytrain = jnp.vstack([GP_m.Y,y_new])
+    #     # GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
+    #     GP_m.add_sample(x_new,y_new)
 
-        # For next iteration
-        x0 = x_new
+    #     # For next iteration
+    #     x0 = x_new
 
-        if i == n_iter-1:
-            # create a last frame
-            t = n_iter * 0.1
-            filename = f'frame_{n_iter:02d}.png'
-            create_frame(t,filename)
-            filenames.append(filename)
+    #     if i == n_iter-1:
+    #         # create a last frame
+    #         t = n_iter * 0.1
+    #         filename = f'frame_{n_iter:02d}.png'
+    #         create_frame(t,filename)
+    #         filenames.append(filename)
 
-    # create a GIF from saved frames
-    frame_duration = 1000
-    with imageio.get_writer('BayesOptforsine.gif', mode='I', duration=frame_duration) as writer:
-        for filename in filenames:
-            image = imageio.imread(filename)
-            writer.append_data(image)
+    # # create a GIF from saved frames
+    # frame_duration = 1000
+    # with imageio.get_writer('BayesOptforsine.gif', mode='I', duration=frame_duration) as writer:
+    #     for filename in filenames:
+    #         image = imageio.imread(filename)
+    #         writer.append_data(image)
 
-    # remove individual frame files
-    for filename in filenames:
-        os.remove(filename)
+    # # remove individual frame files
+    # for filename in filenames:
+    #     os.remove(filename)
+
+    # Xtrain = jnp.array([[ 0.8189291],
+    #                     [ 0.8121546],
+    #                     [ 0.8257039],
+    #                     [ 0.8324786],
+    #                     [-0.5292279],
+    #                     [-1.0591013],
+    #                     [-1.7009336]])
+    # ytrain = jnp.sin(Xtrain)
+    # GP_m = BayesianOpt(Xtrain,ytrain,'RBF',multi_hyper=2,var_out=True)
+    # print(GP_m.hypopt)
+    # print(GP_m.invKopt)
+    # n_test      = 200
+    # Xtest       = jnp.linspace(-20.,20.,n_test)
+    # fx_test     = jnp.sin(Xtest)
+    # Ytest_mean  = jnp.zeros(n_test)
+    # Ytest_std   = jnp.zeros(n_test)
+    # b           = 1.
+    # plt.figure()
+    # plt.plot(Xtest, fx_test, 'black', linewidth=1)
+
+
+    # for ii in range(n_test):
+    #     m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
+    #     Ytest_mean = Ytest_mean.at[ii].set(m_ii[0]) 
+    #     Ytest_std = Ytest_std.at[ii].set(std_ii[0])
+
+    # # plot GP confidence intervals (+- b * standard deviation)
+    # plt.gca().fill_between(Xtest, 
+    #                     Ytest_mean - b*jnp.sqrt(Ytest_std), 
+    #                     Ytest_mean + b*jnp.sqrt(Ytest_std), 
+    #                     color='C0', alpha=0.2)
+
+    # # plot GP mean
+    # plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
+
+    # plt.axis([-20, 20, -2, 3])
+    # plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
+    #         loc='lower right')
+    
+    # plt.show()

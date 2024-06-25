@@ -1,3 +1,7 @@
 import jax.numpy as jnp
+import numpy as np
+from jax import grad
 
-print(jnp.exp(2*jnp.array([0.87414811])))
+a = np.array([0])
+b = np.array([0])
+print(a/b)
