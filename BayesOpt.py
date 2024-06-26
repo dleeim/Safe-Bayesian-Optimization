@@ -271,6 +271,11 @@ if __name__ == '__main__':
     # print("\n#########_________Test for determining optimal hyperparameter:")
     # print(f"optimal hyperparameter: \n{GP_m.hypopt} \ninverse of covariance matrix: \n{GP_m.invKopt}")
     
+    # #########_________Test for calc_cov_mat:
+    # print("\n#########_________Test for calc_cov_mat:")   
+    # x_new = np.array([-6.])
+    # print(GP_m.calc_cov_sample(x_new,GP_m.X_norm,np.array([1.]),np.array([1.])))
+
     # #########_________Test for GP_inference:
     # print("\n#########_________Test for GP_inference:")
     # x_new = np.array([-6])
@@ -348,7 +353,7 @@ if __name__ == '__main__':
     n_iter = 10
     rng = np.random.default_rng()
     x0 = rng.choice(Xtrain) # random choice from the train data
-    x0 = np.array([-6.])
+    x0 = np.array([-5.])
     b = 1.   # exploration factor
 
     # --- Do Bayesian Optmization --- #

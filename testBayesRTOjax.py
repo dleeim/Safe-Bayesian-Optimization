@@ -1,366 +1,323 @@
-import jax 
 import jax.numpy as jnp
-from jax import grad
+from jax import random
+from jax import grad, jit
 from jax.scipy.optimize import minimize
-# from scipy.optimize import minimize
-import sobol_seq
+from jax.scipy.optimize import fsolve
 import matplotlib.pyplot as plt
-import imageio.v2 as imageio
-import os
+import BayesOpt
+import Benoit_Problem
 
-class BayesianOpt():
-    
-    ###########################
-    # --- initializing GP --- #
-    ###########################    
-    def __init__(self, X, Y, kernel, multi_hyper, var_out=True):
-        
-        # GP variable definitions
-        self.X, self.Y, self.kernel = X, Y, kernel
-        self.n_point, self.nx_dim   = X.shape[0], X.shape[1]
-        self.ny_dim                 = Y.shape[1]
-        self.multi_hyper            = multi_hyper
-        self.var_out                = var_out
+class Bayesian_RTO():
 
-        # normalize data
-        self.X_mean, self.X_std     = jnp.mean(X, axis=0), jnp.std(X, axis=0)
-        self.Y_mean, self.Y_std     = jnp.mean(Y, axis=0), jnp.std(Y, axis=0)
-        self.X_norm, self.Y_norm    = (X-self.X_mean)/self.X_std, (Y-self.Y_mean)/self.Y_std
-        print(f"initial norms: {self.X_norm, self.Y_norm}")
-
-        # determine hyperparameters
-        self.hypopt, self.invKopt   = self.determine_hyperparameters()        
-    
-    #############################
-    # --- Covariance Matrix --- #
-    #############################    
-    
-    def Cov_mat(self, kernel, X_norm, W, sf2):
+    def __init__(self) -> None:
         '''
-        Calculates the covariance matrix of a dataset Xnorm
+        Global Variables:```
+            n_sample                        : number of sample given
+            u_dim                           : dimension of input
+            n_fun                           : number of obj functions and constraints we want to measure
+            plant_system                    : array with obj functions and constraints for plant system
+            model                           : array with obj functions and constraints for model
+            input_sample                    : sampled input data made from Ball_sampling and used for GP initialization
         '''
-    
-        if kernel == 'RBF':
-            dist       = self.calc_cdist(X_norm, X_norm, W)**2 
-            cov_matrix = sf2 * jnp.exp(-0.5 * dist)
-            return cov_matrix
-        else:
-            raise ValueError('ERROR no kernel with name ', kernel)
+        self.n_sample                       = 0
+        self.u_dim                          = 0
+        self.n_fun                          = 0
+        self.plant_system                   = 0
+        self.model                          = 0
+        self.input_sample                   = 0
 
-    ################################
-    # --- Covariance of sample --- #
-    ################################    
-        
-    def calc_cov_sample(self, xnorm, Xnorm, ell, sf2):
+    ###########################################
+    #######______GP Initialization______#######
+    ###########################################
+
+    def Ball_sampling(self,ndim,r_i, key) -> float:
         '''
-        Calculates the covariance of a single sample xnorm against the dataset Xnorm
-        '''    
-        dist = self.calc_cdist(Xnorm, xnorm.reshape(1, self.nx_dim), ell)**2
-        cov_matrix = sf2 * jnp.exp(-0.5 * dist)
-        return cov_matrix
-    
-    def calc_cdist(self, A, B, V):
-        """
-        Custom implementation of cdist using JAX.
-        """
-        A_scaled = A / jnp.sqrt(V)
-        B_scaled = B / jnp.sqrt(V)
-        return jnp.sqrt(jnp.sum((A_scaled[:, None, :] - B_scaled[None, :, :]) ** 2, axis=-1))
-        
-    ###################################
-    # --- negative log likelihood --- #
-    ###################################   
-    
-    def negative_loglikelihood(self, hyper, X, Y):
+        Description:
+            This function samples randomly at (0,0) within a ball of radius r_i.
+            By adding sampled point onto initial point (u1,u2) you will get 
+            randomly sampled points around (u1,u2)
+        Arguments:
+            ndim                            : no of dimensions required for sampled point
+            r_i                             : radius from (0,0) of circle area for sampling
+        Returns: 
+            d_init                          : sampled distances from (0,0)
         '''
-        Computes the negative log likelihood
-        ''' 
-        # internal parameters
-        jax.debug.print('hyper: {}', hyper)
-        n_point, nx_dim = self.n_point, self.nx_dim
-        kernel          = self.kernel
-        W               = jnp.exp(2 * hyper[:nx_dim])   # W <=> 1/lambda
-        sf2             = jnp.exp(2 * hyper[nx_dim])    # variance of the signal 
-        sn2             = jnp.exp(2 * hyper[nx_dim+1])  # variance of noise
-    
-        
-        K       = self.Cov_mat(kernel, X, W, sf2)  # (nxn) covariance matrix (noise free)
-        K       = K + (sn2 + 1e-8) * jnp.eye(n_point) # (nxn) covariance matrix
-        K       = (K + K.T) * 0.5                  # ensure K is symmetric
-        L       = jnp.linalg.cholesky(K)           # do a Cholesky decomposition
-        logdetK = 2 * jnp.sum(jnp.log(jnp.diag(L))) # calculate the log of the determinant of K
-        invLY   = jax.scipy.linalg.solve_triangular(L, Y, lower=True) # obtain L^{-1}*Y
-        alpha   = jax.scipy.linalg.solve_triangular(L.T, invLY, lower=False) # obtain (L.T L)^{-1}*Y = K^{-1}*Y
-        NLL     = jnp.dot(Y.T, alpha) + logdetK      # construct the NLL
+        key, subkey = random.split(key)
+        u = random.normal(subkey, (ndim,))
+        norm = jnp.sqrt(jnp.sum(u**2))
+        r = random.uniform(subkey) ** (1.0 / ndim)
+        d_init = r * u / norm * r_i * 2 
 
-        return NLL
-    
-    # Gradient of the negative log likelihood
-    def negative_loglikelihood_with_grad(self, hyper, X, Y):
-        return self.negative_loglikelihood(hyper, X, Y), grad(self.negative_loglikelihood, argnums=0)(hyper, X, Y)
+        return d_init, key
 
-    ############################################################
-    # --- Minimizing the NLL (hyperparameter optimization) --- #
-    ############################################################   
-    
-    def determine_hyperparameters(self):
+    def WLS(self,theta,input_sample) -> float:
         '''
-        Determines the optimal hyperparameters by minimizing the negative log likelihood.
-        '''   
-        X_norm, Y_norm  = self.X_norm, self.Y_norm
-        nx_dim, n_point = self.nx_dim, self.n_point
-        kernel, ny_dim  = self.kernel, self.ny_dim
-        
-        lb               = jnp.array([-4.] * (nx_dim + 1) + [-8.])  # lb on parameters (this is inside the exponential)
-        ub               = jnp.array([4.] * (nx_dim + 1) + [-2.])   # ub on parameters (this is inside the exponential)
-        bounds           = jnp.hstack((lb.reshape(nx_dim+2,1),
-                                       ub.reshape(nx_dim+2,1)))
-        multi_start      = self.multi_hyper                          # multistart on hyperparameter optimization
-        multi_startvec   = sobol_seq.i4_sobol_generate(nx_dim + 2, multi_start)
-        
-        options  = {'disp':False, 'maxiter':10000}                   # Solver option
-        hypopt   = jnp.zeros((nx_dim + 2, ny_dim))                   # hyperparams w's + sf2 + sn2 (one for each GP i.e. output var)
-        localsol = [0.] * multi_start                                # values for multistart
-        localval = jnp.zeros((multi_start))                          # variables for multistart
-
-        invKopt = []
-        for i in range(ny_dim):
-            for j in range(multi_start):
-                hyp_init    = lb + (ub - lb) * multi_startvec[j,:]
-                res = minimize(self.negative_loglikelihood, hyp_init, args=(X_norm, Y_norm[:, i]),
-                               method='SLSQP', options=options, bounds=bounds, jac='3-point', tol = 1e-12)
-                # res = minimize(self.negative_loglikelihood,hyp_init,args=(X_norm, Y_norm[:, i]),method='BFGS',tol=1e-12)
-                localsol[j] = res.x
-                localval = localval.at[j].set(res.fun)
-
-            # --- choosing best solution --- #
-            minindex    = jnp.argmin(localval)
-            hypopt      = hypopt.at[:,i].set(localsol[minindex])
-            ellopt      = jnp.exp(2. * hypopt[:nx_dim,i])
-            sf2opt      = jnp.exp(2. * hypopt[nx_dim,i])
-            sn2opt      = jnp.exp(2. * hypopt[nx_dim+1,i])
-
-            Kopt        = self.Cov_mat(kernel, X_norm, ellopt, sf2opt) + sn2opt * jnp.eye(n_point)
-            invKopt     += [jnp.linalg.solve(Kopt, jnp.eye(n_point))]
-
-        
-        return hypopt, invKopt
-
-    ########################
-    # --- GP inference --- #
-    ########################     
-    
-    def GP_inference_np(self, x):
+        Description:
+            This function finds the sum of weighted least square between
+            plant system and model. This is used as an min objective function
+            for parameter estimation of a model using sampled data.
+        Argument: 
+            theta                           : parameter used in model obj func and cons.
+            u_sample                        : sample data 
+        Returns:
+            error                           : weighted least square between plant and model with input as sample data
         '''
-        GP inference for new data point x
+        error = 0
+        for i in range(self.n_sample): 
+            u = input_sample[i,:]
+            for j in range(self.n_fun): 
+                error += (self.plant_system[j](u) - self.model[j](theta,u))**2 / jnp.abs(self.plant_system[j](u))
+        return error     
+
+    def parameter_estimation(self,theta,input_sample):
         '''
-        nx_dim                   = self.nx_dim
-        kernel, ny_dim           = self.kernel, self.ny_dim
-        hypopt, Cov_mat          = self.hypopt, self.Cov_mat
-        stdX, stdY, meanX, meanY = self.X_std, self.Y_std, self.X_mean, self.Y_mean
-        calc_cov_sample          = self.calc_cov_sample
-        invKsample               = self.invKopt
-        Xsample, Ysample         = self.X_norm, self.Y_norm
-        var_out                  = self.var_out
+        Description:
+            Uses scipy minimize to find the optimal parameter theta for model that has 
+            smallest difference to plant system using input as sample data. This is used 
+            at method GP_initialization to find optimal theta for model using sampled data.
+        Argument:
+            theta                           : parameter used in model obj func and cons
+            u_sample                        : sample data 
+        Returns:
+            theta_opt                       : parameter theta that makes minimal difference between plant system 
+                                                and model using input as sample data
+        '''
+        sol = minimize(self.WLS, x0=theta, args=(input_sample), method='SLSQP')
+        return sol.x
 
-        xnorm = (x - meanX) / stdX
-        mean  = jnp.zeros(ny_dim)
-        var   = jnp.zeros(ny_dim)
-        # --- Loop over each output (GP) --- #
-        for i in range(ny_dim):
-            invK           = invKsample[i]
-            hyper          = hypopt[:,i]
-            ellopt, sf2opt = jnp.exp(2 * hyper[:nx_dim]), jnp.exp(2 * hyper[nx_dim])
+    def modifier_calc(self,theta,input_sample):
+        '''
+        Description:
+            Finds difference between plant systema and model which will be used in 
+            various methods such as GP_initialization.
+        Argument:
+            u_sample                        : sample data 
+            theta                           : parameter used in model obj func and cons.
+        Returns:
+            modifier                        : A matrix as follows
+                                            | diff obj func (sample 1) diff cons(sample 1) ... |
+                                            | diff obj func (sample 2) diff cons(sample 2) ... |
+                                            | diff obj func (sample 3) diff cons(sample 3) ... |
+                                            | ...                      ...                 ... |
+        '''
+        input_sample = jnp.atleast_2d(input_sample)
+        n_sample = input_sample.shape[0]
+        modifier = jnp.zeros((n_sample,self.n_fun))
 
-            # --- determine covariance of each output --- #
-            k       = calc_cov_sample(xnorm, Xsample, ellopt, sf2opt)
-            mean    = mean.at[i].set(jnp.dot(jnp.dot(k.T, invK), Ysample[:,i]))
-            var     = var.at[i].set(jnp.maximum(0, sf2opt - jnp.dot(jnp.dot(k.T, invK), k))) # numerical error
-            var[i]  = jnp.maximum(0, sf2opt - jnp.dot(jnp.dot(k.T, invK), k)) # numerical error
+        for i in range(n_sample):
+            u = input_sample[i]
+            for j in range(self.n_fun):
+                modifier = modifier.at[i, j].set(self.plant_system[j](u) - self.model[j](theta,u))
 
-        # --- compute un-normalized mean --- #    
-        mean_sample = mean * stdY + meanY
-        var_sample  = var * stdY**2
+        return modifier
+
+    def GP_Initialization(self,n_sample,u_0,theta_0,r,plant_system,model, key):
+        '''
+        Description:
+            Initialize GP model by:
+                1) Create a sample data in matrix
+                2) Find a parameter theta of a model that has minimal difference 
+                    between plant system and model
+                3) Then find a modifier 
+                    (= matrix of difference between plant and model with 
+                    the optimal theta in all sampled data)
+                4) Finally, use modifier to initialize GP using BayesOpt
+        Argument:
+            n_sample                        : number of sample points that can be collected
+            u_0                             : initial input
+            theta_0                         : initial estimated parameter
+            r                               : radius of area where samples are collected in Ball_sampling
+            plant_system                    : numpy array with objective functions and constraints for plant system
+            model                           : numpy array with objective functions and constraints for model
+        Returns:
+            theta                           : parameter theta for model that makes minimal difference between plant and model
+            GP_m                            : GP model that is initialized using random sampling around initial input
+        '''
+        # === Define relavent parameters and arrays === #
+        self.n_sample                       = n_sample
+        self.u_dim                          = jnp.shape(u_0)[0]
+        self.n_fun                          = len(plant_system)
+        self.plant_system                   = plant_system
+        self.model                          = model
+        input_sample                        = jnp.zeros((self.n_sample,self.u_dim))
+
+        # === Collect Training Dataset (Input) === #
+        for sample_i in range(n_sample):
+            u_trial, key = self.Ball_sampling(self.u_dim, r, key)
+            input_sample = input_sample.at[sample_i].set(u_0 + u_trial)
         
-        if var_out:
-            return mean_sample, var_sample
-        else:
-            return mean_sample.flatten()[0]
+        # To store the sampled input data and to see when using the class
+        self.input_sample = input_sample
+
+        # === Estimate the parameter theta === #
+        theta = self.parameter_estimation(theta_0,input_sample)
+
+        # === Collect Training Dataset === #
+        modifier = self.modifier_calc(theta,input_sample)
+
+        # === Initialize GP with modifier === #
+        GP_m = BayesOpt.BayesianOpt(input_sample, modifier, 'RBF', 
+                                    multi_hyper=2, var_out=True)
+
+        return theta, GP_m
+
+
+    ####################################################
+    #######______New Observation______#######
+    ####################################################
+    def optimize_acquisition(self,r,u_0,theta,GP_m,b=0):
+        '''
+        Description:
+        Argument:
+            r: radius of trust region area
+            u_0: previous input observed
+            GP_m: Gaussian Process Model
+        Results:
+            result.x: a distance from input u_0 to observe the corresponding output of function
+        '''
+        d0 = jnp.array([0,0])
+        cons = []
+
+        # Collect All objective function and constraints(model constraint + trust region)
+        for i in range(self.n_fun):
+            if i == 0:
+                obj_fun = lambda d: (self.model[0](theta, u_0+d) 
+                                     + GP_m.GP_inference_np(u_0+d)[0][0] # mean
+                                     - b*jnp.sqrt(GP_m.GP_inference_np(u_0+d)[1][0])) # std
+            else:
+                cons.append({'type': 'ineq',
+                             'fun': lambda d: (self.model[i](theta, u_0+d) 
+                                               + GP_m.GP_inference_np(u_0+d)[0][i] # mean 
+                                               - b*jnp.sqrt(GP_m.GP_inference_np(u_0+d)[1][i]))}) # std
+ 
+        cons.append({'type': 'ineq',
+                     'fun': lambda d: r - jnp.linalg.norm(d)})
         
-    #########################################
-    # --- Optimize Acquisition Function --- #
-    #########################################    
-        
-    def aquisition_func(self, x, b):
-        mean, var = self.GP_inference_np(x)
-        return mean - b * var
+        cons = tuple(cons)
 
-    def optimize_acquisition(self, x0, b):
-        #### ALERT! NEED TO CHANGE THE MINIMIZE USING JAX GRAD
-        result = minimize(self.aquisition_func,x0,args=(b),method='SLSQP',options={'ftol': 1e-9})
-        return result.params
-    
-    ##########################################
-    # --- Add Sample and reinitialize GP --- #
-    ##########################################
+        result = minimize((obj_fun),
+                        d0,
+                        constraints = cons,
+                        method      ='SLSQP',
+                        jac         = '3-point',
+                        options     = {'ftol': 1e-9})
 
-    def add_sample(self, x_new, y_new):
-        # Add the new sample to the data set
-        self.X         = jnp.vstack([self.X, x_new])
-        self.Y         = jnp.vstack([self.Y, y_new])
-        self.n_point   = self.X.shape[0]
-        
-        # normalize data
-        self.X_mean, self.X_std     = jnp.mean(self.X, axis=0), jnp.std(self.X, axis=0)
-        self.Y_mean, self.Y_std     = jnp.mean(self.Y, axis=0), jnp.std(self.Y, axis=0)
-        self.X_norm, self.Y_norm    = (self.X - self.X_mean) / self.X_std, (self.Y - self.Y_mean) / self.Y_std
+        return result.x
 
-        # determine hyperparameters
-        self.hypopt, self.invKopt   = self.determine_hyperparameters()
 
-# Test Cases
+    #############################################
+    #######______Trust Region Update______#######
+    #############################################
+    def update_trustregion(self):
+        pass
+
+
 if __name__ == '__main__':
+    # Test Case 1: Test on GP_Initialization
+    ## Initial Parameters
+    key = random.PRNGKey(42)
+    BRTO = Bayesian_RTO()
+    theta_0 = jnp.array([1.,1.,1.,1.])
+    u_0 = jnp.array([4.,-1.])
+    u_dim = u_0.shape[0]
+    r_i = 1.
+    n_s = 4
+    plant_system = [Benoit_Problem.Benoit_System_1,
+                    Benoit_Problem.con1_system]
 
-    ##### --- Test for Gaussian Process __init__ ---#####
-    print("##### --- Test for Gaussian Process __init__ ---#####")
-    # --- define training data --- #
-    Xtrain = jnp.array([-4, -1, 1, 2])
-    ndata  = Xtrain.shape[0]
-    Xtrain = Xtrain.reshape(ndata,1)
-    fx     = jnp.sin(Xtrain)
-    ytrain = fx
-    print(f"Train data: \n Xtrain: {Xtrain.reshape(1,-1)} \n ytrain: {ytrain.reshape(1,-1)}")
+    model = [Benoit_Problem.Benoit_Model_1,
+            Benoit_Problem.con1_Model]
 
-    # --- build a GP model --- #
-    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
+    ## GP Initialization
+    print("#######______Test Case: GP_Initialization______#######")
+    theta,GP_m = BRTO.GP_Initialization(n_s,u_0,theta_0,r_i,plant_system,model,key)
+    print("sampled input:")
+    print(BRTO.input_sample)
 
-    # print(f"Sample X mean: {GP_m.X_mean}, Sample Y mean: {GP_m.Y_mean}")
-    # print(f"Sample X norm: {GP_m.X_norm.T}, Sample Y norm: {GP_m.Y_norm.T}")
+    print("#######______Test Case: WLS______#######")
+    print(BRTO.WLS(theta_0,BRTO.input_sample))
 
-    # ##### --- Test for Gaussian Process __init__ ---#####
-    # print("##### --- Test for Gaussian Process determine_hyperparameters ---#####")
+    # print(f'parameter theta: {theta}')
+    # u_0 = jnp.array([2.15956118, -1.42712019])
+    # d_0 = jnp.array([0,0])
+    # print(f"input = {u_0}")
+    # ## Test if GP model is working fine
+    # GP_modifier = GP_m.GP_inference_np(u_0)
+
+    # ## Check if plant and model provides same output using sampled data as input
+    # print("\n #___Check if plant and model provides similar output using sampled data as input___#")
+    # print(f"plant obj: {plant_system[0](u_0)}")
+    # print(f"model obj: {model[0](theta,u_0)+GP_modifier[0][0]}")
+
+    # print(f"plant con: {plant_system[1](u_0)}")
+    # print(f"model con: {model[1](theta,u_0)+GP_modifier[0][1]}")
     
+    # ## Check if variance is approx 0 at sampled input
+    # print(f"variance: {GP_modifier[1]}")
 
-    # ##### --- Test for Bayesian Optimization ---#####
-    # print(f"\n ##### --- Test for Bayesian Optimization ---#####")
-    
-    # # --- (can ignore this function) function for creating file for a frame --- #
-    # def create_frame(t,filename):
-    #     n_test      = 100
-    #     Xtest       = jnp.linspace(-10,10,n_test)
-    #     fx_test     = jnp.sin(Xtest)
-    #     Ytest_mean  = jnp.zeros(n_test)
-    #     Ytest_std   = jnp.zeros(n_test)
-    #     b           = 2
-        
-    #     plt.figure()
+    # # Test Case 2: Test on observation_trustregion
+    # print("\n #######______Test Case: optimization aquisition______#######")
+    # ## Find info on old observation
+    # print("#___Find info on old observation___#")
+    # d_new = BRTO.optimize_acquisition(r_i,u_0,theta,GP_m)
+    # print(f"optimal old input(model): {u_0}")
+    # print(f"optimal old output(model): {model[0](theta,u_0)+GP_modifier[0][0]}")
+    # print(f"old constraint(model): {model[1](theta,u_0)+GP_modifier[0][1]}")
+    # print(f"GP model: {GP_m.GP_inference_np(u_0)}")
 
-    #     # plot observed points
-    #     plt.plot(GP_m.X, GP_m.Y, 'kx', mew=2)
 
-    #     # plot the samples of posteriors
-    #     plt.plot(Xtest, fx_test, 'black', linewidth=1)
+    # ## Find info on new observation
+    # GP_modifier = GP_m.GP_inference_np(u_0+d_new)
+    # print("\n #___Find info on new observation and see if improved___#")
+    # print(f"optimal new input(model): {u_0+d_new}")
+    # print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
+    # print(f"optimal new output(model): {model[0](theta,u_0+d_new)+GP_modifier[0][0]}")
+    # print(f"new constraint(model): {model[1](theta,u_0+d_new)+GP_modifier[0][1]}")
+    # print(f"GP model: {GP_m.GP_inference_np(u_0+d_new)}")
 
-    #     # --- use GP to predict test data --- #
-    #     for ii in range(n_test):
-    #         m_ii, std_ii   = GP_m.GP_inference_np(Xtest[ii])
-    #         Ytest_mean[ii] = m_ii 
-    #         Ytest_std[ii]  = std_ii
+    # ## Check if new observation provides min in trust region
+    # print("\n#___Check if plant system agrees with new observation___#")
+    # cons = []
+    # cons.append({'type': 'ineq',
+    #              'fun': lambda u: plant_system[1](u)})
+    # cons.append({'type': 'ineq',
+    #              'fun': lambda u: r_i - jnp.linalg.norm(u-u_0)})
+    # result = minimize((plant_system[0]),
+    #             u_0,
+    #             constraints = cons,
+    #             method      ='SLSQP',
+    #             options     = {'ftol': 1e-9})
+    # print(f"optimal new input(plant system): {result.x}")
+    # print(f"Euclidean norm of new input(plant system): {jnp.linalg.norm(result.x-u_0)}")
+    # print(f"optimal new output(plant system): {result.fun}")
+    # print(f"new constraint(plant system): {plant_system[1](result.x)}")
 
-    #     # plot GP confidence intervals (+- b * standard deviation)
-    #     plt.gca().fill_between(Xtest.flat, 
-    #                         Ytest_mean - b*jnp.sqrt(Ytest_std), 
-    #                         Ytest_mean + b*jnp.sqrt(Ytest_std), 
-    #                         color='C0', alpha=0.2)
-
-    #     # plot GP mean
-    #     plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
-
-    #     plt.axis([-20, 20, -2, 3])
-    #     plt.title(f'Gaussian Process Regression at iteration: {int(t*10)}')
-    #     plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
-    #             loc='lower right')
-        
-    #     plt.savefig(filename)
-    #     plt.close()
-
-    # # --- check for Gaussian Process Model at initial state --- #
-    # print(f"# --- check for Gaussian Process Model after initialization --- # \n")
-    # print(f"Mean and Variance at x = -4: {GP_m.GP_inference_np(-4)})")
-    # print(f"Mean and Variance at x = -7: {GP_m.GP_inference_np(-7)})")
-
-    # # --- build Bayesian Optimization --- #
-    # n_iter = 10
-    # key = jax.random.PRNGKey(42)
-    # x0 = jax.random.choice(key, Xtrain) # random choice from the train data
-    # b = 2   # exploration factor
-
-    # # --- Do Bayesian Optmization --- #
-    # filenames = []
+    # ########_________Test case 3: Real Time Optimization_________########
+    # print("\n ########_________Test case 3: Real Time Optimization_________########")
+    # n_sample            = 4
+    # u_0                 = jnp.array([4.,-1.])
+    # theta_0             = jnp.array([1.,1.,1.,1.])
+    # r                   = 1
+    # n_iter = 2
     # for i in range(n_iter):
-        
-    #     # create a frame
-    #     t = i * 0.1
-    #     filename = f'frame_{i:02d}.png'
-    #     create_frame(t,filename)
-    #     filenames.append(filename)
+    #     print(f"####___Iteration: {i}___####")
+    #     # New observation
+    #     d_new = BRTO.optimize_acquisition(r,u_0,theta,GP_m,b=0.1)
+    #     # Collect data on new observation
+    #     u_new = u_0 + d_new
+    #     modifier = BRTO.modifier_calc(theta,u_new)
 
-    #     # New Observation
-    #     x_new = GP_m.optimize_acquisition(x0,b)
-    #     y_new = np.sin(x_new)
-    #     GP_m.add_sample(x_new,y_new)
+    #     # Improve GP model using collected data on new observation
+    #     GP_m.add_sample(u_new,modifier)
 
-    #     # For next iteration
-    #     x0 = x_new
+    #     # for next iter + data collection
+    #     u_0 = u_new
 
-
-    #     if i == n_iter-1:
-    #         # create a last frame
-    #         t = n_iter * 0.1
-    #         filename = f'frame_{n_iter:02d}.png'
-    #         create_frame(t,filename)
-    #         filenames.append(filename)
-
-    # # create a GIF from saved frames
-    # frame_duration = 1000
-    # with imageio.get_writer('BayesOptforsine.gif', mode='I', duration=frame_duration) as writer:
-    #     for filename in filenames:
-    #         image = imageio.imread(filename)
-    #         writer.append_data(image)
-    
-    # # remove individual frame files
-    # for filename in filenames:
-    #     os.remove(filename)
-
-
-    # print(f"# --- check result on bayesian optimization --- # \n")
-    # print(f"no of iteration: {n_iter}")
-    # print(f"observation x: {GP_m.X.reshape(1,-1)}")
-    # print(f"observation y: {GP_m.Y.reshape(1,-1)}")
-
-
-    # # Test for Irregular Case   
-    # print(f"# --- Test for Irregular Case with Error --- #") 
-    # x = np.array([[ 8.14987947],
-    #               [ 8.14987947],
-    #               [ 8.14987947],
-    #               [ 8.14987947],
-    #               [-8.92389378],
-    #               [-8.92389378]])
-    
-    # y = np.array([[ 0.95654072],
-    #               [ 0.95654072],
-    #               [ 0.95654072],
-    #               [ 0.95654072],
-    #               [-0.48020129],
-    #               [-0.48020129]])
-
-    # GP_m = BayesianOpt(x, y, 'RBF', multi_hyper=2, var_out=True)
-
-    # t = 0
-    # filename = 'TestforIrregularCase'
-    # create_frame(t,filename)
-
-    # x1 = -8.92389378
-    # print(GP_m.GP_inference_np(x1))
-
+    #     print(f"u_new: {u_new}")
+    #     print(f"d_new: {d_new}")
+    #     print(f"mag d_new: {jnp.linalg.norm(d_new)}")
+    #     GP_modifier = GP_m.GP_inference_np(u_new)
+    #     print(f"obj func after RTO : {Benoit_Problem.Benoit_Model_1(theta,u_new)+GP_modifier[0][0]}")
+    #     print(f"const after RTO : {Benoit_Problem.con1_Model(theta,u_new)+GP_modifier[0][1]}")
+    #     print(f"plant obj func after RTO : {Benoit_Problem.Benoit_System_1(u_new)}")
+    #     print(f"plant const after RTO: {Benoit_Problem.con1_system(u_new)}")

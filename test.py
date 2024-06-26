@@ -1,7 +1,8 @@
+import jax
 import jax.numpy as jnp
-import numpy as np
-from jax import grad
+from jax import grad, vmap
 
-a = np.array([0])
-b = np.array([0])
-print(a/b)
+u_0 = jnp.array([2.15956118, -1.42712019])
+d_0 = jnp.array([0,0])
+
+print(u_0+d_0)
