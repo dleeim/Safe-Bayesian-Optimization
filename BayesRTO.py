@@ -286,65 +286,67 @@ if __name__ == '__main__':
     print("#___Find info on old observation___#")
     u_0 = np.array([4.,-1.])
     d_new = BRTO.optimize_acquisition(r_i,u_0,theta,GP_m)
-    print(d_new)
-    # print(f"optimal old input(model): {u_0}")
-    # print(f"optimal old output(model): {model[0](theta,u_0)+GP_modifier[0][0]}")
-    # print(f"old constraint(model): {model[1](theta,u_0)+GP_modifier[0][1]}")
-    # print(f"GP model: {GP_m.GP_inference_np(u_0)}")
+
+    print(f"optimal old input(model): {u_0}")
+    print(f"optimal old output(model): {model[0](theta,u_0)+GP_modifier[0][0]}")
+    print(f"old constraint(model): {model[1](theta,u_0)+GP_modifier[0][1]}")
+    print(f"old plant output: {plant_system[0](u_0)}")
+    print(f"old plant constraint: {plant_system[1](u_0)}")
 
 
-    # ## Find info on new observation
-    # GP_modifier = GP_m.GP_inference_np(u_0+d_new)
-    # print("\n #___Find info on new observation and see if improved___#")
-    # print(f"optimal new input(model): {u_0+d_new}")
-    # print(f"Euclidean norm of d_new(model): {np.linalg.norm(d_new)}")
-    # print(f"optimal new output(model): {model[0](theta,u_0+d_new)+GP_modifier[0][0]}")
-    # print(f"new constraint(model): {model[1](theta,u_0+d_new)+GP_modifier[0][1]}")
-    # print(f"GP model: {GP_m.GP_inference_np(u_0+d_new)}")
+    ## Find info on new observation
+    GP_modifier = GP_m.GP_inference_np(u_0+d_new)
+    print("\n #___Find info on new observation and see if improved___#")
+    print(f"optimal new input(model): {u_0+d_new}")
+    print(f"Euclidean norm of d_new(model): {np.linalg.norm(d_new)}")
+    print(f"optimal new output(model): {model[0](theta,u_0+d_new)+GP_modifier[0][0]}")
+    print(f"new constraint(model): {model[1](theta,u_0+d_new)+GP_modifier[0][1]}")
+    print(f"new plant output: {plant_system[0](u_0+d_new)}")
+    print(f"new plant constraint: {plant_system[1](u_0+d_new)}")
 
-    # ## Check if new observation provides min in trust region
-    # print("\n#___Check if plant system agrees with new observation___#")
-    # cons = []
-    # cons.append({'type': 'ineq',
-    #              'fun': lambda u: plant_system[1](u)})
-    # cons.append({'type': 'ineq',
-    #              'fun': lambda u: r_i - np.linalg.norm(u-u_0)})
-    # result = minimize((plant_system[0]),
-    #             u_0,
-    #             constraints = cons,
-    #             method      ='SLSQP',
-    #             options     = {'ftol': 1e-9})
-    # print(f"optimal new input(plant system): {result.x}")
-    # print(f"Euclidean norm of new input(plant system): {np.linalg.norm(result.x-u_0)}")
-    # print(f"optimal new output(plant system): {result.fun}")
-    # print(f"new constraint(plant system): {plant_system[1](result.x)}")
+    ## Check if new observation provides min in trust region
+    print("\n#___Check if plant system agrees with new observation___#")
+    cons = []
+    cons.append({'type': 'ineq',
+                 'fun': lambda u: plant_system[1](u)})
+    cons.append({'type': 'ineq',
+                 'fun': lambda u: r_i - np.linalg.norm(u-u_0)})
+    result = minimize((plant_system[0]),
+                u_0,
+                constraints = cons,
+                method      ='SLSQP',
+                options     = {'ftol': 1e-9})
+    print(f"optimal new input(plant system): {result.x}")
+    print(f"Euclidean norm of new input(plant system): {np.linalg.norm(result.x-u_0)}")
+    print(f"optimal new output(plant system): {result.fun}")
+    print(f"new constraint(plant system): {plant_system[1](result.x)}")
 
-    # ########_________Test case 3: Real Time Optimization_________########
-    # print("\n ########_________Test case 3: Real Time Optimization_________########")
-    # n_sample            = 4
-    # u_0                 = np.array([4.,-1.])
-    # theta_0             = np.array([1.,1.,1.,1.])
-    # r                   = 1
-    # n_iter = 2
-    # for i in range(n_iter):
-    #     print(f"####___Iteration: {i}___####")
-    #     # New observation
-    #     d_new = BRTO.optimize_acquisition(r,u_0,theta,GP_m,b=0.1)
-    #     # Collect data on new observation
-    #     u_new = u_0 + d_new
-    #     modifier = BRTO.modifier_calc(theta,u_new)
+    ########_________Test case 3: Real Time Optimization_________########
+    print("\n ########_________Test case 3: Real Time Optimization_________########")
+    n_sample            = 4
+    u_0                 = np.array([4.,-1.])
+    theta_0             = np.array([1.,1.,1.,1.])
+    r                   = 1
+    n_iter = 2
+    for i in range(n_iter):
+        print(f"####___Iteration: {i}___####")
+        # New observation
+        d_new = BRTO.optimize_acquisition(r,u_0,theta,GP_m,b=0.1)
+        # Collect data on new observation
+        u_new = u_0 + d_new
+        modifier = BRTO.modifier_calc(theta,u_new)
 
-    #     # Improve GP model using collected data on new observation
-    #     GP_m.add_sample(u_new,modifier)
+        # Improve GP model using collected data on new observation
+        GP_m.add_sample(u_new,modifier)
 
-    #     # for next iter + data collection
-    #     u_0 = u_new
+        # for next iter + data collection
+        u_0 = u_new
 
-    #     print(f"u_new: {u_new}")
-    #     print(f"d_new: {d_new}")
-    #     print(f"mag d_new: {np.linalg.norm(d_new)}")
-    #     GP_modifier = GP_m.GP_inference_np(u_new)
-    #     print(f"obj func after RTO : {Benoit_Problem.Benoit_Model_1(theta,u_new)+GP_modifier[0][0]}")
-    #     print(f"const after RTO : {Benoit_Problem.con1_Model(theta,u_new)+GP_modifier[0][1]}")
-    #     print(f"plant obj func after RTO : {Benoit_Problem.Benoit_System_1(u_new)}")
-    #     print(f"plant const after RTO: {Benoit_Problem.con1_system(u_new)}")
+        print(f"u_new: {u_new}")
+        print(f"d_new: {d_new}")
+        print(f"mag d_new: {np.linalg.norm(d_new)}")
+        GP_modifier = GP_m.GP_inference_np(u_new)
+        print(f"obj func after RTO : {Benoit_Problem.Benoit_Model_1(theta,u_new)+GP_modifier[0][0]}")
+        print(f"const after RTO : {Benoit_Problem.con1_Model(theta,u_new)+GP_modifier[0][1]}")
+        print(f"plant obj func after RTO : {Benoit_Problem.Benoit_System_1(u_new)}")
+        print(f"plant const after RTO: {Benoit_Problem.con1_system(u_new)}")

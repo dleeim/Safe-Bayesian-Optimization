@@ -1,6 +1,8 @@
+import time
 import jax 
 import jax.numpy as jnp
 from jax import grad, value_and_grad
+from scipy.spatial.distance import cdist
 from scipy.optimize import minimize
 from jax.scipy.optimize import minimize as jminimize
 import sobol_seq
@@ -65,7 +67,7 @@ class BayesianOpt():
         return dist_mat
     
     ######################################################
-            # --- Covariance Matrix --- #
+                # --- Covariance Matrix --- #
     ######################################################
 
     def Cov_mat(self, kernel, X_norm, Y_norm, W, sf2):
@@ -80,7 +82,6 @@ class BayesianOpt():
         Returns:
             cov_matrix              : covariance matrix
         '''
-
         if W.shape[0] != X_norm.shape[1]:
             raise ValueError('ERROR W and X_norm dimension should be same')
         elif kernel != 'RBF':
@@ -89,8 +90,8 @@ class BayesianOpt():
         else:
             dist                    = self.squared_seuclidean_jax(X_norm, Y_norm, W)
             cov_matrix              = sf2 * jnp.exp(-0.5*dist) 
-            
-            return cov_matrix
+        
+        return cov_matrix
     
     ######################################################
           # --- Covariance Matrix for X sample --- #
@@ -181,11 +182,12 @@ class BayesianOpt():
         invKopt = []
         NLL                         = self.negative_loglikelihood
         NLL_value_and_grad          = value_and_grad(NLL)
+        
         for i in range(self.ny_dim):
             for j in range(multi_start):
                 hyp_init            = jnp.array(lb + (ub - lb) * multi_startvec[j,:])
-                res                 = minimize(NLL, hyp_init, args=(self.X_norm, self.Y_norm[:,i:i+1]),
-                                               method='SLSQP', options=options,bounds=bounds, jac='3-point', tol=jnp.finfo(jnp.float32).eps)
+                res                 = minimize(NLL_value_and_grad, hyp_init, args=(self.X_norm, self.Y_norm[:,i:i+1]),
+                                               method='SLSQP', options=options,bounds=bounds, jac=True, tol=jnp.finfo(jnp.float32).eps)
                 localsol[j]         = res.x
                 localval            = localval.at[j].set(res.fun)
 
@@ -248,6 +250,7 @@ class BayesianOpt():
         
         mean, var = self.GP_inference_np(x)
         mean_obj, var_obj = mean[0], var[0]
+
         return mean_obj - b*jnp.sqrt(var_obj)
 
     ######################################################
@@ -280,89 +283,90 @@ class BayesianOpt():
 
 if __name__ == '__main__':
 
-    # #########_________Test for __init__:
-    # print("#########_________Test for __init__:")
-    # # --- define training data --- #
-    # Xtrain = jnp.array([-4., -1., 1., 2.]).reshape(-1,1)
-    # ytrain    = jnp.sin(Xtrain)
-    # nx_dim = Xtrain.shape[1]
-    # print(f"Train data: \n Xtrain: {Xtrain.reshape(1,-1)} \n ytrain: {ytrain.reshape(1,-1)}")
+    #########_________Test for __init__:
+    print("#########_________Test for __init__:")
+    # --- define training data --- #
+    Xtrain = jnp.array([-4., -1., 1., 2.]).reshape(-1,1)
+    ytrain    = jnp.sin(Xtrain)
+    nx_dim = Xtrain.shape[1]
+    print(f"Train data: \n Xtrain: {Xtrain.reshape(1,-1)} \n ytrain: {ytrain.reshape(1,-1)}")
 
-    # # --- GP initialization --- #
-    # GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
-    # print(f"X norm: \n{GP_m.X_norm.reshape(1,-1)} \n Y norm: \n{GP_m.Y_norm.reshape(1,-1)}")
+    # --- GP initialization --- #
+    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
+    print(f"X norm: \n{GP_m.X_norm.reshape(1,-1)} \n Y norm: \n{GP_m.Y_norm.reshape(1,-1)}")
 
-    # #########_________Test for seuclidean_jax:
-    # print("\n#########_________Test for seuclidean_jax:")
-    # print(GP_m.squared_seuclidean_jax(GP_m.X_norm,GP_m.X_norm,jnp.exp(2.*jnp.array([0.]))))
+    #########_________Test for seuclidean_jax:
+    print("\n#########_________Test for seuclidean_jax:")
+    print(GP_m.squared_seuclidean_jax(GP_m.X_norm,GP_m.X_norm,jnp.exp(2.*jnp.array([0.]))))
 
-    # #########_________Test for Cov_mat:
-    # print("\n#########_________Test for Cov_mat:")
-    # W = jnp.exp(2*jnp.array([0.]))
-    # sf2 = jnp.exp(2*jnp.array([0.]))
-    # sn2 = jnp.exp(2*jnp.array([-5.]))
-    # cov_matrix = GP_m.Cov_mat
-    # print(f"covariance matrix: \n{cov_matrix('RBF',GP_m.X_norm,GP_m.X_norm,W,sf2)+sn2*jnp.eye(4)}")
+    #########_________Test for Cov_mat:
+    print("\n#########_________Test for Cov_mat:")
+    W = jnp.exp(2*jnp.array([0.]))
+    sf2 = jnp.exp(2*jnp.array([0.]))
+    sn2 = jnp.exp(2*jnp.array([-5.]))
+    cov_matrix = GP_m.Cov_mat
+    print(f"covariance matrix: \n{cov_matrix('RBF',GP_m.X_norm,GP_m.X_norm,W,sf2)+sn2*jnp.eye(4)}")
 
-    # #########_________Test for negative log likelihood:
-    # print("\n#########_________Test for negative log likelihood:")
-    # hyper = jnp.array([0.,0.,-5.])
-    # NLL = GP_m.negative_loglikelihood
-    # NLL_grad = grad(NLL,argnums=0)
-    # NLL_value_and_grad = value_and_grad(NLL,argnums=0)
-    # print(f"NLL: {NLL(hyper,GP_m.X_norm,GP_m.Y_norm)}")
-    # print(f"NLL_grad: {NLL_grad(hyper,GP_m.X_norm,GP_m.Y_norm)}")
-    # lb               = jnp.array([-4.] * (nx_dim + 1) + [-8.])  # lb on parameters (this is inside the exponential)
-    # ub               = jnp.array([4.] * (nx_dim + 1) + [-2.])   # ub on parameters (this is inside the exponential)
-    # bounds           = jnp.hstack((lb.reshape(-1,1),ub.reshape(-1,1)))
-    # options  = {'disp':False, 'maxiter':10000} 
+    #########_________Test for negative log likelihood:
+    print("\n#########_________Test for negative log likelihood:")
+    hyper = jnp.array([0.,0.,-5.])
+    NLL = GP_m.negative_loglikelihood
+    NLL_grad = grad(NLL,argnums=0)
+    NLL_value_and_grad = value_and_grad(NLL,argnums=0)
+    print(f"NLL: {NLL(hyper,GP_m.X_norm,GP_m.Y_norm)}")
+    print(f"NLL_grad: {NLL_grad(hyper,GP_m.X_norm,GP_m.Y_norm)}")
+    lb              = jnp.array([-4.] * (nx_dim + 1) + [-8.])  # lb on parameters (this is inside the exponential)
+    ub              = jnp.array([4.] * (nx_dim + 1) + [-2.])   # ub on parameters (this is inside the exponential)
+    bounds          = jnp.hstack((lb.reshape(-1,1),ub.reshape(-1,1)))
+    options         = {'disp':False, 'maxiter':10000} 
 
-    # # optimal hyperparameters without bounds 
-    # res = jminimize(GP_m.negative_loglikelihood,hyper,args=(GP_m.X_norm,GP_m.Y_norm),method='BFGS',tol=1e-12)
-    # print(f"optimal hyperparameters without bounds(jax minimize BFGS): \n {res.x}")
+    # optimal hyperparameters without bounds 
+    res = jminimize(GP_m.negative_loglikelihood,hyper,args=(GP_m.X_norm,GP_m.Y_norm),method='BFGS',tol=1e-12)
+    print(f"optimal hyperparameters and NLL without bounds(jax minimize BFGS): \n {res.x, res.fun}")
 
-    # # optimal hyperparameters with bounds but using jax = '3-point'
-    # res = minimize(NLL, hyper, args=(GP_m.X_norm, GP_m.Y_norm),
-    #                            method='SLSQP', options=options, bounds=bounds, jac='3-point', tol = 1e-12)
-    # print(f"optimal hyperparameters with bounds(scipy minimize SLSQP, jax = '3-point'): \n {res.x}")
+    # optimal hyperparameters with bounds but using jax = '3-point'
+    res = minimize(NLL, hyper, args=(GP_m.X_norm, GP_m.Y_norm),
+                               method='SLSQP', options=options, bounds=bounds, jac='3-point', tol = 1e-12)
+    print(f"optimal hyperparameters and NLL with bounds(scipy minimize SLSQP, jax = '3-point'): \n {res.x, res.fun}")
+    print()
 
-    # # optimal hyperparameters with bounds but using jax = 'True'
-    # res = minimize(NLL_value_and_grad, hyper, args=(GP_m.X_norm, GP_m.Y_norm),
-    #                            method='SLSQP', options=options, bounds=bounds, jac=True, tol = 1e-12)
-    # print(f"optimal hyperparameters with bounds(scipy minimize SLSQP, jax = True): \n {res.x}")
+    # optimal hyperparameters with bounds but using jax = 'True'
+    res = minimize(NLL_value_and_grad, hyper, args=(GP_m.X_norm, GP_m.Y_norm),
+                               method='SLSQP', options=options, bounds=bounds, jac=True, tol = 1e-12)
+    print(f"optimal hyperparameters and NLL with bounds(scipy minimize SLSQP, jax = True): \n {res.x, res.fun}")
 
-    # #########_________Test for determining optimal hyperparameter:
-    # print("\n#########_________Test for determining optimal hyperparameter:")
-    # print(f"optimal hyperparameter: \n{GP_m.hypopt} \ninverse of covariance matrix: \n{GP_m.invKopt}")
+    #########_________Test for determining optimal hyperparameter:
+    print("\n#########_________Test for determining optimal hyperparameter:")
+    print(f"optimal hyperparameter: \n{GP_m.hypopt} \ninverse of covariance matrix: \n{GP_m.invKopt}")
 
-    # #########_________Test for calc_cov_mat:
-    # print("\n#########_________Test for calc_cov_mat:")   
-    # x_new = jnp.array([-6.])
-    # print("calc_cov_mat:")
-    # print(GP_m.calc_Cov_mat('RBF',GP_m.X_norm,x_new,jnp.array([1.]),jnp.array([1.])))
+    #########_________Test for calc_cov_mat:
+    print("\n#########_________Test for calc_cov_mat:")   
+    x_new = jnp.array([-6.])
+    print("calc_cov_mat:")
+    print(GP_m.calc_Cov_mat('RBF',GP_m.X_norm,x_new,jnp.array([1.]),jnp.array([1.])))
     
-    # #########_________Test for GP_inference:
-    # print("\n#########_________Test for GP_inference:")
-    # x_new = jnp.array([-6.])
-    # print(GP_m.GP_inference_np(x_new))
+    #########_________Test for GP_inference:
+    print("\n#########_________Test for GP_inference:")
+    x_new = jnp.array([-6.])
+    print(GP_m.GP_inference_np(x_new))
     
-    # #########_________Test for acquisition_func:
-    # print("\n#########_________Test for acquisition_func:")
-    # b = 2
-    # print(GP_m.aquisition_func(x_new,b))
+    #########_________Test for acquisition_func:
+    print("\n#########_________Test for acquisition_func:")
+    b = 2
+    print(GP_m.aquisition_func(x_new,b))
 
-    # #########_________Test for optimize acquisition_func:
-    # print("\n#########_________Test for optimize_acquisition_func:")
-    # x0 = jnp.array([-1.])
-    # print(GP_m.optimize_acquisition(x0,b))
+    #########_________Test for optimize acquisition_func:
+    print("\n#########_________Test for optimize_acquisition_func:")
+    x0 = jnp.array([-1.])
+    print(GP_m.optimize_acquisition(x0,b))
 
-    # #########_________Test for add_sample:
-    # print("\n#########_________Test for add_sample:")
-    # x_new = jnp.array([-6.])
-    # y_new = jnp.sin(x_new)
-    # GP_m.add_sample(x_new,y_new)
-    # print(f"new Xnorm: {GP_m.X_norm}, \nnew Y norm: {GP_m.Y_norm}")
-    # print(f"new hypopt: {GP_m.hypopt}, \nnew invKopt: {GP_m.invKopt}")
+    #########_________Test for add_sample:
+    print("\n#########_________Test for add_sample:")
+    x_new = jnp.array([-6.])
+    y_new = jnp.sin(x_new)
+    GP_m.add_sample(x_new,y_new)
+    print(f"new Xnorm: {GP_m.X_norm}, \nnew Y norm: {GP_m.Y_norm}")
+    print(f"new hypopt: {GP_m.hypopt}, \nnew invKopt: {GP_m.invKopt}")
     
     #########_________Test for Bayesian Optimization:
     print("\n#########_________Test for Bayesian Optimization:")
@@ -423,7 +427,7 @@ if __name__ == '__main__':
     # --- Do Bayesian Optmization --- #
     filenames = []
     for i in range(n_iter):
-        
+        print(f"Iteration: {i}")
         # create a frame
         t = i * 0.1
         filename = f'frame_{i:02d}.png'
@@ -431,12 +435,14 @@ if __name__ == '__main__':
         filenames.append(filename)
 
         # New Observation
-        x_new = GP_m.optimize_acquisition(x0,b)
+        epsilon = jnp.array([0.01])
+        x_new = GP_m.optimize_acquisition(x0+epsilon,b)
         y_new = jnp.sin(x_new)
         # Xtrain= jnp.vstack([GP_m.X,x_new])
         # ytrain = jnp.vstack([GP_m.Y,y_new])
         # GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
         GP_m.add_sample(x_new,y_new)
+        print(f"Final NLL: {GP_m.negative_loglikelihood(GP_m.hypopt,GP_m.X_norm,GP_m.Y_norm)}")
 
         # For next iteration
         x0 = x_new
@@ -464,27 +470,27 @@ if __name__ == '__main__':
     print(f"observation x: {GP_m.X.reshape(1,-1)}")
     print(f"observation y: {GP_m.Y.reshape(1,-1)}")
 
-    # # Test for Irregular Case   
-    # print(f"# --- Test for Irregular Case with Error --- #") 
-    # x = jnp.array([[ 8.14987947],
-    #               [ 8.14987947],
-    #               [ 8.14987947],
-    #               [ 8.14987947],
-    #               [-8.92389378],
-    #               [-8.92389378]])
+    # Test for Irregular Case   
+    print(f"# --- Test for Irregular Case with Error --- #") 
+    x = jnp.array([[ 8.14987947],
+                  [ 8.14987947],
+                  [ 8.14987947],
+                  [ 8.14987947],
+                  [-8.92389378],
+                  [-8.92389378]])
     
-    # y = jnp.array([[ 0.95654072],
-    #               [ 0.95654072],
-    #               [ 0.95654072],
-    #               [ 0.95654072],
-    #               [-0.48020129],
-    #               [-0.48020129]])
+    y = jnp.array([[ 0.95654072],
+                  [ 0.95654072],
+                  [ 0.95654072],
+                  [ 0.95654072],
+                  [-0.48020129],
+                  [-0.48020129]])
 
-    # GP_m = BayesianOpt(x, y, 'RBF', multi_hyper=2, var_out=True)
+    GP_m = BayesianOpt(x, y, 'RBF', multi_hyper=2, var_out=True)
 
-    # t = 0
-    # filename = 'TestforIrregularCase'
-    # create_frame(t,filename)
+    t = 0
+    filename = 'TestforIrregularCase'
+    create_frame(t,filename)
 
-    # x1 = -8.92389378
-    # print(GP_m.GP_inference_np(x1))
+    x1 = -8.92389378
+    print(GP_m.GP_inference_np(x1))

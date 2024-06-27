@@ -1,7 +1,7 @@
 # GP model from https://github.com/OptiMaL-PSE-Lab/Gaussian-Process-from-scratch
 # Reference: [1] E. Bradford, A. M. Schweidtmann, D. Zhang, K. Jing, E. A. del Rio-Chanona, Dynamic modeling and optimization of sustainable algal production with uncertainty using multivariate Gaussian processes, Comp. Chem. Eng., 118, 143-158, 2018
 # Reference: [2] Gaussian Processes for Machine Learning, C.E. Rasmussen and C.K.I. Williams, The MIT Press, 2006. ISBN 0-262-18253-X.
-
+import time 
 import numpy as np
 import numpy.random as rnd
 from scipy.spatial.distance import cdist
@@ -42,11 +42,10 @@ class BayesianOpt():
         Calculates the covariance matrix of a dataset Xnorm
         --- decription ---
         '''
-    
         if kernel == 'RBF':
             dist       = cdist(X_norm, X_norm, 'seuclidean', V=W)**2 
             cov_matrix = sf2*np.exp(-0.5*dist)
-
+ 
             return cov_matrix
             # Note: cdist =>  sqrt(sum(u_i-v_i)^2/V[x_i])
         else:
