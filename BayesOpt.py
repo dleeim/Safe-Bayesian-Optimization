@@ -31,7 +31,9 @@ class BayesianOpt():
         self.X_norm, self.Y_norm    = (X-self.X_mean)/self.X_std, (Y-self.Y_mean)/self.Y_std
 
         # determine hyperparameters
-        self.hypopt, self.invKopt   = self.determine_hyperparameters()        
+        self.hypopt, self.invKopt   = self.determine_hyperparameters()     
+        print(self.hypopt)
+        print(self.invKopt)
     
     #############################
     # --- Covariance Matrix --- #
@@ -64,7 +66,8 @@ class BayesianOpt():
         nx_dim = self.nx_dim
         dist = cdist(Xnorm, xnorm.reshape(1,nx_dim), 'seuclidean', V=ell)**2
         cov_matrix = sf2 * np.exp(-0.5*dist)
-
+        print(f"ell,sf2: {ell,sf2}")
+        print(f"dist: {dist}")
         return cov_matrix                
         
     ###################################
@@ -178,13 +181,16 @@ class BayesianOpt():
 
             # --- determine covariance of each output --- #
             k       = calc_cov_sample(xnorm,Xsample,ellopt,sf2opt)
+            print(f"k:\n{k}\ninvK:\n{invK}\nself.Y_norm:\n{self.Y_norm}")
             mean[i] = np.matmul(np.matmul(k.T,invK),Ysample[:,i])
             var[i]  = max(0, sf2opt - np.matmul(np.matmul(k.T,invK),k)) # numerical error
             # var[i] = sf2opt + Sigma_w[i,i]/stdY[i]**2 - np.matmul(np.matmul(k.T,invK),k)  # (if input noise)
 
-        # --- compute un-normalized mean --- #    
+        # --- compute un-normalized mean --- # 
+ 
         mean_sample = mean*stdY + meanY
         var_sample  = var*stdY**2
+        print(f"Y_mean, std,mean_sample: {meanY, stdY,mean_sample}")  
         
         if var_out:
             return mean_sample, var_sample

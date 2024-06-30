@@ -40,6 +40,8 @@ class BayesianOpt():
         self.X_norm, self.Y_norm    = (X-self.X_mean)/self.X_std, (Y-self.Y_mean)/self.Y_std
 
         self.hypopt, self.invKopt   = self.determine_hyperparameters()
+        print(self.hypopt)
+        print(self.invKopt)
 
     ######################################################
         # --- Standardized Euclidean Distance --- #
@@ -118,7 +120,6 @@ class BayesianOpt():
         else:
             dist                    = self.squared_seuclidean_jax(X_norm, x_norm, ell)
             cov_matrix              = sf2 * jnp.exp(-0.5*dist) 
-
             return cov_matrix
 
     ######################################################
@@ -181,13 +182,13 @@ class BayesianOpt():
         
         invKopt = []
         NLL                         = self.negative_loglikelihood
-        NLL_value_and_grad          = value_and_grad(NLL)
+        NLL_grad          = grad(NLL,argnums=0)
         
         for i in range(self.ny_dim):
             for j in range(multi_start):
                 hyp_init            = jnp.array(lb + (ub - lb) * multi_startvec[j,:])
-                res                 = minimize(NLL_value_and_grad, hyp_init, args=(self.X_norm, self.Y_norm[:,i:i+1]),
-                                               method='SLSQP', options=options,bounds=bounds, jac=True, tol=jnp.finfo(jnp.float32).eps)
+                res                 = minimize(NLL, hyp_init, args=(self.X_norm, self.Y_norm[:,i:i+1]),
+                                               method='SLSQP', options=options,bounds=bounds, jac=NLL_grad, tol=jnp.finfo(jnp.float32).eps)
                 localsol[j]         = res.x
                 localval            = localval.at[j].set(res.fun)
 
@@ -227,14 +228,15 @@ class BayesianOpt():
             ellopt, sf2opt = jnp.exp(2*hyper[:self.nx_dim]), jnp.exp(2*hyper[self.nx_dim])
 
             # --- determine covariance of each output --- #
+
             k = self.calc_Cov_mat(self.kernel,self.X_norm,xnorm,ellopt,sf2opt)
             mean = mean.at[i].set(jnp.matmul(jnp.matmul(k.T,invK),self.Y_norm[:,i])[0])
             var = var.at[i].set(max(0, (sf2opt - jnp.matmul(jnp.matmul(k.T,invK),k))[0,0]))
-            
+
         # --- compute un-normalized mean --- # 
         mean_sample = mean*self.Y_std + self.Y_mean
         var_sample = var*self.Y_std**2
-    
+
         if self.var_out:
             return mean_sample, var_sample
         else:

@@ -12,44 +12,45 @@ class Bayesian_RTO():
         '''
         Global Variables:```
             - n_sample                      : number of sample given
-            - u_dim                         : dimension of input
+            - intput_dim                    : dimension of input
             - n_fun                         : number of obj functions and constraints we want to measure
             - plant_system                  : array with obj functions and constraints for plant system
             - model                         : array with obj functions and constraints for model
             - input_sample                  : sampled input data made from Ball_sampling and used for GP initialization
         '''
         self.n_sample                       = 0
-        self.u_dim                          = 0
+        self.input_dim                      = 0
         self.n_fun                          = 0
         self.plant_system                   = 0
         self.model                          = 0
         self.input_sample                   = 0
+        self.key                            = jax.random.PRNGKey(42)
 
     ###########################################
     #######______GP Initialization______#######
     ###########################################
 
-    def Ball_sampling(self,ndim,n_sample,r_i,key) -> float:
+    def Ball_sampling(self,input_dim,n_sample,r_i,key):
         '''
         Description:
             This function samples randomly at (0,0) within a ball of radius r_i.
             By adding sampled point onto initial point (u1,u2) you will get 
             randomly sampled points around (u1,u2)
         Arguments:
-            - ndim                          : no of dimensions required for sampled point
+            - input_dim                     : no of dimensions required for sampled point
+            - n_sample                      : number of sample required to create
             - r_i                           : radius from (0,0) of circle area for sampling
-            - key                           : key for random seed
         Returns: 
             - d_init                        : sampled distances from (0,0)
         '''
-        u                                   = jax.random.normal(key, (n_sample,ndim))
+        u                                   = jax.random.normal(key, (n_sample,input_dim))
         norm                                = jnp.sqrt(jnp.sum(u**2))
-        r                                   = jax.random.uniform(key, (n_sample,1))**(1.0 / ndim)
+        r                                   = jax.random.uniform(key, (n_sample,1))**(1.0 /input_dim)
         d_init                              = r*u / norm*r_i*2
 
         return d_init
     
-    def GP_Initialization(self,n_sample,input_0,r,plant_system):
+    def GP_Initialization(self,n_sample,input_0,r,plant_system,multi_start=2):
         '''
         Description:
             Initialize GP model by:
@@ -69,10 +70,9 @@ class Bayesian_RTO():
         self.input_dim                      = jnp.shape(input_0)[0]
         self.n_fun                          = len(plant_system)
         self.plant_system                   = plant_system
-        key = jax.random.PRNGKey(42)
 
         # === Collect Training Dataset (Input) === #
-        u_trial                             = self.Ball_sampling(self.input_dim,n_sample,r,key)
+        u_trial                             = self.Ball_sampling(self.input_dim,n_sample,r,self.key)
         u_trial                             += input_0
         
         # To store the sampled input data and to see when using the class
@@ -82,10 +82,10 @@ class Bayesian_RTO():
         output                              = jnp.zeros((n_sample,self.n_fun))
         for i in range(self.n_fun):
             output                          = output.at[:,i].set(vmap(self.plant_system[i])(self.input_sample))
-
+        jax.debug.print("output: {}", output)
         # === Initialize GP with modifier === #
         GP_m                                = BayesOptjax.BayesianOpt(self.input_sample, output, 'RBF', 
-                                                                      multi_hyper=2, var_out=True)
+                                                                      multi_hyper=multi_start, var_out=True)
         
         return GP_m
     
@@ -95,31 +95,39 @@ class Bayesian_RTO():
 
     ############______methods for obj_fun, constraint______############
     def obj_fun(self, d, input_0, GP_m, b):
-        mean                                = GP_m.GP_inference_np(input_0 + d)[0][0]
-        std                                 = jnp.sqrt(GP_m.GP_inference_np(input_0 + d)[1][0])
+        GP_inference                        = GP_m.GP_inference_np(input_0 + d)
+        mean                                = GP_inference[0][0]
+        std                                 = jnp.sqrt(GP_inference[1][0])
         value                               = mean - b*std
+        jax.debug.print("intermediate d: {}",d)
+        jax.debug.print("intermediate fun: {}", value)
         return value
 
     def obj_fun_grad(self, d, input_0, GP_m, b):
-        value                               = grad(self.obj_fun,argnums=0)
-        return value(d, input_0, GP_m, b) 
+        value                               = grad(self.obj_fun,argnums=0)(d, input_0, GP_m, b)
+        jax.debug.print("intermediate grad: {}", value)
+        return value 
 
     def constraint(self, d, input_0, GP_m, index, b):
-        mean                                = GP_m.GP_inference_np(input_0 + d)[0][index]
-        std                                 = GP_m.GP_inference_np(input_0 + d)[1][index]
-        value                               = mean - b*jnp.sqrt(std)
+        GP_inference                        = GP_m.GP_inference_np(input_0 + d)
+        mean                                = GP_inference[0][index]
+        std                                 = jnp.sqrt(GP_inference[1][index])
+        value                               = mean - b*std
+        jax.debug.print("intermediate constraint: {}", value)
         return value
     
     def constraint_grad(self, d, input_0, GP_m, index, b):
-        value                               = grad(self.constraint,argnums=0)
-        return value(d, input_0, GP_m, index, b)
+        value                               = grad(self.constraint,argnums=0)(d, input_0, GP_m, index, b)
+        jax.debug.print("intermediate const grad: {}", value)
+        return value
     
     def TR_constraint(self,d,r):
         return r - jnp.linalg.norm(d)
 
     def TR_constraint_grad(self,d,r):
-        value                               = grad(self.TR_constraint,argnums=0)
-        return value(d,r)
+        value                               = grad(self.TR_constraint,argnums=0)(d,r)
+        jax.debug.print("intermediate TR grad: {}", value)
+        return value
     
     ############______optimization of acquisition function______############
     def optimize_acquisition(self,r,input_0,GP_m,b=0):
@@ -166,111 +174,124 @@ class Bayesian_RTO():
 
 if __name__ == '__main__':
     
-    # ##########################################
-    # ##### Test Case 1: GP_Initialization #####
-    # ##########################################
-    # print("################################################")
-    # print("####______Test Case: GP_Initialization______####")
-    # print("################################################")
+    ##########################################
+    ##### Test Case 1: GP_Initialization #####
+    ##########################################
+    print("################################################")
+    print("####______Test Case: GP_Initialization______####")
+    print("################################################")
 
-    # ## Initial Parameters
+    ## Initial Parameters
+    BRTO = Bayesian_RTO()
+    u_0 = jnp.array([4.,-1.])
+    r_i = 1.
+    n_s = 4
+    plant_system = [Benoit_Problem.Benoit_System_1,
+                    Benoit_Problem.con1_system]
+    
+    ## GP Initialization
+    GP_m = BRTO.GP_Initialization(n_s,u_0,r_i,plant_system)
+    print(f"initial input: {u_0}")
+    print("sampled input:")
+    print(BRTO.input_sample)
+
+    # Test Input
+    u_0 = jnp.array([4.,-1.])
+    # Test Gaussian Process Model inference
+    GP_inference = GP_m.GP_inference_np(u_0)
+
+    ## Check if plant and model provides similar output using sampled data as input
+    print("\n#___Check if plant and model provides similar output using sampled data as input___#")
+    print(f"plant obj: {plant_system[0](u_0)}")
+    print(f"model obj: {GP_inference[0][0]}")
+    print(f"plant con: {plant_system[1](u_0)}")
+    print(f"model con: {GP_inference[0][1]}")
+
+    ## Check if variance is approx 0 at sampled input
+    print("\n#___Check variance at sampled input___#")
+    print(f"variance: {GP_inference[1]}")
+
+    #############################################################
+    #### Test Case 2: Optimization of Lower Confidence Bound ####
+    #############################################################
+    print("\n")
+    print("#####################################################################")
+    print("####______Test Case: Optimization of Lower Confidence Bound______####")
+    print("#####################################################################")
+
+    d_new, obj = BRTO.optimize_acquisition(r_i,u_0,GP_m,b=0)
+    print(f"optimal new input(model): {u_0+d_new}")
+    print(f"corresponding new output(model): {obj}")
+    print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
+
+    print(f"\n#___Check Gaussian Process Output and Plant system output___#")
+    GP_inference = GP_m.GP_inference_np(u_0+d_new)
+    print(f"new output(model): {GP_inference[0][0]}")
+    print(f"new constraint(model): {GP_inference[0][1]}")
+    print(f"new variances(model): {GP_inference[1]}")
+    print(f"new plant output: {plant_system[0](u_0+d_new)}")
+    print(f"new plant constraint: {plant_system[1](u_0+d_new)}")
+
+    # print(f"\n#___Check Add Sample___#")
+    # output_new = []
+    # for plant in plant_system:
+    #     output_new.append(plant(u_0+d_new))
+    # print(f"add sample: {u_0+d_new, output_new}")
+    # GP_m.add_sample(u_0+d_new,output_new)
+    # GP_inference = GP_m.GP_inference_np(u_0+d_new)
+    # print(f"output after add sample(model): {GP_inference[0][0]}")
+    # print(f"constraint after add sample(model): {GP_inference[0][1]}")
+    # print(f"new variances(model): {GP_inference[1]}")
+    # print(f"plant output: {plant_system[0](u_0+d_new)}")
+    # print(f"plant constraint: {plant_system[1](u_0+d_new)}")
+
+    # #############################################
+    # #### Test Case 3: Real Time Optimization ####
+    # #############################################
+    # print("\n")
+    # print("#####################################################")
+    # print("####______Test Case: Real Time Optimization______####")
+    # print("#####################################################")
+
+    # # GP Initialization
     # BRTO = Bayesian_RTO()
     # u_0 = jnp.array([4.,-1.])
     # r_i = 1.
     # n_s = 4
+    # n_iter = 10
+    # b = 3
     # plant_system = [Benoit_Problem.Benoit_System_1,
     #                 Benoit_Problem.con1_system]
+    # GP_m = BRTO.GP_Initialization(n_s,u_0,r_i,plant_system,)
     
-    # ## GP Initialization
-    # GP_m = BRTO.GP_Initialization(n_s,u_0,r_i,plant_system)
-    # print(f"initial input: {u_0}")
-    # print("sampled input:")
-    # print(BRTO.input_sample)
+    # for i in range(n_iter):
+    #     print(f"\n####___Iteration: {i}___####")
 
-    # # Test Input
-    # u_0 = jnp.array([4.,-1.])
-    # # Test Gaussian Process Model inference
-    # GP_inference = GP_m.GP_inference_np(u_0)
+    #     # 1. New observation 
+    #     d_new, obj = BRTO.optimize_acquisition(r_i,u_0,GP_m,b,multi_start=5)
 
-    # ## Check if plant and model provides similar output using sampled data as input
-    # print("\n#___Check if plant and model provides similar output using sampled data as input___#")
-    # print(f"plant obj: {plant_system[0](u_0)}")
-    # print(f"model obj: {GP_inference[0][0]}")
-    # print(f"plant con: {plant_system[1](u_0)}")
-    # print(f"model con: {GP_inference[0][1]}")
-
-    # ## Check if variance is approx 0 at sampled input
-    # print("\n#___Check variance at sampled input___#")
-    # print(f"variance: {GP_inference[1]}")
-
-    # #############################################################
-    # #### Test Case 2: Optimization of Lower Confidence Bound ####
-    # #############################################################
-    # print("\n")
-    # print("#####################################################################")
-    # print("####______Test Case: Optimization of Lower Confidence Bound______####")
-    # print("#####################################################################")
-
-    # d_new, obj = BRTO.optimize_acquisition(r_i,u_0,GP_m)
-    # print(f"optimal new input(model): {u_0+d_new}")
-    # print(f"corresponding new output(model): {obj}")
-    # print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
-
-    # print(f"\n#___Check Gaussian Process Output and Plant system output___#")
-    # GP_inference = GP_m.GP_inference_np(u_0+d_new)
-    # print(f"new output(model): {GP_inference[0][0]}")
-    # print(f"new constraint(model): {GP_inference[0][1]}")
-    # print(f"new variances(model): {GP_inference[1]}")
-    # print(f"new plant output: {plant_system[0](u_0+d_new)}")
-    # print(f"new plant constraint: {plant_system[1](u_0+d_new)}")
-
-    #############################################
-    #### Test Case 3: Real Time Optimization ####
-    #############################################
-    print("\n")
-    print("#####################################################")
-    print("####______Test Case: Real Time Optimization______####")
-    print("#####################################################")
-
-    # GP Initialization
-    BRTO = Bayesian_RTO()
-    u_0 = jnp.array([1.,-1.])
-    r_i = 1.
-    n_s = 4
-    n_iter = 10
-    b = 3
-    plant_system = [Benoit_Problem.Benoit_System_1,
-                    Benoit_Problem.con1_system]
-    GP_m = BRTO.GP_Initialization(n_s,u_0,r_i,plant_system)
-    
-    for i in range(n_iter):
-        print(f"\n####___Iteration: {i}___####")
-
-        # 1. New observation 
-        d_new, obj = BRTO.optimize_acquisition(r_i,u_0,GP_m,b)
-
-        # 2. Collect data
-        u_new = u_0+d_new
-        output_new = []
-        for plant in plant_system:
-            output_new.append(plant(u_new))
+    #     # 2. Collect data
+    #     u_new = u_0+d_new
+    #     output_new = []
+    #     for plant in plant_system:
+    #         output_new.append(plant(u_new))
         
-        # 3. Re-initialize Gaussian Process with new data
-        GP_m.add_sample(u_new,output_new)
+    #     # 3. Re-initialize Gaussian Process with new data
+    #     GP_m.add_sample(u_new,output_new)
 
-        # 4. Preparation for next iteration:
-        u_0 = u_new
+    #     # 4. Preparation for next iteration:
+    #     u_0 = u_new
 
-        # 5. Store Data
-        print(f"\n#___Check Gaussian Process Output and Plant system output___#")
-        GP_inference = GP_m.GP_inference_np(u_new)
-        print(f"optimal new input(model): {u_new}")
-        print(f"new output(model): {GP_inference[0][0]}")
-        print(f"new constraint(model): {GP_inference[0][1]}")
-        print(f"new variances(model): {GP_inference[1]}")
-        for plant in plant_system:
-            print(f"new plant output: {plant(u_0+d_new)}")
-            print(f"new plant constraint: {plant(u_0+d_new)}")
+    #     # 5. Store Data
+    #     print(f"\n#___Check Gaussian Process Output and Plant system output___#")
+    #     GP_inference = GP_m.GP_inference_np(u_new)
+    #     print(f"optimal new input(model): {u_new}")
+    #     print(f"new output(model): {GP_inference[0][0]}")
+    #     print(f"new constraint(model): {GP_inference[0][1]}")
+    #     print(f"new variances(model): {GP_inference[1]}")
+    #     for plant in plant_system:
+    #         print(f"new plant output: {plant(u_0+d_new)}")
+    #         print(f"new plant constraint: {plant(u_0+d_new)}")
 
 
 
