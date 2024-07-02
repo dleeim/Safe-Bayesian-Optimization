@@ -19,7 +19,7 @@ class BRTO():
         '''
         self.plant_system                   = plant_system
         self.n_fun                          = len(plant_system)
-        self.key                            = jax.random.PRNGKey(42)
+        self.key                            = jax.random.PRNGKey(40)
  
     ###################################
         # --- Data Sampling --- #
@@ -297,7 +297,7 @@ class BRTO():
         var_sample = var*self.Y_std**2
 
         if self.var_out:
-            return xnorm, var_sample
+            return mean_sample, var_sample
         else:
             return mean_sample.flatten()[0]
 
@@ -456,6 +456,7 @@ if __name__ == '__main__':
     print(f'X: \n{X}')
     print(f"Y: \n{Y}")
 
+
     # --- GP initialization --- #
     GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=2, var_out=True)
 
@@ -479,17 +480,17 @@ if __name__ == '__main__':
         return GP_m.GP_inference_np(x)[0][0]
     mean_grad = grad(mean)
 
-    x_0 = jnp.array([1.4,3])
+    x_0 = jnp.array([1.4,-0.8])
     delta_0 = jnp.array([0.0001, 0.])
     delta_1 = jnp.array([0.,0.0001])
     xdelta_0 = x_0+delta_0
     xdelta_1 = x_0+delta_1
 
+    print(f"input to test: {x_0}")
     print(f"mean: {mean(x_0)}")
     print(f"grad of mean: {mean_grad(x_0)}")
     print(f"check 1st dim: {(mean(xdelta_0)-mean(x_0))/(xdelta_0-x_0)[0]}")
     print(f"check 2st dim: {(mean(xdelta_1)-mean(x_0))/(xdelta_1-x_0)[0]}")
-    print(f"mean xdelta_1: {mean(jnp.array([1.4,1]))}")
 
 
 
