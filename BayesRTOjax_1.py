@@ -19,7 +19,7 @@ class BRTO():
         '''
         self.plant_system                   = plant_system
         self.n_fun                          = len(plant_system)
-        self.key                            = jax.random.PRNGKey(40)
+        self.key                            = jax.random.PRNGKey(42)
  
     ###################################
         # --- Data Sampling --- #
@@ -297,7 +297,7 @@ class BRTO():
         var_sample = var*self.Y_std**2
 
         if self.var_out:
-            return mean_sample, var_sample
+            return xnorm, var_sample
         else:
             return mean_sample.flatten()[0]
 
@@ -369,12 +369,12 @@ class BRTO():
         mean                                = GP_inference[0][0]
         std                                 = jnp.sqrt(GP_inference[1][0])
         value                               = mean - b*std
-        jax.debug.print("objfun: {}", value)
+        # jax.debug.print("objfun: {}", value)
         return value
 
     def obj_fun_grad(self, x, b):
         value                               = grad(self.obj_fun,argnums=0)(x, b)
-        jax.debug.print("objfungrad: {}", value)
+        # jax.debug.print("objfungrad: {}", value)
         return value 
 
     def constraint(self, x, b, index):
@@ -382,25 +382,25 @@ class BRTO():
         mean                                = GP_inference[0][index]
         std                                 = jnp.sqrt(GP_inference[1][index])
         value                               = mean - b*std
-        jax.debug.print("const: {}", value)
+        # jax.debug.print("const: {}", value)
 
         return value
     
     def constraint_grad(self, x, b, index):
         value                               = grad(self.constraint,argnums=0)(x, b, index)
-        jax.debug.print("constgrad: {}", value)
+        # jax.debug.print("constgrad: {}", value)
 
         return value
     
     def TR_constraint(self,d,r):
         value                               = r - jnp.linalg.norm(d)
-        jax.debug.print("TR: {}", value)
+        # jax.debug.print("TR: {}", value)
 
         return value
 
     def TR_constraint_grad(self,d,r):
         value                               = grad(self.TR_constraint,argnums=0)(d,r)
-        jax.debug.print("Trgrad: {}", value)
+        # jax.debug.print("Trgrad: {}", value)
 
         return value
 
@@ -440,8 +440,7 @@ if __name__ == '__main__':
 
     # --- Start --- #
     plant_system = [Benoit_Problem.Benoit_System_1,
-                    Benoit_Problem.con1_system,
-                    Benoit_Problem.con1_system_tight]
+                    Benoit_Problem.con1_system]
     GP_m = BRTO(plant_system)
     
     x_0 = jnp.array([1.4,-0.8])
@@ -456,7 +455,6 @@ if __name__ == '__main__':
     print("# --- Data Sampling --- #")
     print(f'X: \n{X}')
     print(f"Y: \n{Y}")
-
 
     # --- GP initialization --- #
     GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=2, var_out=True)
@@ -476,46 +474,65 @@ if __name__ == '__main__':
     print("\n#___Check variance at sampled input___#")
     print(f"variance: {GP_inference[1]}")
 
+    # --- check gradient of GP_inference --- #
+    def mean(x):
+        return GP_m.GP_inference_np(x)[0][0]
+    mean_grad = grad(mean)
+
+    x_0 = jnp.array([1.4,3])
+    delta_0 = jnp.array([0.0001, 0.])
+    delta_1 = jnp.array([0.,0.0001])
+    xdelta_0 = x_0+delta_0
+    xdelta_1 = x_0+delta_1
+
+    print(f"mean: {mean(x_0)}")
+    print(f"grad of mean: {mean_grad(x_0)}")
+    print(f"check 1st dim: {(mean(xdelta_0)-mean(x_0))/(xdelta_0-x_0)[0]}")
+    print(f"check 2st dim: {(mean(xdelta_1)-mean(x_0))/(xdelta_1-x_0)[0]}")
+    print(f"mean xdelta_1: {mean(jnp.array([1.4,1]))}")
+
+
 
     #############################################################
     #### Test Case 2: Optimization of Lower Confidence Bound ####
     #############################################################
 
-    # --- obj func, constraints and their grads --- #
-    print("\n# --- obj func, constraints and their grads --- #")
-    x_0 = jnp.array([1.0160897,  3.043664 ])
-    delta_0 = jnp.array([0.00001, 0.])
-    delta_1 = jnp.array([0.,0.00001])
-    xdelta_0 = x_0+delta_0
-    xdelta_1 = x_0+delta_1
+    # # --- obj func, constraints and their grads --- #
+    # print("\n# --- obj func, constraints and their grads --- #")
+    # x_0 = jnp.array([1.4,-0.8])
+    # delta_0 = jnp.array([0.00001, 0.])
+    # delta_1 = jnp.array([0.,0.00001])
+    # xdelta_0 = x_0+delta_0
+    # xdelta_1 = x_0+delta_1
+    # print(f"input for check: {xdelta_0}")
     
-    for i in range(GP_m.n_fun):
-        if i == 0:
-            obj_fun_value = GP_m.obj_fun(x_0,b=0)
-            obj_fun_grad = GP_m.obj_fun_grad(x_0,b=0)
-            print(f"\ncheck obj_fun_value: {obj_fun_value}")
-            print(f"check obj_fun_grad: {obj_fun_grad}")
+    # for i in range(GP_m.n_fun):
+    #     if i == 0:
+    #         obj_fun_value = GP_m.obj_fun(x_0,b=0)
+    #         obj_fun_grad = GP_m.obj_fun_grad(x_0,b=0)
+    #         print(f"\ncheck obj_fun_value: {obj_fun_value}")
+    #         print(f"check obj_fun_grad: {obj_fun_grad}")
 
-            obj_valuedelta0 = GP_m.obj_fun(xdelta_0,b=0)
-            obj_valeudelta1 = GP_m.obj_fun(xdelta_1,b=0)
-            print(f"check with 1st dim (delta: 0.00001): {(obj_valuedelta0-obj_fun_value)/(xdelta_0[0]-x_0[0])}")
-            print(f"check with 2nd dim (delta: 0.00001): {(obj_valeudelta1-obj_fun_value)/(xdelta_1[1]-x_0[1])}")
+    #         obj_valuedelta0 = GP_m.obj_fun(xdelta_0,b=0)
+    #         obj_valeudelta1 = GP_m.obj_fun(xdelta_1,b=0)
+    #         print(f"check with 1st dim (delta: 0.00001): {(obj_valuedelta0-obj_fun_value)/(xdelta_0[0]-x_0[0])}")
+    #         print(f"check with 2nd dim (delta: 0.00001): {(obj_valeudelta1-obj_fun_value)/(xdelta_1[1]-x_0[1])}")
 
-        else:
-            cons_value = GP_m.constraint(x_0,b=0,index=i)
-            cons_grad = GP_m.constraint_grad(x_0,b=0,index=i)
-            print(f"\ncheck cons_value_{i}: {cons_value}")
-            print(f"check cons_grad_{i}: {cons_grad}") 
+    #     else:
+    #         cons_value = GP_m.constraint(x_0,b=0,index=i)
+    #         cons_grad = GP_m.constraint_grad(x_0,b=0,index=i)
+    #         print(f"\ncheck cons_value_{i}: {cons_value}")
+    #         print(f"check cons_grad_{i}: {cons_grad}") 
             
-            cons_valuedelta0 = GP_m.constraint(xdelta_0,b=0,index=i)
-            cons_valuedelta1 = GP_m.constraint(xdelta_1,b=0,index=i)
-            print(f"check with 1st dim (delta: 0.00001): {(cons_valuedelta0-cons_value)/(xdelta_0[0]-x_0[0])}")
-            print(f"check with 2nd dim (delta: 0.00001): {(cons_valuedelta1-cons_value)/(xdelta_1[1]-x_0[1])}")
+    #         cons_valuedelta0 = GP_m.constraint(xdelta_0,b=0,index=i)
+    #         cons_valuedelta1 = GP_m.constraint(xdelta_1,b=0,index=i)
+    #         print(f"check with 1st dim (delta: 0.00001): {(cons_valuedelta0-cons_value)/(xdelta_0[0]-x_0[0])}")
+    #         print(f"check with 2nd dim (delta: 0.00001): {(cons_valuedelta1-cons_value)/(xdelta_1[1]-x_0[1])}")
 
-    # --- Optimize Acquisition --- #
-    r_i = 1.
-    x_0 = jnp.array([1.4,-0.8])
-    d_new, obj = GP_m.optimize_acquisition(r_i,x_0)
-    print(f"optimal new input(model): {x_0+d_new}")
-    print(f"corresponding new output(model): {obj}")
-    print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
+    # # --- Optimize Acquisition --- #
+    # r_i = 1.
+    # x_0 = jnp.array([1.4,-0.8])
+    # d_new, obj = GP_m.optimize_acquisition(r_i,x_0)
+    # print(f"optimal new input(model): {x_0+d_new}")
+    # print(f"corresponding new output(model): {obj}")
+    # print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
