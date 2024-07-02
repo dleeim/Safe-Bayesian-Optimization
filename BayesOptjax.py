@@ -40,8 +40,6 @@ class BayesianOpt():
         self.X_norm, self.Y_norm    = (X-self.X_mean)/self.X_std, (Y-self.Y_mean)/self.Y_std
 
         self.hypopt, self.invKopt   = self.determine_hyperparameters()
-        print(self.hypopt)
-        print(self.invKopt)
 
     ######################################################
         # --- Standardized Euclidean Distance --- #
@@ -285,7 +283,7 @@ class BayesianOpt():
 
 if __name__ == '__main__':
 
-    #########_________Test for __init__:
+#########_________Test for __init__:
     print("#########_________Test for __init__:")
     # --- define training data --- #
     Xtrain = jnp.array([-4., -1., 1., 2.]).reshape(-1,1)
