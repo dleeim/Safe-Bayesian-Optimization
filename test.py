@@ -1,8 +1,6 @@
 import jax.numpy as jnp
-import jax
-import numpy as np
-import sobol_seq
 
-import sobol_seq
-import numpy as np
 
+a = jnp.array([[1,1],
+               [2,2]])
+print(jnp.linalg.norm(a,axis=1))
