@@ -1,7 +1,7 @@
 import time
 import jax 
 import jax.numpy as jnp
-from jax import grad, value_and_grad, vmap
+from jax import grad, vmap, jit
 from scipy.spatial.distance import cdist
 from scipy.optimize import minimize
 from jax.scipy.optimize import minimize as jminimize
@@ -100,8 +100,8 @@ class BRTO():
         # Normalize data
         self.X_norm,self.Y_norm     = self.data_normalization()
 
-        # # Find optimal hyperparameter and inverse of covariance matrix
-        # self.hypopt, self.invKopt   = self.determine_hyperparameters()
+        # Find optimal hyperparameter and inverse of covariance matrix
+        self.hypopt, self.invKopt   = self.determine_hyperparameters()
 
 
     def data_normalization(self):
@@ -119,27 +119,24 @@ class BRTO():
         return X_norm, Y_norm
 
 
-    def squared_seuclidean_jax(self, X, Y, V):
-        '''
-        Description:
-            Compute standardized euclidean distance between 
-            each pair of the two collections of inputs.
+    def squared_seuclidean_distance(self,x, y, V):
+        """
+        Description: 
+            Calculate the SEuclidean distance between two points x and y.
         Arguments:
-            X                       : input data in shape (nA,n)
-            Y                       : input data in shape (nB,n)
-            V                       : Variance vector
+            - x (array): First n-dimensional point.
+            - y (array): Second n-dimensional point.
+            - V (array): Variance of each dimension.
         Returns:
-            dis_mat                 : matrix with elements as standardized euclidean distance 
-                                      between two input data X and Y
-        '''
-        V_sqrt                      = V**-0.5
-        X_adjusted                  = X*V_sqrt
-        Y_adjusted                  = Y*V_sqrt
+            float: The SEuclidean distance between x and y.
+        """
+        return jnp.sum(((x - y) ** 2) / V)
 
-        dist_mat = jnp.sum(X_adjusted[:, None, :] - Y_adjusted[None, :, :],axis=-1)**2
-
-        return dist_mat
-
+    def squared_seuclidean_mat(self,x, y, V):
+        vectorized_distance = vmap(vmap(self.squared_seuclidean_distance, (None, 0, None)), (0, None, None))
+        vectorized_distance_jit = jit(vectorized_distance)
+        
+        return vectorized_distance_jit(x, y, V)
 
     def Cov_mat(self, kernel, X_norm, Y_norm, W, sf2):
         '''
@@ -159,8 +156,7 @@ class BRTO():
             raise ValueError('ERROR no kernel with name ', kernel)
         
         else:
-            dist                    = self.squared_seuclidean_jax(X_norm, Y_norm, W)
-            print(f"dist {dist}")
+            dist                    = self.squared_seuclidean_mat(X_norm, Y_norm, W)
             cov_matrix              = sf2 * jnp.exp(-0.5*dist) 
         
         return cov_matrix
@@ -185,7 +181,7 @@ class BRTO():
             raise ValueError('ERROR no kernel with name ', kernel)
         
         else:
-            dist                    = self.squared_seuclidean_jax(X_norm, x_norm, ell)
+            dist                    = self.squared_seuclidean_mat(X_norm, x_norm, ell)
             cov_matrix              = sf2 * jnp.exp(-0.5*dist) 
             return cov_matrix
 
@@ -204,21 +200,14 @@ class BRTO():
         W                           = jnp.exp(2*hyper[:self.nx_dim]) # W <=> 1/lambda
         sf2                         = jnp.exp(2*hyper[self.nx_dim]) # variance of the signal
         sn2                         = jnp.exp(2*hyper[self.nx_dim+1]) # variance of noise
-        print(f"W: {W}")
-        print(f"sf2: {sf2}")
-        print(f"sn2: {sn2}")
         K                           = self.Cov_mat(self.kernel, X, X, W, sf2) # (nxn) covariance matrix (noise free)
-        print(f"K: {K}")
         K                           = K + (sn2+1e-8)*jnp.eye(self.n_point) # (nxn) covariance matrix
         K                           = (K + K.T)*0.5 # ensure K is symmetric
         L                           = jnp.linalg.cholesky(K) # do a Cholesky decomposition
-        print(f"lower matrix: {L}")
         logdetK                     = 2 * jnp.sum(jnp.log(jnp.diag(L))) # calculate the log of the determinant of K
-        print(f"logdetK {logdetK}")
         invLY                       = jax.scipy.linalg.solve_triangular(L, Y, lower=True) # obtain L^{-1}*Y
         alpha                       = jax.scipy.linalg.solve_triangular(L.T, invLY, lower=False) # obtain (L.T L)^{-1}*Y = K^{-1}*Y
         NLL                         = jnp.dot(Y.T, alpha)[0][0] + logdetK # construct the NLL
-        print(f"NLL: {NLL}")
         return NLL
 
 
@@ -256,7 +245,6 @@ class BRTO():
                                                method='SLSQP', options=options,bounds=bounds, jac='3-point', tol=jnp.finfo(jnp.float32).eps)
                 localsol[j]         = res.x
                 localval            = localval.at[j].set(res.fun)
-                print(hyp_init)
 
             # --- choosing best solution --- #
             minindex                = jnp.argmin(localval)
@@ -510,48 +498,40 @@ if __name__ == '__main__':
     GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=2, var_out=True)
     print(f"GP mean: {GP_m.Y_mean}")
 
-    # --- NLL --- #
-    hype = jnp.array([[ 0.,  0.,  0., -5.],
-                      [ 2.,  -2.,   2.,  -6.5]])
-    for i in range(hype.shape[0]):
-        GP_m.negative_loglikelihood(hype[i],GP_m.X_norm,GP_m.Y_norm[:,i:i+1])
 
+    # --- Test Gaussian Process Model inference --- #
+    x_1 = jnp.array([0.945,-0.6])
+    GP_inference = GP_m.GP_inference_np(x_1)
 
+    ## Check if plant and model provides similar output using sampled data as input
+    print("\n#___Check if plant and model provides similar output using sampled data as input___#")
+    print(f"test input: {x_1}")
+    print(f"plant obj: {plant_system[0](x_1)}")
+    print(f"model obj: {func_mean(x_1,index=0)}")
+    print(f"plant con: {plant_system[1](x_1)}")
+    print(f"model con: {func_mean(x_1,index=1)}")
 
+    ## Check if variance is approx 0 at sampled input
+    print("\n#___Check variance at sampled input___#")
+    print(f"variance: {variances(x_1)}")
 
-    # # --- Test Gaussian Process Model inference --- #
-    # x_1 = jnp.array([1.6407297, -1.6345465])
-    # GP_inference = GP_m.GP_inference_np(x_1)
-
-    # ## Check if plant and model provides similar output using sampled data as input
-    # print("\n#___Check if plant and model provides similar output using sampled data as input___#")
-    # print(f"test input: {x_1}")
-    # print(f"plant obj: {plant_system[0](x_1)}")
-    # print(f"model obj: {func_mean(x_1,index=0)}")
-    # print(f"plant con: {plant_system[1](x_1)}")
-    # print(f"model con: {func_mean(x_1,index=1)}")
-
-    # ## Check if variance is approx 0 at sampled input
-    # print("\n#___Check variance at sampled input___#")
-    # print(f"variance: {variances(x_1)}")
-
-    # # --- check gradient of GP_inference --- #
+    # --- check gradient of GP_inference --- #
 
     # # check objective function
-    # x_2 = jnp.array([1.6407297, -1.6345465])
+    # x_2 = jnp.array([1.4,-0.8])
     # delta = 0.0001
     # check_jaxgrad(x_2,delta,func_mean,index=0)
 
     # # check constraint
     # check_jaxgrad(x_2,delta,func_mean,index=1)
 
-    #############################################################
-    #### Test Case 2: Optimization of Lower Confidence Bound ####
-    #############################################################
+    # #############################################################
+    # #### Test Case 2: Optimization of Lower Confidence Bound ####
+    # #############################################################
 
     # # --- Optimize Acquisition --- #
-    # r_i = 1.
-    # d_new, obj = GP_m.optimize_acquisition(r_i,x_0,multi_start=20)
+    # r_i = 0.5
+    # d_new, obj = GP_m.optimize_acquisition(r_i,x_0,multi_start=5)
     # print(f"optimal new input(model): {x_0+d_new}")
     # print(f"corresponding new output(model): {obj}")
     # print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")

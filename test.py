@@ -32,3 +32,27 @@ vectorized_distance_jit = jit(vectorized_distance)
 distance_matrix = vectorized_distance_jit(points, points, V)
 
 print("SEuclidean distance matrix:\n", distance_matrix)
+
+def squared_seuclidean_jax(X, Y, V):
+    '''
+    Description:
+        Compute standardized euclidean distance between 
+        each pair of the two collections of inputs.
+    Arguments:
+        X                       : input data in shape (nA, n)
+        Y                       : input data in shape (nB, n)
+        V                       : Variance vector
+    Returns:
+        dis_mat                 : matrix with elements as standardized euclidean distance 
+                                    between two input data X and Y
+    '''
+    V_sqrt = V**-0.5
+    X_adjusted = X * V_sqrt
+    Y_adjusted = Y * V_sqrt
+
+    # Compute pairwise squared SEuclidean distances
+    dist_mat = jnp.sum((X_adjusted[:, None, :] - Y_adjusted[None, :, :])**2, axis=-1)
+    
+    return dist_mat
+
+print(squared_seuclidean_jax(points,points,V))
