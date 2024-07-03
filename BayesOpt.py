@@ -31,9 +31,7 @@ class BayesianOpt():
         self.X_norm, self.Y_norm    = (X-self.X_mean)/self.X_std, (Y-self.Y_mean)/self.Y_std
 
         # determine hyperparameters
-        self.hypopt, self.invKopt   = self.determine_hyperparameters()     
-        print(self.hypopt)
-        print(self.invKopt)
+        # self.hypopt, self.invKopt   = self.determine_hyperparameters()     
     
     #############################
     # --- Covariance Matrix --- #
@@ -46,6 +44,7 @@ class BayesianOpt():
         '''
         if kernel == 'RBF':
             dist       = cdist(X_norm, X_norm, 'seuclidean', V=W)**2 
+            print(f"dist {dist}")
             cov_matrix = sf2*np.exp(-0.5*dist)
  
             return cov_matrix
@@ -66,8 +65,6 @@ class BayesianOpt():
         nx_dim = self.nx_dim
         dist = cdist(Xnorm, xnorm.reshape(1,nx_dim), 'seuclidean', V=ell)**2
         cov_matrix = sf2 * np.exp(-0.5*dist)
-        print(f"ell,sf2: {ell,sf2}")
-        print(f"dist: {dist}")
         return cov_matrix                
         
     ###################################
@@ -85,16 +82,21 @@ class BayesianOpt():
         W               = np.exp(2*hyper[:nx_dim])   # W <=> 1/lambda
         sf2             = np.exp(2*hyper[nx_dim])    # variance of the signal 
         sn2             = np.exp(2*hyper[nx_dim+1])  # variance of noise
-
+        print(f"W: {W}")
+        print(f"sf2: {sf2}")
+        print(f"sn2: {sn2}")
         K       = self.Cov_mat(kernel, X, W, sf2)  # (nxn) covariance matrix (noise free)
+        print(f"K: {K}")
         K       = K + (sn2 + 1e-8)*np.eye(n_point) # (nxn) covariance matrix
         K       = (K + K.T)*0.5                    # ensure K is simetric
         L       = np.linalg.cholesky(K)            # do a cholesky decomposition
+        print(f"lower matrix: {L}")
         logdetK = 2 * np.sum(np.log(np.diag(L)))   # calculate the log of the determinant of K the 2* is due to the fact that L^2 = K
+        print(f"logdetK {logdetK}")
         invLY   = np.linalg.solve(L,Y)             # obtain L^{-1}*Y
         alpha   = np.linalg.solve(L.T,invLY)       # obtain (L.T L)^{-1}*Y = K^{-1}*Y
         NLL     = np.dot(Y.T,alpha) + logdetK      # construct the NLL
-
+        print(f"NLL: {NLL}")
         return NLL
     
     ############################################################
@@ -119,7 +121,6 @@ class BayesianOpt():
                                       ub.reshape(nx_dim+2,1)))
         multi_start      = self.multi_hyper                   # multistart on hyperparameter optimization
         multi_startvec   = sobol_seq.i4_sobol_generate(nx_dim + 2,multi_start)
-        
         options  = {'disp':False,'maxiter':10000}          # solver options
         hypopt   = np.zeros((nx_dim+2, ny_dim))            # hyperparams w's + sf2+ sn2 (one for each GP i.e. output var)
         localsol = [0.]*multi_start                        # values for multistart
@@ -137,6 +138,7 @@ class BayesianOpt():
                                ,method='SLSQP',options=options,bounds=bounds,tol=1e-12)
                 localsol[j] = res.x
                 localval[j] = res.fun
+                print(hyp_init)
 
             # --- choosing best solution --- #
             minindex    = np.argmin(localval)
@@ -149,7 +151,9 @@ class BayesianOpt():
             Kopt        = Cov_mat(kernel, X_norm, ellopt, sf2opt) + sn2opt*np.eye(n_point)
             # --- inverting K --- #
             invKopt     += [np.linalg.solve(Kopt,np.eye(n_point))]
-        
+            print(f"optimal hypopt: {hypopt}")
+            print(f"min NLL: {localval[minindex]}")
+        print(f"invK: {invKopt}")       
         return hypopt, invKopt
 
     ########################
@@ -181,7 +185,6 @@ class BayesianOpt():
 
             # --- determine covariance of each output --- #
             k       = calc_cov_sample(xnorm,Xsample,ellopt,sf2opt)
-            print(f"k:\n{k}\ninvK:\n{invK}\nself.Y_norm:\n{self.Y_norm}")
             mean[i] = np.matmul(np.matmul(k.T,invK),Ysample[:,i])
             var[i]  = max(0, sf2opt - np.matmul(np.matmul(k.T,invK),k)) # numerical error
             # var[i] = sf2opt + Sigma_w[i,i]/stdY[i]**2 - np.matmul(np.matmul(k.T,invK),k)  # (if input noise)
@@ -190,7 +193,6 @@ class BayesianOpt():
  
         mean_sample = mean*stdY + meanY
         var_sample  = var*stdY**2
-        print(f"Y_mean, std,mean_sample: {meanY, stdY,mean_sample}")  
         
         if var_out:
             return mean_sample, var_sample
@@ -432,11 +434,28 @@ if __name__ == '__main__':
     #########_________Test for __init__:
     print("#########_________Test for __init__:")
     # --- define training data --- #
-    Xtrain = np.array([-4, -1, 1, 2]).reshape(-1,1)
-    ytrain = np.sin(Xtrain)
-    print(f"Train data: \n Xtrain: {Xtrain.reshape(1,-1)} \n ytrain: {ytrain.reshape(1,-1)}")
+    Xtrain = np.array([[ 1.305728,   -0.69302666],
+                       [ 1.3228958,  -1.198658  ],
+                       [ 1.4750773,  -0.75442755],
+                       [ 0.9418043,  -0.87447894]])
+    ytrain = np.array([[1.280307,  3.2114954],
+                       [1.6011345, 3.2834308],
+                       [1.632175,  3.4147716],
+                       [0.8281207, 2.9260488]])
 
-    # --- GP initialization --- #
+    # --- NLL --- #
     GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
-    print(f"X norm: \n{GP_m.X_norm.reshape(1,-1)} \n Y norm: \n{GP_m.Y_norm.reshape(1,-1)}")
+    hype = np.array([[ 0.,  0.,  0., -5.],
+                     [ 2.,  -2.,   2.,  -6.5]])
+    for i in range(hype.shape[0]):
+        GP_m.negative_loglikelihood(hype[i],GP_m.X_norm,GP_m.Y_norm[:,i])
+    
 
+    # # --- GP initialization --- #
+    # def mean(x):
+    #     return GP_m.GP_inference_np(x)[0][0]
+
+    # print(f"GP mean: {GP_m.Y_mean}")
+
+    # x_1 = np.array([ 1.840746,  -1.3304129])
+    # print(f"GP inference: {mean(x_1)}")

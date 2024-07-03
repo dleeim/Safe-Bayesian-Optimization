@@ -67,9 +67,8 @@ class BRTO():
         '''
         x                                   = jax.random.normal(key, (n_sample,x_dim))
         norm                                = jnp.linalg.norm(x,axis=-1).reshape(-1,1)
-        r                                   = (jax.random.uniform(key, (n_sample,1)))**(1.0 /x_dim)
+        r                                   = (jax.random.uniform(key, (n_sample,1))) 
         d_init                              = r_i*r*x/norm
-
         return d_init
   
 
@@ -101,8 +100,8 @@ class BRTO():
         # Normalize data
         self.X_norm,self.Y_norm     = self.data_normalization()
 
-        # Find optimal hyperparameter and inverse of covariance matrix
-        self.hypopt, self.invKopt   = self.determine_hyperparameters()
+        # # Find optimal hyperparameter and inverse of covariance matrix
+        # self.hypopt, self.invKopt   = self.determine_hyperparameters()
 
 
     def data_normalization(self):
@@ -161,6 +160,7 @@ class BRTO():
         
         else:
             dist                    = self.squared_seuclidean_jax(X_norm, Y_norm, W)
+            print(f"dist {dist}")
             cov_matrix              = sf2 * jnp.exp(-0.5*dist) 
         
         return cov_matrix
@@ -203,16 +203,22 @@ class BRTO():
         '''
         W                           = jnp.exp(2*hyper[:self.nx_dim]) # W <=> 1/lambda
         sf2                         = jnp.exp(2*hyper[self.nx_dim]) # variance of the signal
-        sn2                         = jnp.exp(2*hyper[self.nx_dim+1]) + jnp.finfo(jnp.float32).eps # variance of noise
+        sn2                         = jnp.exp(2*hyper[self.nx_dim+1]) # variance of noise
+        print(f"W: {W}")
+        print(f"sf2: {sf2}")
+        print(f"sn2: {sn2}")
         K                           = self.Cov_mat(self.kernel, X, X, W, sf2) # (nxn) covariance matrix (noise free)
-        K                           = K + sn2*jnp.eye(self.n_point) # (nxn) covariance matrix
+        print(f"K: {K}")
+        K                           = K + (sn2+1e-8)*jnp.eye(self.n_point) # (nxn) covariance matrix
         K                           = (K + K.T)*0.5 # ensure K is symmetric
         L                           = jnp.linalg.cholesky(K) # do a Cholesky decomposition
+        print(f"lower matrix: {L}")
         logdetK                     = 2 * jnp.sum(jnp.log(jnp.diag(L))) # calculate the log of the determinant of K
+        print(f"logdetK {logdetK}")
         invLY                       = jax.scipy.linalg.solve_triangular(L, Y, lower=True) # obtain L^{-1}*Y
         alpha                       = jax.scipy.linalg.solve_triangular(L.T, invLY, lower=False) # obtain (L.T L)^{-1}*Y = K^{-1}*Y
         NLL                         = jnp.dot(Y.T, alpha)[0][0] + logdetK # construct the NLL
-
+        print(f"NLL: {NLL}")
         return NLL
 
 
@@ -250,6 +256,7 @@ class BRTO():
                                                method='SLSQP', options=options,bounds=bounds, jac='3-point', tol=jnp.finfo(jnp.float32).eps)
                 localsol[j]         = res.x
                 localval            = localval.at[j].set(res.fun)
+                print(hyp_init)
 
             # --- choosing best solution --- #
             minindex                = jnp.argmin(localval)
@@ -260,7 +267,9 @@ class BRTO():
 
             Kopt                    = self.Cov_mat(self.kernel,self.X_norm,self.X_norm,ellopt,sf2opt) + sn2opt*jnp.eye(self.n_point)
             invKopt                 += [jnp.linalg.inv(Kopt)]
-
+            print(f"optimal hypopt: {hypopt}")
+            print(f"min NLL: {localval[minindex]}")        
+        print(f"invK: {invKopt}")   
         return hypopt, invKopt
     
     ###################################################
@@ -342,18 +351,19 @@ class BRTO():
                      'jac'                  : lambda d: self.TR_constraint_grad(d,r)
                      })
         
+        # Multistart Optimization
         d0                                  = self.Ball_sampling(self.nx_dim,multi_start,r,self.key)
         for j in range(multi_start):
             d0_j                            = d0[j,:]
             print(f"iteration: {j}")
-            print(f"initial d0: {d0_j}")
+            print(f"initial x0: {x_0+d0_j}")
 
             res                             = minimize(obj_fun, d0_j, constraints=cons, method='SLSQP', 
                                                        jac=obj_grad,options=options)
             localsol[j] = res.x
             localval = localval.at[j].set(res.fun)
 
-            print(f"final d0: {res.x}")
+            print(f"final x0: {x_0+res.x}")
             print(f"final fun: {res.fun}")
 
         minindex = jnp.argmin(localval)
@@ -361,22 +371,21 @@ class BRTO():
         funopt = localval[minindex]
         
         return xopt, funopt
-
-
+    
 
     def obj_fun(self, x, b):
         GP_inference                        = self.GP_inference_np(x)
         mean                                = GP_inference[0][0]
         std                                 = jnp.sqrt(GP_inference[1][0])
         value                               = mean - b*std
-        jax.debug.print("x: {}", x)
-        jax.debug.print("objfun: {}", value)
+        # jax.debug.print("x: {}", x)
+        # jax.debug.print("objfun: {}", value)
         return value
 
     def obj_fun_grad(self, x, b):
         value                               = grad(self.obj_fun,argnums=0)(x, b)
-        jax.debug.print("x: {}", x)
-        jax.debug.print("objfungrad: {}", value)
+        # jax.debug.print("x: {}", x)
+        # jax.debug.print("objfungrad: {}", value)
         return value 
 
     def constraint(self, x, b, index):
@@ -384,27 +393,27 @@ class BRTO():
         mean                                = GP_inference[0][index]
         std                                 = jnp.sqrt(GP_inference[1][index])
         value                               = mean - b*std
-        jax.debug.print("x: {}", x)
-        jax.debug.print("const: {}", value)
+        # jax.debug.print("x: {}", x)
+        # jax.debug.print("const: {}", value)
 
         return value
     
     def constraint_grad(self, x, b, index):
         value                               = grad(self.constraint,argnums=0)(x, b, index)
-        jax.debug.print("x: {}", x)
-        jax.debug.print("constgrad: {}", value)
+        # jax.debug.print("x: {}", x)
+        # jax.debug.print("constgrad: {}", value)
 
         return value
     
     def TR_constraint(self,d,r):
         value                               = r - jnp.linalg.norm(d)
-        jax.debug.print("TR: {}", value)
+        # jax.debug.print("TR: {}", value)
 
         return value
 
     def TR_constraint_grad(self,d,r):
         value                               = grad(self.TR_constraint,argnums=0)(d,r)
-        jax.debug.print("Trgrad: {}", value)
+        # jax.debug.print("Trgrad: {}", value)
 
         return value
 
@@ -469,11 +478,15 @@ if __name__ == '__main__':
         func_new_0 = func(xdelta_0,index)
         func_new_1 = func(xdelta_1,index)
 
-        func_newgrad_0 = func(x,index) + change_jaxgrad(x,delta,func,index)[0]
-        func_newgrad_1 = func(x,index) + change_jaxgrad(x,delta,func,index)[1]
+        func_grad = grad(func,argnums=0)(x,index)
+        predicted_change = func_grad * delta    
+
+        func_newgrad_0 = func(x,index) + predicted_change[0]
+        func_newgrad_1 = func(x,index) + predicted_change[1]
 
         print(f"\n check for accuracy for jax grad in {func}")
         print(f"input test: {x}")
+        print(f"jaxgrad: {func_grad}")
         print(f"Actual new function after increase in 1st dim: {func_new_0}")
         print(f"Actual new function after increase in 2st dim: {func_new_1}")
         print(f"Predicted(jaxgrad) new function after increase in 1st dim: {func_newgrad_0}")
@@ -493,45 +506,52 @@ if __name__ == '__main__':
     print(f'X: \n{X}')
     print(f"Y: \n{Y}")
 
-
     # --- GP initialization --- #
     GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=2, var_out=True)
+    print(f"GP mean: {GP_m.Y_mean}")
+
+    # --- NLL --- #
+    hype = jnp.array([[ 0.,  0.,  0., -5.],
+                      [ 2.,  -2.,   2.,  -6.5]])
+    for i in range(hype.shape[0]):
+        GP_m.negative_loglikelihood(hype[i],GP_m.X_norm,GP_m.Y_norm[:,i:i+1])
 
 
-    # --- Test Gaussian Process Model inference --- #
-    x_1 = jnp.array([4.,-1.])
-    GP_inference = GP_m.GP_inference_np(x_1)
 
-    ## Check if plant and model provides similar output using sampled data as input
-    print("\n#___Check if plant and model provides similar output using sampled data as input___#")
-    print(f"test input: {x_1}")
-    print(f"plant obj: {plant_system[0](x_1)}")
-    print(f"model obj: {func_mean(x_1,index=0)}")
-    print(f"plant con: {plant_system[1](x_1)}")
-    print(f"model con: {func_mean(x_1,index=1)}")
 
-    ## Check if variance is approx 0 at sampled input
-    print("\n#___Check variance at sampled input___#")
-    print(f"variance: {variances(x_1)}")
-    print(GP_m.Y_mean)
+    # # --- Test Gaussian Process Model inference --- #
+    # x_1 = jnp.array([1.6407297, -1.6345465])
+    # GP_inference = GP_m.GP_inference_np(x_1)
 
-    # --- check gradient of GP_inference --- #
+    # ## Check if plant and model provides similar output using sampled data as input
+    # print("\n#___Check if plant and model provides similar output using sampled data as input___#")
+    # print(f"test input: {x_1}")
+    # print(f"plant obj: {plant_system[0](x_1)}")
+    # print(f"model obj: {func_mean(x_1,index=0)}")
+    # print(f"plant con: {plant_system[1](x_1)}")
+    # print(f"model con: {func_mean(x_1,index=1)}")
 
-    # check objective function
-    x_2 = jnp.array([1.5551962, -0.9607791])
-    delta = 0.0001
-    check_jaxgrad(x_2,delta,func_mean,index=0)
+    # ## Check if variance is approx 0 at sampled input
+    # print("\n#___Check variance at sampled input___#")
+    # print(f"variance: {variances(x_1)}")
 
-    # check constraint
-    check_jaxgrad(x_2,delta,func_mean,index=1)
+    # # --- check gradient of GP_inference --- #
 
-    # #############################################################
-    # #### Test Case 2: Optimization of Lower Confidence Bound ####
-    # #############################################################
+    # # check objective function
+    # x_2 = jnp.array([1.6407297, -1.6345465])
+    # delta = 0.0001
+    # check_jaxgrad(x_2,delta,func_mean,index=0)
+
+    # # check constraint
+    # check_jaxgrad(x_2,delta,func_mean,index=1)
+
+    #############################################################
+    #### Test Case 2: Optimization of Lower Confidence Bound ####
+    #############################################################
 
     # # --- Optimize Acquisition --- #
-    # r_i = 0.3
-    # d_new, obj = GP_m.optimize_acquisition(r_i,x_0)
+    # r_i = 1.
+    # d_new, obj = GP_m.optimize_acquisition(r_i,x_0,multi_start=20)
     # print(f"optimal new input(model): {x_0+d_new}")
     # print(f"corresponding new output(model): {obj}")
     # print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
