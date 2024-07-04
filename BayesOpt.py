@@ -43,7 +43,7 @@ class BayesianOpt():
         --- decription ---
         '''
         if kernel == 'RBF':
-            dist       = cdist(X_norm, X_norm, 'seuclidean', V=W)**2 
+            dist       = cdist(X_norm, X_norm, 'seuclidean', V=W)**2
             cov_matrix = sf2*np.exp(-0.5*dist)
  
             return cov_matrix
@@ -143,9 +143,7 @@ class BayesianOpt():
             Kopt        = Cov_mat(kernel, X_norm, ellopt, sf2opt) + sn2opt*np.eye(n_point)
             # --- inverting K --- #
             invKopt     += [np.linalg.solve(Kopt,np.eye(n_point))]
-            print(f"optimal hypopt: {hypopt}")
-            print(f"min NLL: {localval[minindex]}")
-        print(f"invK: {invKopt}")       
+      
         return hypopt, invKopt
 
     ########################
@@ -434,9 +432,13 @@ if __name__ == '__main__':
                        [1.6011345, 3.2834308],
                        [1.632175,  3.4147716],
                        [0.8281207, 2.9260488]])
+    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
 
     # --- NLL --- #
-    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
+    hyper = np.array([[ 0.,  0.,  0., -5.],
+                       [ 2.,  -2.,   2.,  -6.5],])
+    for i in range(hyper.shape[0]):
+        NLL = GP_m.negative_loglikelihood(hyper[i],GP_m.X_norm,GP_m.Y_norm[:,i:i+1])
 
     # --- GP initialization --- #
     def mean(x):
@@ -444,5 +446,6 @@ if __name__ == '__main__':
 
     print(f"GP mean: {GP_m.Y_mean}")
 
-    x_1 = np.array([0.945,-0.6])
+    x_1 = np.array([1.4,-0.8])
     print(f"GP inference: {mean(x_1)}")
+

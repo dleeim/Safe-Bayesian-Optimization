@@ -20,6 +20,7 @@ class BRTO():
         self.plant_system                   = plant_system
         self.n_fun                          = len(plant_system)
         self.key                            = jax.random.PRNGKey(42)
+        self.squared_seuclidean_jax_jit     = jit(self.squared_seuclidean_jax)
  
     ###################################
         # --- Data Sampling --- #
@@ -118,25 +119,52 @@ class BRTO():
 
         return X_norm, Y_norm
 
+    # def squared_seuclidean_jax(self,X, Y, V):
+    #     '''
+    #     Description:
+    #         Compute standardized euclidean distance between 
+    #         each pair of the two collections of inputs.
+    #     Arguments:
+    #         X                       : input data in shape (nA, n)
+    #         Y                       : input data in shape (nB, n)
+    #         V                       : Variance vector
+    #     Returns:
+    #         dis_mat                 : matrix with elements as standardized euclidean distance 
+    #                                     between two input data X and Y
+    #     '''
+    #     V_sqrt = V**-0.5
+    #     X_adjusted = X * V_sqrt
+    #     Y_adjusted = Y * V_sqrt
 
-    def squared_seuclidean_distance(self,x, y, V):
-        """
-        Description: 
-            Calculate the SEuclidean distance between two points x and y.
-        Arguments:
-            - x (array): First n-dimensional point.
-            - y (array): Second n-dimensional point.
-            - V (array): Variance of each dimension.
-        Returns:
-            float: The SEuclidean distance between x and y.
-        """
-        return jnp.sum(((x - y) ** 2) / V)
-
-    def squared_seuclidean_mat(self,x, y, V):
-        vectorized_distance = vmap(vmap(self.squared_seuclidean_distance, (None, 0, None)), (0, None, None))
-        vectorized_distance_jit = jit(vectorized_distance)
+    #     # Compute pairwise squared SEuclidean distances
+    #     dist_mat = jnp.sum((X_adjusted[:, None, :] - Y_adjusted[None, :, :])**2, axis=-1)
         
-        return vectorized_distance_jit(x, y, V)
+    #     return dist_mat
+
+    def squared_seuclidean_jax(self,X, Y, V):
+        '''
+        Description:
+            Compute standardized Euclidean distance between 
+            each pair of the two collections of inputs.
+        Arguments:
+            X       : input data in shape (nA, n)
+            Y       : input data in shape (nB, n)
+            V       : Variance vector
+        Returns:
+            dis_mat : matrix with elements as standardized Euclidean distance 
+                      between two input data X and Y
+        '''
+        # Precompute the inverse square root of V
+        V_sqrt_inv = V**-0.5
+
+        # Apply the variance adjustment
+        X_adjusted = X * V_sqrt_inv
+        Y_adjusted = Y * V_sqrt_inv
+
+        # Compute pairwise squared Euclidean distances efficiently
+        dist_mat = -2 * jnp.dot(X_adjusted, Y_adjusted.T) + jnp.sum(X_adjusted**2, axis=1)[:, None] + jnp.sum(Y_adjusted**2, axis=1)
+        
+        return dist_mat
 
     def Cov_mat(self, kernel, X_norm, Y_norm, W, sf2):
         '''
@@ -156,7 +184,7 @@ class BRTO():
             raise ValueError('ERROR no kernel with name ', kernel)
         
         else:
-            dist                    = self.squared_seuclidean_mat(X_norm, Y_norm, W)
+            dist                    = self.squared_seuclidean_jax_jit(X_norm, Y_norm, W)
             cov_matrix              = sf2 * jnp.exp(-0.5*dist) 
         
         return cov_matrix
@@ -181,7 +209,7 @@ class BRTO():
             raise ValueError('ERROR no kernel with name ', kernel)
         
         else:
-            dist                    = self.squared_seuclidean_mat(X_norm, x_norm, ell)
+            dist                    = self.squared_seuclidean_jax_jit(X_norm, x_norm, ell)
             cov_matrix              = sf2 * jnp.exp(-0.5*dist) 
             return cov_matrix
 
@@ -208,6 +236,7 @@ class BRTO():
         invLY                       = jax.scipy.linalg.solve_triangular(L, Y, lower=True) # obtain L^{-1}*Y
         alpha                       = jax.scipy.linalg.solve_triangular(L.T, invLY, lower=False) # obtain (L.T L)^{-1}*Y = K^{-1}*Y
         NLL                         = jnp.dot(Y.T, alpha)[0][0] + logdetK # construct the NLL
+
         return NLL
 
 
@@ -227,7 +256,8 @@ class BRTO():
         bounds                      = jnp.hstack((lb.reshape(self.nx_dim+2,1),
                                                   ub.reshape(self.nx_dim+2,1)))
         
-        multi_start                 = self.multi_hyper                          # multistart on hyperparameter optimization
+        # multi_start                 = self.multi_hyper                          # multistart on hyperparameter optimization
+        multi_start= 1
         multi_startvec              = sobol_seq.i4_sobol_generate(self.nx_dim + 2, multi_start)
         options                     = {'disp':False,'maxiter':10000}          # solver options
         hypopt                      = jnp.zeros((self.nx_dim+2, self.ny_dim))            # hyperparams w's + sf2+ sn2 (one for each GP i.e. output var)
@@ -241,6 +271,7 @@ class BRTO():
         for i in range(self.ny_dim):
             for j in range(multi_start):
                 hyp_init            = jnp.array(lb + (ub - lb) * multi_startvec[j,:])
+
                 res                 = minimize(NLL, hyp_init, args=(self.X_norm, self.Y_norm[:,i:i+1]),
                                                method='SLSQP', options=options,bounds=bounds, jac='3-point', tol=jnp.finfo(jnp.float32).eps)
                 localsol[j]         = res.x
@@ -255,9 +286,7 @@ class BRTO():
 
             Kopt                    = self.Cov_mat(self.kernel,self.X_norm,self.X_norm,ellopt,sf2opt) + sn2opt*jnp.eye(self.n_point)
             invKopt                 += [jnp.linalg.inv(Kopt)]
-            print(f"optimal hypopt: {hypopt}")
-            print(f"min NLL: {localval[minindex]}")        
-        print(f"invK: {invKopt}")   
+  
         return hypopt, invKopt
     
     ###################################################
@@ -366,12 +395,15 @@ class BRTO():
         mean                                = GP_inference[0][0]
         std                                 = jnp.sqrt(GP_inference[1][0])
         value                               = mean - b*std
-        # jax.debug.print("x: {}", x)
-        # jax.debug.print("objfun: {}", value)
+
         return value
+    
+    def add_grad(self,func):
+        return grad(func,argnums=0)
+    
 
     def obj_fun_grad(self, x, b):
-        value                               = grad(self.obj_fun,argnums=0)(x, b)
+        value                               = self.jitgrad(self.obj_fun,argnums=0)(x, b)
         # jax.debug.print("x: {}", x)
         # jax.debug.print("objfungrad: {}", value)
         return value 
@@ -387,7 +419,7 @@ class BRTO():
         return value
     
     def constraint_grad(self, x, b, index):
-        value                               = grad(self.constraint,argnums=0)(x, b, index)
+        value                               = self.jitgrad(self.constraint,argnums=0)(x, b, index)
         # jax.debug.print("x: {}", x)
         # jax.debug.print("constgrad: {}", value)
 
@@ -400,7 +432,7 @@ class BRTO():
         return value
 
     def TR_constraint_grad(self,d,r):
-        value                               = grad(self.TR_constraint,argnums=0)(d,r)
+        value                               = self.jitgrad(self.TR_constraint,argnums=0)(d,r)
         # jax.debug.print("Trgrad: {}", value)
 
         return value
@@ -498,9 +530,17 @@ if __name__ == '__main__':
     GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=2, var_out=True)
     print(f"GP mean: {GP_m.Y_mean}")
 
+    # --- negative log likelihood --- #
+    hyper = jnp.array([[ 0.,  0.,  0., -5.],
+                       [ 2.,  -2.,   2.,  -6.5],])
+
+    for i in range(hyper.shape[0]):
+        NLL = GP_m.negative_loglikelihood(hyper[i],GP_m.X_norm,GP_m.Y_norm[:,i:i+1])
+    for i in range(hyper.shape[0]):
+        NLL = GP_m.negative_loglikelihood(hyper[i],GP_m.X_norm,GP_m.Y_norm[:,i:i+1])
 
     # --- Test Gaussian Process Model inference --- #
-    x_1 = jnp.array([0.945,-0.6])
+    x_1 = jnp.array([1.4,-0.8])
     GP_inference = GP_m.GP_inference_np(x_1)
 
     ## Check if plant and model provides similar output using sampled data as input
@@ -517,21 +557,21 @@ if __name__ == '__main__':
 
     # --- check gradient of GP_inference --- #
 
-    # # check objective function
-    # x_2 = jnp.array([1.4,-0.8])
-    # delta = 0.0001
-    # check_jaxgrad(x_2,delta,func_mean,index=0)
+    # check objective function
+    x_2 = jnp.array([1.4,-0.8])
+    delta = 0.0001
+    check_jaxgrad(x_2,delta,func_mean,index=0)
 
-    # # check constraint
-    # check_jaxgrad(x_2,delta,func_mean,index=1)
+    # check constraint
+    check_jaxgrad(x_2,delta,func_mean,index=1)
 
     # #############################################################
     # #### Test Case 2: Optimization of Lower Confidence Bound ####
     # #############################################################
 
-    # # --- Optimize Acquisition --- #
-    # r_i = 0.5
-    # d_new, obj = GP_m.optimize_acquisition(r_i,x_0,multi_start=5)
-    # print(f"optimal new input(model): {x_0+d_new}")
-    # print(f"corresponding new output(model): {obj}")
-    # print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
+    # --- Optimize Acquisition --- #
+    r_i = 0.5
+    d_new, obj = GP_m.optimize_acquisition(r_i,x_0,multi_start=5)
+    print(f"optimal new input(model): {x_0+d_new}")
+    print(f"corresponding new output(model): {obj}")
+    print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
