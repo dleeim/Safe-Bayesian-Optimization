@@ -5,19 +5,13 @@ from jax import grad, vmap, jit
 from scipy.optimize import minimize
 import sobol_seq
 
-class BRTO():
+class BayesianOpt():
     
     def __init__(self,plant_system) -> None:
  
         self.plant_system               = plant_system
         self.n_fun                      = len(plant_system)
-        self.key                        = jax.random.PRNGKey(42)
-
-        # jit
-        self.squared_seuclidean_jax_jit = jit(self.squared_seuclidean_jax)
-        self.NLL_jit                    = jit(self.negative_loglikelihood)
-        self.GP_inference_np_jit        = jit(self.GP_inference_np)
-        
+        self.key                        = jax.random.PRNGKey(42)        
     
     ##################################
         # --- Data Sampling --- #
@@ -159,7 +153,7 @@ class BRTO():
             raise ValueError('ERROR no kernel with name ', kernel)
         
         else:
-            dist                    = self.squared_seuclidean_jax_jit(X_norm,Y_norm, W)
+            dist                    = self.squared_seuclidean_jax(X_norm,Y_norm, W)
             cov_matrix              = sf2 * jnp.exp(-0.5*dist) 
         
         return cov_matrix
@@ -184,7 +178,7 @@ class BRTO():
             raise ValueError('ERROR no kernel with name ', kernel)
         
         else:
-            dist                    = self.squared_seuclidean_jax_jit(X_norm, x_norm, ell)
+            dist                    = self.squared_seuclidean_jax(X_norm, x_norm, ell)
             cov_matrix              = sf2 * jnp.exp(-0.5*dist) 
             
             return cov_matrix
@@ -240,6 +234,7 @@ class BRTO():
         localval                    = jnp.zeros((multi_start)) # variables for multistart
         
         invKopt = []
+        self.NLL_jit                = jit(self.negative_loglikelihood)
         NLL_grad                    = grad(self.negative_loglikelihood,argnums=0)
         
         for i in range(self.ny_dim):
@@ -325,6 +320,7 @@ class BRTO():
         localval                    = jnp.zeros((multi_start))
 
         # Collect All objective function and constraints(model constraint + trust region)
+        self.GP_inference_np_jit    = jit(self.GP_inference_np)
         obj_fun_jitgrad             = jit(grad(self.obj_fun))
         constraint_jitgrad          = jit(grad(self.constraint,argnums=0))
         TR_constraint_jitgrad       = jit(grad(self.TR_constraint,argnums=0))
@@ -350,6 +346,7 @@ class BRTO():
         # Perform Multistart Optimization
         self.key, subkey            = jax.random.split(self.key) 
         d0                          = self.Ball_sampling(self.nx_dim,multi_start,r,subkey)
+        
         for j in range(multi_start):
             print(f"multi_start: {j}")
             d0_j                    = d0[j,:]
@@ -364,7 +361,6 @@ class BRTO():
         
         return xopt, funopt
     
-
     def obj_fun(self, x, b):
         GP_inference                = self.GP_inference_np_jit(x)
         mean                        = GP_inference[0][0]
@@ -412,5 +408,14 @@ class BRTO():
         # determine hyperparameters
         self.hypopt, self.invKopt   = self.determine_hyperparameters()
 
+class PlotAndGIF:
 
+    def __init__(self):
+        self.data = {}
+    
+    def add_data(self, key, new_data_point):
+        if key in self.data_sets:
+            self.data_sets[key].append(new_data_point)
+        else:
+            raise KeyError("Key not found in data sets")
 

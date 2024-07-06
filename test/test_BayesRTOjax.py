@@ -11,7 +11,7 @@ import Benoit_Problem
 # --- Preparation --- #
 plant_system = [Benoit_Problem.Benoit_System_1,
                 Benoit_Problem.con1_system]
-GP_m = BayesRTOjax.BRTO(plant_system)
+GP_m = BayesRTOjax.BayesianOpt(plant_system)
 
 def func_mean(x,index):
     return GP_m.GP_inference_np(x)[0][index]
@@ -110,6 +110,7 @@ def test_GP_inference_grad():
 r_i = 0.5
 
 def test_optimize_acquisition():
+
     print('\n# --- optimize acquisiton')
     d_new, obj = GP_m.optimize_acquisition(r_i,x_0,multi_start=1)
     print(f"optimal new input(model): {x_0+d_new}")
@@ -137,13 +138,15 @@ def test_optimize_acquisition():
 #############################################
 
 def test_RealTimeOptimization():
+
     print("# --- Real Time Optimization --- #")
     # --- Initialization --- #
     plant_system = [Benoit_Problem.Benoit_System_1,
-                    Benoit_Problem.con1_system]
-    GP_m = BayesRTOjax.BRTO(plant_system)
+                    Benoit_Problem.con1_system,
+                    Benoit_Problem.con1_system_tight]
+    GP_m = BayesRTOjax.BayesianOpt(plant_system)
     x_i = jnp.array([1.4,-0.8])
-    print(f"initial x: {x_0}")
+    print(f"initial x: {x_i}")
     n_sample = 4
     n_iter = 5
     r = 0.5
@@ -158,12 +161,13 @@ def test_RealTimeOptimization():
         d_new, obj = GP_m.optimize_acquisition(r_i,x_i,multi_start=5,b=b)
 
         # Collect Data
-        x_new = x_0 + d_new  
+        x_new = x_i + d_new  
         output_new = []
         for plant in plant_system:
             output_new.append(plant(x_new))  
         output_new = jnp.array(output_new)
 
+        # Add sample
         GP_m.add_sample(x_new,output_new)
 
         # Preparation for next iter:
@@ -171,9 +175,12 @@ def test_RealTimeOptimization():
 
         # Print
         print(f"iter: {i}")
+        print(f"d_new: {d_new}")
+        print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
         print(f"x_new: {x_new}")
         print(f"mean: {obj}")
         print(f"output: {output_new}")
+        print(f"check add sample: {GP_m.GP_inference_np(x_i)}")
         
 
 
