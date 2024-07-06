@@ -314,17 +314,19 @@ class BayesianOpt():
                                       minimal output of function
             - result.fun            : minimal output of function
         '''
+        # Initialization
         options                     = {'disp':False, 'maxiter':10000,'ftol': 1e-12} 
         cons                        = []
         localsol                    = [0.]*multi_start
         localval                    = jnp.zeros((multi_start))
 
-        # Collect All objective function and constraints(model constraint + trust region)
+        # Jit relavent class methods and JAX grad
         self.GP_inference_np_jit    = jit(self.GP_inference_np)
         obj_fun_jitgrad             = jit(grad(self.obj_fun))
         constraint_jitgrad          = jit(grad(self.constraint,argnums=0))
         TR_constraint_jitgrad       = jit(grad(self.TR_constraint,argnums=0))
-
+        
+        # Collect All objective function and constraints(model constraint + trust region)
         for i in range(self.n_fun):
             if i == 0:
                 obj_fun             = lambda d: self.obj_fun(x_0+d, b)
@@ -346,7 +348,7 @@ class BayesianOpt():
         # Perform Multistart Optimization
         self.key, subkey            = jax.random.split(self.key) 
         d0                          = self.Ball_sampling(self.nx_dim,multi_start,r,subkey)
-        
+
         for j in range(multi_start):
             print(f"multi_start: {j}")
             d0_j                    = d0[j,:]
@@ -408,14 +410,40 @@ class BayesianOpt():
         # determine hyperparameters
         self.hypopt, self.invKopt   = self.determine_hyperparameters()
 
-class PlotAndGIF:
+class DataStorage:
 
-    def __init__(self):
+    def __init__(self,keys):
         self.data = {}
+        for key in keys:
+            if type(key) == str:
+                self.data[key] = []
+            else:
+                raise TypeError(f"Key '{key}' is not a string type")
     
-    def add_data(self, key, new_data_point):
-        if key in self.data_sets:
-            self.data_sets[key].append(new_data_point)
-        else:
-            raise KeyError("Key not found in data sets")
+    def add_data_points(self, data_dict):
+        for key, new_data_point in data_dict.items():
+            if key in self.data_sets:
+                self.data_sets[key].append(new_data_point)
+            else:
+                raise KeyError(f"Key '{key}' not found in data sets")
+            
+    def get_data(self):
+        return self.data_sets
+    
+
+class RealTimeOpt():
+
+    def __init__(self,BayesOpt,DataStorage):
+        '''
+        Description:
+        Argument:
+        Result:
+        '''
+        self.BayesOpt = BayesOpt
+        self.DataStorage = DataStorage
+
+    def minimize(self,plant_system,x_initial,n_iter,r,multi_start,b):
+        pass
+    
+
 
