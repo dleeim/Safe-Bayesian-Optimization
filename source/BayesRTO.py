@@ -1,13 +1,14 @@
-import jax.numpy as jnp
-import jax
-from jax import grad, value_and_grad, jit, vmap
+import numpy as np
 from scipy.optimize import minimize
+from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
-import BayesOptjax
+import random
+import BayesOpt
 import Benoit_Problem
+from dataclasses import dataclass
 
 class Bayesian_RTO():
-    
+
     def __init__(self) -> None:
         '''
         Global Variables:```
@@ -24,12 +25,12 @@ class Bayesian_RTO():
         self.plant_system                   = 0
         self.model                          = 0
         self.input_sample                   = 0
-    
+
     ###########################################
     #######______GP Initialization______#######
     ###########################################
 
-    def Ball_sampling(self,ndim,n_sample,r_i,key) -> float:
+    def Ball_sampling(self,ndim,r_i) -> float:
         '''
         Description:
             This function samples randomly at (0,0) within a ball of radius r_i.
@@ -38,17 +39,16 @@ class Bayesian_RTO():
         Arguments:
             ndim                            : no of dimensions required for sampled point
             r_i                             : radius from (0,0) of circle area for sampling
-            key                             : key for random seed
         Returns: 
             d_init                          : sampled distances from (0,0)
         '''
-        u = jax.random.normal(key, (n_sample,ndim))
-        norm = jnp.sqrt(jnp.sum(u**2))
-        r = jax.random.uniform(key, (n_sample,1))**(1.0 / ndim)
-        d_init = r*u / norm*r_i*2
+        u                                   = np.random.normal(0,1,ndim)
+        norm                                = np.sum(u**2)**(0.5)
+        r                                   = random.random()**(1.0/ndim)
+        d_init                              = r*u/norm*r_i*2 
 
         return d_init
-      
+
     def WLS(self,theta,input_sample) -> float:
         '''
         Description:
@@ -65,10 +65,10 @@ class Bayesian_RTO():
         for i in range(self.n_sample): 
             u = input_sample[i,:]
             for j in range(self.n_fun): 
-                error += (self.plant_system[j](u) - self.model[j](theta,u))**2/jnp.abs(self.plant_system[j](u))
+                error += (self.plant_system[j](u) - self.model[j](theta,u))**2/np.abs(self.plant_system[j](u))
 
-        return error 
-    
+        return error     
+
     def parameter_estimation(self,theta,input_sample):
         '''
         Description:
@@ -82,10 +82,9 @@ class Bayesian_RTO():
             theta_opt                       : parameter theta that makes minimal difference between plant system 
                                                 and model using input as sample data
         '''
-        sol = minimize(self.WLS, x0=theta, args=(input_sample),method='SLSQP')
-
+        sol = minimize(self.WLS, x0=theta, args=(input_sample), method='SLSQP')
         return sol.x
-    
+
     def modifier_calc(self,theta,input_sample):
         '''
         Description:
@@ -101,17 +100,17 @@ class Bayesian_RTO():
                                             | diff obj func (sample 3) diff cons(sample 3) ... |
                                             | ...                      ...                 ... |
         '''
-        input_sample = jnp.atleast_2d(input_sample)
+        input_sample = np.atleast_2d(input_sample)
         n_sample = input_sample.shape[0]
-        modifier = jnp.zeros((n_sample,self.n_fun))
+        modifier = np.zeros((n_sample,self.n_fun))
 
-        for i in range(self.n_fun):
-            plant_system_value = vmap(self.plant_system[i])(input_sample)
-            model_value = vmap(self.model[i],in_axes=(None,0))(theta,input_sample)
-            modifier = modifier.at[:,i].set(plant_system_value-model_value)
+        for i in range(n_sample):
+            u = input_sample[i]
+            for j in range(self.n_fun):
+                modifier[i][j] = self.plant_system[j](u) - self.model[j](theta,u)
 
         return modifier
-    
+
     def GP_Initialization(self,n_sample,u_0,theta_0,r,plant_system,model):
         '''
         Description:
@@ -134,54 +133,34 @@ class Bayesian_RTO():
             theta                           : parameter theta for model that makes minimal difference between plant and model
             GP_m                            : GP model that is initialized using random sampling around initial input
         '''
-       # === Define relavent parameters and arrays === #
+        # === Define relavent parameters and arrays === #
         self.n_sample                       = n_sample
-        self.u_dim                          = jnp.shape(u_0)[0]
+        self.u_dim                          = np.shape(u_0)[0]
         self.n_fun                          = len(plant_system)
         self.plant_system                   = plant_system
         self.model                          = model
-        key = jax.random.PRNGKey(42)
+        input_sample                        = np.zeros((self.n_sample,self.u_dim))
 
         # === Collect Training Dataset (Input) === #
-        u_trial = self.Ball_sampling(self.u_dim,n_sample,r,key)
-        u_trial += u_0
+        for sample_i in range(n_sample):
+            u_trial = u_0 + self.Ball_sampling(self.u_dim,r)
+            input_sample[sample_i] = u_trial
         
         # To store the sampled input data and to see when using the class
-        self.input_sample = u_trial
+        self.input_sample = input_sample
 
         # === Estimate the parameter theta === #
-        theta = self.parameter_estimation(theta_0,self.input_sample)
+        theta = self.parameter_estimation(theta_0,input_sample)
 
         # === Collect Training Dataset === #
-        modifier = self.modifier_calc(theta,self.input_sample)
+        modifier = self.modifier_calc(theta,input_sample)
 
         # === Initialize GP with modifier === #
-        GP_m = BayesOptjax.BayesianOpt(self.input_sample, modifier, 'RBF', 
-                                       multi_hyper=2, var_out=True)
-        
+        GP_m = BayesOpt.BayesianOpt(input_sample, modifier, 'RBF', multi_hyper=2, var_out=True)
+
         return theta, GP_m
-    
-    def objective_function(self,d, theta, u_0, GP_m, b, model_func):
-        value = model_func(theta, u_0 + d) + GP_m.GP_inference_np(u_0 + d)[0][0] - b * jnp.sqrt(GP_m.GP_inference_np(u_0 + d)[1][0])
 
-        return value
-    
-    def obj_value_and_grad(self,d, theta, u_0, GP_m, b, model_func):
-        fun_grad = value_and_grad(self.objective_function,argnums=0)
-        value = fun_grad(d, theta, u_0, GP_m, b, model_func)
-        
-        return value
-    
 
-    def model_constraint(self,d, theta, u_0, GP_m, b, model_func, index):
-        value = model_func(theta, u_0 + d) + GP_m.GP_inference_np(u_0 + d)[0][index] - b * jnp.sqrt(GP_m.GP_inference_np(u_0 + d)[1][index])
-        jax.debug.print("constraint value, {}", value)
-        return value
-
-    def trust_region_constraint(self,d, r):
-        jax.debug.print("dnorm, {}", r - jnp.linalg.norm(d))
-        return r - jnp.linalg.norm(d)
-    
     ####################################################
     ############______New Observation______#############
     ####################################################
@@ -195,40 +174,55 @@ class Bayesian_RTO():
         Results:
             result.x: a distance from input u_0 to observe the corresponding output of function
         '''
-        d0 = jnp.array([0.,0.])
+        d0 = np.array([0,0])
         cons = []
 
         # Collect All objective function and constraints(model constraint + trust region)
         for i in range(self.n_fun):
             if i == 0:
-                model_func = self.model[0]
-                obj_fun = lambda d: self.obj_value_and_grad(d, theta, u_0, GP_m, b, model_func)
+                obj_fun = lambda d: (self.model[0](theta, u_0+d) 
+                                     + GP_m.GP_inference_np(u_0+d)[0][0] # mean
+                                     - b*np.sqrt(GP_m.GP_inference_np(u_0+d)[1][0])) # std
             else:
-                model_constraint = self.model[i]
                 cons.append({'type': 'ineq',
-                             'fun': lambda d: self.model_constraint(d, theta, u_0, GP_m, b, model_constraint,i)})
-                
+                             'fun': lambda d: (self.model[i](theta, u_0+d) 
+                                               + GP_m.GP_inference_np(u_0+d)[0][i] # mean 
+                                               - b*np.sqrt(GP_m.GP_inference_np(u_0+d)[1][i]))}) # std
+ 
         cons.append({'type': 'ineq',
-                    'fun': lambda d: self.trust_region_constraint(d,r)})
-
-
-        result = minimize(obj_fun, d0, constraints=cons, method='SLSQP', 
-                          jac=True,options={'maxiter':1000})
+                     'fun': lambda d: r - np.linalg.norm(d)})
         
-        return result.x,result.fun
+        cons = tuple(cons)
 
+        result = minimize((obj_fun),
+                        d0,
+                        constraints = cons,
+                        method      ='SLSQP',
+                        jac         = '3-point',
+                        options     = {'ftol': 1e-9})
+
+        return result.x
+
+
+    #############################################
+    #######______Trust Region Update______#######
+    #############################################
+    def update_trustregion(self):
+        pass
 
 
 if __name__ == '__main__':
     
     ##################################################
     ##### Test Case 1: Test on GP_Initialization #####
-    ##################################################
-
-    ## Initial Parameters
+    ##################################################   
+    #  
+    # ## Initial Parameters
+    np.random.seed(42)
+    random.seed(42)
     BRTO = Bayesian_RTO()
-    theta_0 = jnp.array([1.,1.,1.,1.])
-    u_0 = jnp.array([4.,-1.])
+    theta_0 = np.array([1.,1.,1.,1.])
+    u_0 = np.array([4.,-1.])
     u_dim = u_0.shape[0]
     r_i = 1.
     n_s = 4
@@ -237,16 +231,22 @@ if __name__ == '__main__':
 
     model = [Benoit_Problem.Benoit_Model_1,
             Benoit_Problem.con1_Model]
-    
+
     ## GP Initialization
-    print("#######______Test Case: GP_Initialization______#######")
-    theta, GP_m = BRTO.GP_Initialization(n_s,u_0,theta_0,r_i,plant_system,model)
+    print("\n#######______Test Case: Ball_sampling______#######")
+    ndim = 2
+    r_i = 1
+    d_init = BRTO.Ball_sampling(ndim,r_i)
+    print(d_init)
+
+    ## GP Initialization
+    print("\n#######______Test Case: GP_Initialization______#######")
+    theta,GP_m = BRTO.GP_Initialization(n_s,u_0,theta_0,r_i,plant_system,model)
     print("sampled input:")
     print(BRTO.input_sample)
 
     print("\n#######______Test Case: WLS______#######")
-    theta_1 = jnp.array([1.,1.,1.,1.])
-    print(BRTO.WLS(theta_1,BRTO.input_sample))
+    print(BRTO.WLS(theta_0,BRTO.input_sample))
 
     print("\n#######______Test Case: parameter_estimation______#######")
     theta = BRTO.parameter_estimation(theta_0,BRTO.input_sample)
@@ -255,89 +255,101 @@ if __name__ == '__main__':
     print("\n#######______Test Case: modifier_calc______#######")
     print(BRTO.modifier_calc(theta,BRTO.input_sample))
 
+
     print("\n#######______Test if GP model is working fine______#######")
-    u_0 = jnp.array([2.15956118, -1.42712019])
-    d_0 = jnp.array([0,0])
+    u_0 = np.array([4.,-1.])
+    d_0 = np.array([0,0])
     print(f"input = {u_0}")
 
-    ## Test if GP model is working fine
+    
+    # Test if GP model is working fine #
+    
     GP_modifier = GP_m.GP_inference_np(u_0)
 
-    ## Check if plant and model provides similar output using sampled data as input
+    ## Check if plant and model provides same output using sampled data as input
     print("\n #___Check if plant and model provides similar output using sampled data as input___#")
     print(f"plant obj: {plant_system[0](u_0)}")
     print(f"model obj: {model[0](theta,u_0)+GP_modifier[0][0]}")
+
     print(f"plant con: {plant_system[1](u_0)}")
     print(f"model con: {model[1](theta,u_0)+GP_modifier[0][1]}")
-
+    
     ## Check if variance is approx 0 at sampled input
     print("\n #___Check variance at sampled input___#")
     print(f"variance: {GP_modifier[1]}")
-
+    
     ######################################################
     #### Test Case 2: Test on observation_trustregion ####
     ######################################################
-    
-    print("\n #######______Test Case: optimization aquisition______#######")
-    ## Find info on old observation
-    print("#___Find info on old observation___#")
-    u_0 = jnp.array([4.,-1.])
-    d_new, obj = BRTO.optimize_acquisition(r_i,u_0,theta,GP_m)
 
-    print(f"optimal old input(model): {u_0}")
-    print(f"optimal old output(model): {model[0](theta,u_0)+GP_modifier[0][0]}")
-    print(f"old constraint(model): {model[1](theta,u_0)+GP_modifier[0][1]}")
-    print(f"old plant output: {plant_system[0](u_0)}")
-    print(f"old plant constraint: {plant_system[1](u_0)}")
+    # print("\n #######______Test Case: optimization aquisition______#######")
+    # ## Find info on old observation
+    # print("#___Find info on old observation___#")
+    # u_0 = np.array([4.,-1.])
+    # d_new = BRTO.optimize_acquisition(r_i,u_0,theta,GP_m)
 
-    ## Find info on new observation
-    GP_modifier = GP_m.GP_inference_np(u_0+d_new)
-    print("\n #___Find info on new observation and see if improved___#")
-    print(f"optimal new input(model): {u_0+d_new}")
-    print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
-    print(f"optimal new output(model): {model[0](theta,u_0+d_new)+GP_modifier[0][0]}")
-    print(f"new constraint(model): {model[1](theta,u_0+d_new)+GP_modifier[0][1]}")
-    print(f"new plant output: {plant_system[0](u_0+d_new)}")
-    print(f"new plant constraint: {plant_system[1](u_0+d_new)}")
+    # print(f"optimal old input(model): {u_0}")
+    # print(f"optimal old output(model): {model[0](theta,u_0)+GP_modifier[0][0]}")
+    # print(f"old constraint(model): {model[1](theta,u_0)+GP_modifier[0][1]}")
+    # print(f"old plant output: {plant_system[0](u_0)}")
+    # print(f"old plant constraint: {plant_system[1](u_0)}")
 
-    # print(BRTO.objective_function(jnp.array([-1.,-1]),theta,u_0,GP_m,0.,model[0]))
+
+    # ## Find info on new observation
+    # GP_modifier = GP_m.GP_inference_np(u_0+d_new)
+    # print("\n #___Find info on new observation and see if improved___#")
+    # print(f"optimal new input(model): {u_0+d_new}")
+    # print(f"Euclidean norm of d_new(model): {np.linalg.norm(d_new)}")
+    # print(f"optimal new output(model): {model[0](theta,u_0+d_new)+GP_modifier[0][0]}")
+    # print(f"new constraint(model): {model[1](theta,u_0+d_new)+GP_modifier[0][1]}")
+    # print(f"new plant output: {plant_system[0](u_0+d_new)}")
+    # print(f"new plant constraint: {plant_system[1](u_0+d_new)}")
+    # print(f"Sample data (X): \n{GP_m.X.reshape(-1,2)}, \nSample data (Y): \n{GP_m.Y.reshape(-1,2)}")
+
+
+    # ## Check if new observation provides min in trust region
+    # print("\n#___Check if plant system agrees with new observation___#")
+    # cons = []
+    # cons.append({'type': 'ineq',
+    #              'fun': lambda u: plant_system[1](u)})
+    # cons.append({'type': 'ineq',
+    #              'fun': lambda u: r_i - np.linalg.norm(u-u_0)})
+    # result = minimize((plant_system[0]),
+    #             u_0,
+    #             constraints = cons,
+    #             method      ='SLSQP',
+    #             options     = {'ftol': 1e-9})
+    # print(f"optimal new input(plant system): {result.x}")
+    # print(f"Euclidean norm of new input(plant system): {np.linalg.norm(result.x-u_0)}")
+    # print(f"optimal new output(plant system): {result.fun}")
+    # print(f"new constraint(plant system): {plant_system[1](result.x)}")
 
     # ########_________Test case 3: Real Time Optimization_________########
-    # print("\n ########_________Test case 3: Real Time Optimization_________########")
-    # n_sample            = 4
-    # u_0                 = jnp.array([4.,-1.])
-    # theta_0             = jnp.array([1.,1.,1.,1.])
-    # r                   = 1
-    # n_iter = 2
-    # for i in range(n_iter):
-    #     print(f"####___Iteration: {i}___####")
-    #     # New observation
-    #     d_new = BRTO.optimize_acquisition(r,u_0,theta,GP_m,b=0.1)
-    #     # Collect data on new observation
-    #     u_new = u_0 + d_new
-    #     modifier = BRTO.modifier_calc(theta,u_new)
-        
+    print("\n ########_________Test case 3: Real Time Optimization_________########")
+    n_sample            = 4
+    u_0                 = np.array([1.4,-0.8])
+    theta_0             = np.array([1.,1.,1.,1.])
+    r                   = 0.5
+    n_iter = 10
+    for i in range(n_iter):
+        print(f"####___Iteration: {i}___####")
+        # New observation
+        d_new = BRTO.optimize_acquisition(r,u_0,theta,GP_m,b=0.1)
+        # Collect data on new observation
+        u_new = u_0 + d_new
+        modifier = BRTO.modifier_calc(theta,u_new)
 
+        # Improve GP model using collected data on new observation
+        GP_m.add_sample(u_new,modifier)
 
+        # for next iter + data collection
+        u_0 = u_new
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
+        print(f"u_new: {u_new}")
+        print(f"d_new: {d_new}")
+        print(f"mag d_new: {np.linalg.norm(d_new)}")
+        GP_modifier = GP_m.GP_inference_np(u_new)
+        print(f"obj func after RTO : {Benoit_Problem.Benoit_Model_1(theta,u_new)+GP_modifier[0][0]}")
+        print(f"const after RTO : {Benoit_Problem.con1_Model(theta,u_new)+GP_modifier[0][1]}")
+        print(f"plant obj func after RTO : {Benoit_Problem.Benoit_System_1(u_new)}")
+        print(f"plant const after RTO: {Benoit_Problem.con1_system(u_new)}")

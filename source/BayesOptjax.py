@@ -180,13 +180,13 @@ class BayesianOpt():
         
         invKopt = []
         NLL                         = self.negative_loglikelihood
-        NLL_grad          = grad(NLL,argnums=0)
+        NLL_grad                    = grad(NLL,argnums=0)
         
         for i in range(self.ny_dim):
             for j in range(multi_start):
                 hyp_init            = jnp.array(lb + (ub - lb) * multi_startvec[j,:])
                 res                 = minimize(NLL, hyp_init, args=(self.X_norm, self.Y_norm[:,i:i+1]),
-                                               method='SLSQP', options=options,bounds=bounds, jac=NLL_grad, tol=jnp.finfo(jnp.float32).eps)
+                                               method='SLSQP', options=options,bounds=bounds, jac='3-point', tol=jnp.finfo(jnp.float32).eps)
                 localsol[j]         = res.x
                 localval            = localval.at[j].set(res.fun)
 
@@ -278,8 +278,6 @@ class BayesianOpt():
         # determine hyperparameters
         self.hypopt, self.invKopt   = self.determine_hyperparameters()
     
-
-
 
 if __name__ == '__main__':
 
@@ -404,7 +402,7 @@ if __name__ == '__main__':
         plt.plot(Xtest, Ytest_mean, 'C0', lw=2)
 
         plt.axis([-20, 20, -2, 3])
-        plt.title(f'Gaussian Process Regression at iteration: {int(t*10)}')
+        plt.title(f'Iteration: {int(t*10)}, NLL: {int(GP_m.negative_loglikelihood(GP_m.hypopt,GP_m.X_norm,GP_m.Y_norm))}')
         plt.legend(('training', 'true function', 'GP mean', 'GP conf interval'),
                 loc='lower right')
         

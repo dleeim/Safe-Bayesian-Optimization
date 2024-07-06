@@ -202,7 +202,7 @@ class BayesianOpt():
         result = minimize(self.aquisition_func,x0,args=(b),
                           method='SLSQP',options={'ftol': 1e-9},jac='3-point')
 
-        return result.x
+        return result.x, result.fun
     
     ##########################################
     # --- Add Sample and reinitialize GP --- #
@@ -296,8 +296,8 @@ if __name__ == '__main__':
     # print(f"new Xnorm: {GP_m.X_norm}, \nnew Y norm: {GP_m.Y_norm}")
     # print(f"new hypopt: {GP_m.hypopt}, \nnew invKopt: {GP_m.invKopt}")
     
-    ##### --- Test for Bayesian Optimization ---#####
-    print(f"##### --- Test for Bayesian Optimization ---#####")
+    # ##### --- Test for Bayesian Optimization ---#####
+    # print(f"##### --- Test for Bayesian Optimization ---#####")
 
     # # --- (can ignore this function) function for creating file for a frame --- #
     # def create_frame(t,filename):
@@ -421,31 +421,4 @@ if __name__ == '__main__':
     # x1 = -8.92389378
     # print(GP_m.GP_inference_np(x1))
 
-    #########_________Test for __init__:
-    print("#########_________Test for __init__:")
-    # --- define training data --- #
-    Xtrain = np.array([[ 1.305728,   -0.69302666],
-                       [ 1.3228958,  -1.198658  ],
-                       [ 1.4750773,  -0.75442755],
-                       [ 0.9418043,  -0.87447894]])
-    ytrain = np.array([[1.280307,  3.2114954],
-                       [1.6011345, 3.2834308],
-                       [1.632175,  3.4147716],
-                       [0.8281207, 2.9260488]])
-    GP_m = BayesianOpt(Xtrain, ytrain, 'RBF', multi_hyper=2, var_out=True)
-
-    # --- NLL --- #
-    hyper = np.array([[ 0.,  0.,  0., -5.],
-                       [ 2.,  -2.,   2.,  -6.5],])
-    for i in range(hyper.shape[0]):
-        NLL = GP_m.negative_loglikelihood(hyper[i],GP_m.X_norm,GP_m.Y_norm[:,i:i+1])
-
-    # --- GP initialization --- #
-    def mean(x):
-        return GP_m.GP_inference_np(x)[0][0]
-
-    print(f"GP mean: {GP_m.Y_mean}")
-
-    x_1 = np.array([1.4,-0.8])
-    print(f"GP inference: {mean(x_1)}")
-
+    pass
