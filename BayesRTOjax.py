@@ -19,9 +19,9 @@ class BRTO():
         self.GP_inference_np_jit        = jit(self.GP_inference_np)
         
     
-    ###################################
+    ##################################
         # --- Data Sampling --- #
-    ###################################
+    ##################################
     
     def Data_sampling(self,n_sample,x_0,r):
         '''
@@ -350,8 +350,6 @@ class BRTO():
         # Perform Multistart Optimization
         self.key, subkey            = jax.random.split(self.key) 
         d0                          = self.Ball_sampling(self.nx_dim,multi_start,r,subkey)
-        print(f"subkey: {subkey}")
-        # print(d0)
         for j in range(multi_start):
             print(f"multi_start: {j}")
             d0_j                    = d0[j,:]
