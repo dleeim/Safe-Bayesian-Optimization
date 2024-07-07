@@ -11,7 +11,7 @@ class BayesianOpt():
  
         self.plant_system               = plant_system
         self.n_fun                      = len(plant_system)
-        self.key                        = jax.random.PRNGKey(42)        
+        self.key                        = jax.random.PRNGKey(42)
     
     ##################################
         # --- Data Sampling --- #
@@ -73,14 +73,14 @@ class BayesianOpt():
         Description:
             Initialize GP by using input data X, output data Y
         Arguments:
-            X                       : training data input
-            Y                       : training data output
-            kernel                  : type of kernel (RBF is only available)
-            multi_hyper             : number of multistart for hyperparameter optimization
-            var_out                 :
+            - X                     : training data input
+            - Y                     : training data output
+            - kernel                : type of kernel (RBF is only available)
+            - multi_hyper           : number of multistart for hyperparameter optimization
+            - var_out               :
         Returns:
-            X_norm                  : normalized training data input
-            Y_norm                  : normalized training data output
+            - X_norm                : normalized training data input
+            - Y_norm                : normalized training data output
         '''
         # GP variable definitions
         self.X, self.Y, self.kernel = X, Y, kernel
@@ -217,8 +217,8 @@ class BayesianOpt():
         Arguments:
             None; uses global variables ie) self.X_norm, sample data input
         Result:
-            hypopt                  : optimal hyperparameter (W,sf2,sn2)
-            invKopt                 : inverse of covariance matrix with optimal hyperparameters 
+            - hypopt                : optimal hyperparameter (W,sf2,sn2)
+            - invKopt               : inverse of covariance matrix with optimal hyperparameters 
         ''' 
         lb                          = jnp.array([-4.] * (self.nx_dim + 1) + [-8.])  # lb on parameters (this is inside the exponential)
         ub                          = jnp.array([4.] * (self.nx_dim + 1) + [-2.])   # ub on parameters (this is inside the exponential)
@@ -300,7 +300,7 @@ class BayesianOpt():
                 # --- Optimize Acquisition --- #          
     #######################################################
 
-    def optimize_acquisition(self,r,x_0,b=0,multi_start=1):
+    def minimize_acquisition(self,r,x_0,b=0,multi_start=1):
         '''
         Description:
             Find minimizer x* in a Gaussian Process Lower Confidence Bound
@@ -350,7 +350,6 @@ class BayesianOpt():
         d0                          = self.Ball_sampling(self.nx_dim,multi_start,r,subkey)
 
         for j in range(multi_start):
-            print(f"multi_start: {j}")
             d0_j                    = d0[j,:]
             res                     = minimize(obj_fun, d0_j, constraints=cons, method='SLSQP', 
                                                jac=obj_grad,options=options,tol=1e-8)
@@ -383,10 +382,60 @@ class BayesianOpt():
         value                       = r - jnp.linalg.norm(d+1e-8)
 
         return value
+    
+    ########################################################
+                # --- Real Time Optimization --- #          
+    ########################################################
 
-    #############################################
-                # --- Add sample --- #          
-    #############################################
+    def RTOminimize(self,n_iter,x_initial,radius,multi_start,b):
+        '''
+        Description:
+            Real-Time Optimization algorithm in n iterations to conduct steps:
+                1. Minimizes Gaussian Process acquisition function in trust region to find new observations x_new
+                2. Retrieve outputs from plant systems and re-train the Gaussian Process
+        Arguments:
+            - n_iter                : number of iterations
+            - x_initial             : initial x value
+            - radius                : radius for trust region
+            - multi_start           : number of multi start optimization for each step
+            - b                     : parameter for exploration in acquisition function
+        Returns:
+            - data                  : data stored during each step in Real-Time Optimization
+        '''
+        # Initialize Data Storage
+        keys                            = ['i','x_new','plant_output','TR_radius']
+        self.data_storage                = DataStorage(keys)
+        
+        # Real-Time Optimization
+        for i in range(n_iter):
+            
+            # Bayesian Optimization
+            d_new, obj = self.minimize_acquisition(radius,x_initial,multi_start=multi_start,b=b)
+
+            # Retrieve Data from plant system
+            x_new = x_i + d_new  
+            plant_output = []
+            for plant in self.plant_system:
+                plant_output.append(plant(x_new))  
+            
+            plant_output = jnp.array(plant_output)
+
+            # Add sample
+            self.add_sample(x_new,plant_output)
+
+            # Preparation for next iter:
+            x_i = x_new
+
+            # Collect Data
+            self.data_storage.add_data_points({
+                'i': i,
+                'x_new': x_new,
+                'plant_output': plant_output,
+                'TR_radius': radius
+            })
+        
+        data = self.data_storage.get_data
+        return data
     
     def add_sample(self,x_new,y_new):
         '''
@@ -410,6 +459,7 @@ class BayesianOpt():
         # determine hyperparameters
         self.hypopt, self.invKopt   = self.determine_hyperparameters()
 
+
 class DataStorage:
 
     def __init__(self,keys):
@@ -422,28 +472,13 @@ class DataStorage:
     
     def add_data_points(self, data_dict):
         for key, new_data_point in data_dict.items():
-            if key in self.data_sets:
-                self.data_sets[key].append(new_data_point)
+            if key in self.data:
+                self.data[key].append(new_data_point)
             else:
                 raise KeyError(f"Key '{key}' not found in data sets")
             
     def get_data(self):
-        return self.data_sets
-    
-
-class RealTimeOpt():
-
-    def __init__(self,BayesOpt,DataStorage):
-        '''
-        Description:
-        Argument:
-        Result:
-        '''
-        self.BayesOpt = BayesOpt
-        self.DataStorage = DataStorage
-
-    def minimize(self,plant_system,x_initial,n_iter,r,multi_start,b):
-        pass
+        return self.data
     
 
 

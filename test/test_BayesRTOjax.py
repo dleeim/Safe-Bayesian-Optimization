@@ -109,10 +109,10 @@ def test_GP_inference_grad():
 # --- Initialization --- #
 r_i = 0.5
 
-def test_optimize_acquisition():
+def test_minimize_acquisition():
 
-    print('\n# --- optimize acquisiton')
-    d_new, obj = GP_m.optimize_acquisition(r_i,x_0,multi_start=1)
+    print('\n# --- minimize acquisiton')
+    d_new, obj = GP_m.minimize_acquisition(r_i,x_0,multi_start=1)
     print(f"optimal new input(model): {x_0+d_new}")
     print(f"corresponding new output(model): {obj}")
     print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
@@ -158,7 +158,7 @@ def test_RealTimeOptimization():
 
     for i in range(n_iter):
         # Bayesian Optimization
-        d_new, obj = GP_m.optimize_acquisition(r_i,x_i,multi_start=5,b=b)
+        d_new, obj = GP_m.minimize_acquisition(r_i,x_i,multi_start=5,b=b)
 
         # Collect Data
         x_new = x_i + d_new  
