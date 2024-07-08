@@ -1,5 +1,6 @@
 import time
 import jax 
+import numpy as np
 import jax.numpy as jnp
 from jax import grad, vmap, jit
 from scipy.optimize import minimize
@@ -390,8 +391,8 @@ class BayesianOpt():
     def RTOminimize(self,n_iter,x_initial,radius,multi_start,b):
         '''
         Description:
-            Real-Time Optimization algorithm in n iterations to conduct steps:
-                1. Minimizes Gaussian Process acquisition function in trust region to find new observations x_new
+            Real-Time Optimization algorithm in (n_iter) iterations to conduct steps as follows:
+                1. Minimizes Gaussian Process acquisition function in Trust Region to find new observations x_new
                 2. Retrieve outputs from plant systems and re-train the Gaussian Process
         Arguments:
             - n_iter                : number of iterations
@@ -403,38 +404,51 @@ class BayesianOpt():
             - data                  : data stored during each step in Real-Time Optimization
         '''
         # Initialize Data Storage
-        keys                            = ['i','x_new','plant_output','TR_radius']
-        self.data_storage                = DataStorage(keys)
+        keys                        = ['i','x_new','plant_output','TR_radius']
+        data_storage           = DataStorage(keys)
+
+        # Collect data at x_initial
+        plant_output            = []
+        for plant in self.plant_system:
+            plant_output.append(plant(x_initial)) 
+        
+        data_storage.add_data_points({
+            'i'                 : 0,
+            'x_new'             : x_initial.tolist(),
+            'plant_output'      : plant_output,
+            'TR_radius'         : radius
+        })
         
         # Real-Time Optimization
         for i in range(n_iter):
-            
-            # Bayesian Optimization
-            d_new, obj = self.minimize_acquisition(radius,x_initial,multi_start=multi_start,b=b)
 
+            # Bayesian Optimization
+            d_new, obj              = self.minimize_acquisition(radius,x_initial,multi_start=multi_start,b=b)
+            
             # Retrieve Data from plant system
-            x_new = x_i + d_new  
-            plant_output = []
+            x_new                   = x_initial + d_new  
+            plant_output            = []
             for plant in self.plant_system:
                 plant_output.append(plant(x_new))  
             
-            plant_output = jnp.array(plant_output)
+            plant_output            = jnp.array(plant_output)
 
-            # Add sample
+            # Add sample to Gaussian Process
             self.add_sample(x_new,plant_output)
 
             # Preparation for next iter:
-            x_i = x_new
+            x_initial               = x_new
 
             # Collect Data
-            self.data_storage.add_data_points({
-                'i': i,
-                'x_new': x_new,
-                'plant_output': plant_output,
-                'TR_radius': radius
+            data_storage.add_data_points({
+                'i'                 : i+1,
+                'x_new'             : x_new.tolist(),
+                'plant_output'      : plant_output.tolist(),
+                'TR_radius'         : radius
             })
         
-        data = self.data_storage.get_data
+        data                        = data_storage.get_data()
+
         return data
     
     def add_sample(self,x_new,y_new):
@@ -476,8 +490,11 @@ class DataStorage:
                 self.data[key].append(new_data_point)
             else:
                 raise KeyError(f"Key '{key}' not found in data sets")
-            
+        
     def get_data(self):
+        for i in self.data.keys():
+            self.data[i] = np.array(self.data[i])
+            
         return self.data
     
 

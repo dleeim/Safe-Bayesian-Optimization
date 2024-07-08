@@ -4,6 +4,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import jax.numpy as jnp
 from jax import grad
+import pandas as pd
 import BayesRTOjax
 import Benoit_Problem
 
@@ -50,17 +51,15 @@ def check_jaxgrad(x,delta,func,index):
     print(f"Difference between actual and predicted in 1st dim: {func_new_0 - func_newgrad_0}")
     print(f"Difference between actual and predicted in 1st dim: {func_new_1 - func_newgrad_1}")
 
-# --- Initialization --- #
-x_0 = jnp.array([1.4,-0.8])
-print(f"initial x: {x_0}")
-n_sample = 4
-r = 0.5
-
 #######################################
 #### Test Case 1: Gaussian Process ####
 #######################################
 
 def test_GP_initialization():
+    # --- Initialization --- #
+    x_0 = jnp.array([1.4,-0.8])
+    n_sample = 4
+    r = 0.5
     
     print("\n# --- Data Sampling --- #")
     X,Y = GP_m.Data_sampling(n_sample,x_0,r)
@@ -79,10 +78,10 @@ def test_NLL():
         NLL = GP_m.negative_loglikelihood(hyper[i],GP_m.X_norm,GP_m.Y_norm[:,i:i+1])
         print(f"NLL for func index {i}: {NLL}")
 
-# --- Initialization --- #
-x_1 = jnp.array([1.4,-0.8])
-
 def test_GP_inference():
+    # --- Initialization --- #
+    x_1 = jnp.array([1.4,-0.8])
+
     print("\n#___Check similarity in plant and model output on sampled data___#")
     print(f"test input: {x_1}")
     print(f"plant obj: {plant_system[0](x_1)}")
@@ -93,11 +92,11 @@ def test_GP_inference():
     print("\n#___Check variance at sampled input___#")
     print(f"variance: {variances(x_1)}")
 
-# --- Initialization --- #
-x_2 = jnp.array([1.4,-0.8])
-delta = 0.0001
-
 def test_GP_inference_grad():
+    # --- Initialization --- #
+    x_2 = jnp.array([1.4,-0.8])
+    delta = 0.0001
+
     print("\n# --- GP inference grad --- #")
     for i in range(len(plant_system)):
         check_jaxgrad(x_2,delta,func_mean,index=i)
@@ -106,10 +105,10 @@ def test_GP_inference_grad():
 #### Test Case 2: Optimization of Acquisition ####
 ##################################################
 
-# --- Initialization --- #
-r_i = 0.5
-
 def test_minimize_acquisition():
+    # --- Initialization --- #
+    x_0 = jnp.array([1.4,-0.8])
+    r_i = 0.5
 
     print('\n# --- minimize acquisiton')
     d_new, obj = GP_m.minimize_acquisition(r_i,x_0,multi_start=1)
@@ -181,6 +180,66 @@ def test_RealTimeOptimization():
         print(f"mean: {obj}")
         print(f"output: {output_new}")
         print(f"check add sample: {GP_m.GP_inference_np(x_i)}")
+
+def test_RTOminimize_Benoit():
+
+    # Initialization
+    plant_system = [Benoit_Problem.Benoit_System_1,
+                    Benoit_Problem.con1_system_tight]
+    
+    GP_m = BayesRTOjax.BayesianOpt(plant_system)
+
+    # Data Sampling
+    n_sample = 4
+    x_i = jnp.array([1.4,-0.8])
+    r = 0.5
+
+    X,Y = GP_m.Data_sampling(n_sample,x_i,r)
+
+    # GP initialization
+    GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=10, var_out=True)
+
+    # Real-Time Optimization 
+    n_iter = 10
+    multi_start=5
+    b = 0.
+
+    data = GP_m.RTOminimize(n_iter=n_iter,x_initial=x_i,radius=r,multi_start=5,b=b)
+    
+    # Data Processing
+    processed_data = {
+        'i': data['i'],
+        'x_new_0': data['x_new'][:, 0],
+        'x_new_1': data['x_new'][:, 1],
+        'plant_output_0': data['plant_output'][:, 0],
+        'plant_output_1': data['plant_output'][:, 1],
+        'TR_radius': data['TR_radius']
+    }
+
+    # Plot Real-Time Optimization Step
+    filenames = []
+    for i in range(processed_data['x_new_0'].shape[0]):
+        # Create Frame
+        t = i * 0.1
+        filename = f'frame_{i:02d}.png'
+        Benoit_Problem.create_frame(Benoit_Problem.BRTO_Benoit_drawing(processed_data,i),filename)
+        filenames.append(filename)
+
+    ## Create GIF
+    frame_duration = 1000
+    GIFname = 'BRTO_Benoit.gif'
+    Benoit_Problem.create_GIF(frame_duration,filenames,GIFname)
+
+    # Plot plant output and its constraint
+    figname = 'Plant_Output_Constraint_png'
+    Benoit_Problem.plant_outputs_drawing(processed_data['i'],
+                                         processed_data['plant_output_0'],
+                                         processed_data['plant_output_1'],
+                                         figname)
+
+    
+def test_RTOminimize():
+    pass
         
 
 
