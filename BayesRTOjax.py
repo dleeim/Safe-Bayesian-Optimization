@@ -318,8 +318,8 @@ class BayesianOpt():
         # Initialization
         options                     = {'disp':False, 'maxiter':10000,'ftol': 1e-12} 
         cons                        = []
-        localsol                    = [0.]*multi_start
-        localval                    = jnp.zeros((multi_start))
+        localsol                    = []
+        localval                    = []
 
         # Jit relavent class methods and JAX grad
         self.GP_inference_np_jit    = jit(self.GP_inference_np)
@@ -334,16 +334,14 @@ class BayesianOpt():
                 obj_grad            = lambda d: obj_fun_jitgrad(x_0+d, b)
             
             else: 
-                const_grad          = lambda d: constraint_jitgrad(x_0+d,b,i)
                 cons.append({'type' : 'ineq',
                              'fun'  : lambda d: self.constraint(x_0+d,b,i),
-                             'jac'  : const_grad
+                             'jac'  : lambda d: constraint_jitgrad(x_0+d,b,i)
                              })        
         
-        TRconst_grad                = lambda d: TR_constraint_jitgrad(d,r)
         cons.append({'type'         : 'ineq',
                      'fun'          : lambda d: self.TR_constraint(d,r),
-                     'jac'          : TRconst_grad
+                     'jac'          : lambda d: TR_constraint_jitgrad(d,r)
                      })
         
         # Perform Multistart Optimization
@@ -354,13 +352,20 @@ class BayesianOpt():
             d0_j                    = d0[j,:]
             res                     = minimize(obj_fun, d0_j, constraints=cons, method='SLSQP', 
                                                jac=obj_grad,options=options,tol=1e-8)
-            localsol[j]             = res.x
-            localval                = localval.at[j].set(res.fun)
+            
+            for con in cons:
+                if con['fun'](res.x) < -0.1:
+                    break # Barrier when minimize significantly fails 
+                else:
+                    localsol.append(res.x)
+                    localval.append(res.fun)
 
+        localsol                    = jnp.array(localsol)
+        localval                    = jnp.array(localval)
         minindex                    = jnp.argmin(localval)
         xopt                        = localsol[minindex]
         funopt                      = localval[minindex]
-        
+
         return xopt, funopt
     
     def obj_fun(self, x, b):
@@ -381,7 +386,7 @@ class BayesianOpt():
     
     def TR_constraint(self,d,r):
         value                       = r - jnp.linalg.norm(d+1e-8)
-
+        # jax.debug.print("value: {}",value)
         return value
     
     ########################################################
@@ -422,11 +427,9 @@ class BayesianOpt():
         for i in range(n_iter):
 
             # Bayesian Optimization
-            print(f"\ninitial, radius: {x_initial,radius}")
             d_new, obj              = self.minimize_acquisition(radius,x_initial,multi_start=multi_start,b=b)
-            
+
             # Retrieve Data from plant system
-            print(f"d_new, x_initial+d: {d_new,x_initial+d_new}")
             plant_output            = self.calculate_plant_outputs(x_initial+d_new)
 
             # Collect Data to DataStorage
@@ -485,10 +488,8 @@ class BayesianOpt():
         # Check plant constraints to update trust region
         for i in range(self.n_fun-1):
             plant_const_now = data_storage.data['plant_output'][-1][i+1]
-            print(plant_const_now)
             
             if plant_const_now < 0:
-                print("reduced bc violated plant_const")
                 return x_initial, r*r_red
             else:
                 pass
@@ -500,23 +501,18 @@ class BayesianOpt():
         GP_now          = self.GP_inference_np_jit(x_new)[0][0]
 
         rho             = (plant_now-plant_previous)/(GP_now-GP_previous)
-        print(f"plant now, previous: {plant_now,plant_previous}")
-        print(f"GP now, previous: {GP_now,GP_previous}")
+
         if rho < rho_lb:
-            print('reduced bc rho is too small')
             return x_initial, r*r_red
         
         elif plant_previous < plant_now:
-            print('reduced bc worse plant')
             return x_initial, r*r_red
         
-        elif rho >= rho_lb or rho < rho_ub: 
-            print('constant bc rho is moderate')
+        elif rho >= rho_lb and rho < rho_ub: 
             data_storage.data['plant_temporary'][0][0] = plant_now
             return x_new, r
         
         else: # rho >= rho_ub
-            print('increased bc rho was big')
             data_storage.data['plant_temporary'][0][0] = plant_now
             return x_new, min(r*r_inc,r_max)
         
