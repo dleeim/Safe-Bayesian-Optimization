@@ -404,52 +404,111 @@ class BayesianOpt():
             - data                  : data stored during each step in Real-Time Optimization
         '''
         # Initialize Data Storage
-        keys                        = ['i','x_new','plant_output','TR_radius']
-        data_storage           = DataStorage(keys)
+        keys                        = ['i','x_new','plant_output','TR_radius','plant_temporary']
+        data_storage                = DataStorage(keys)
 
-        # Collect data at x_initial
-        plant_output            = []
-        for plant in self.plant_system:
-            plant_output.append(plant(x_initial)) 
+        # Collect data at x_initial to DataStorage
+        plant_output                = self.calculate_plant_outputs(x_initial)
+        data_dict                   = self.create_data_points(0,x_initial,plant_output,radius)
+        data_storage.add_data_points(data_dict)
         
-        data_storage.add_data_points({
-            'i'                 : 0,
-            'x_new'             : x_initial.tolist(),
-            'plant_output'      : plant_output,
-            'TR_radius'         : radius
-        })
-        
+        # create temporary plant output for comparison in Trust Region Update
+        data_storage.data['plant_temporary'].append(plant_output.tolist())
+
         # Real-Time Optimization
         for i in range(n_iter):
 
             # Bayesian Optimization
+            print(f"\ninitial, radius: {x_initial,radius}")
             d_new, obj              = self.minimize_acquisition(radius,x_initial,multi_start=multi_start,b=b)
             
             # Retrieve Data from plant system
-            x_new                   = x_initial + d_new  
-            plant_output            = []
-            for plant in self.plant_system:
-                plant_output.append(plant(x_new))  
-            
-            plant_output            = jnp.array(plant_output)
+            print(f"d_new, x_initial+d: {d_new,x_initial+d_new}")
+            plant_output            = self.calculate_plant_outputs(x_initial+d_new)
+
+            # Collect Data to DataStorage
+            data_dict               = self.create_data_points(i+1,x_initial+d_new,plant_output,radius)
+            data_storage.add_data_points(data_dict)
+
+            # Trust Region Update:
+            x_new, radius_new       = self.update_TR(x_initial,x_initial+d_new,radius,data_storage)
 
             # Add sample to Gaussian Process
-            self.add_sample(x_new,plant_output)
+            self.add_sample(x_initial+d_new,plant_output)
 
             # Preparation for next iter:
             x_initial               = x_new
-
-            # Collect Data
-            data_storage.add_data_points({
-                'i'                 : i+1,
-                'x_new'             : x_new.tolist(),
-                'plant_output'      : plant_output.tolist(),
-                'TR_radius'         : radius
-            })
+            radius                  = radius_new
         
         data                        = data_storage.get_data()
 
         return data
+    
+    def create_data_points(self,iter,x_new,plant_output,radius):
+        data_dict = {
+            'i'                     : iter,
+            'x_new'                 : x_new.tolist(),
+            'plant_output'          : plant_output.tolist(),
+            'TR_radius'             : radius
+        }
+
+        return data_dict
+    
+    def calculate_plant_outputs(self,x):
+
+        plant_output            = []
+        for plant in self.plant_system:
+            plant_output.append(plant(x)) 
+
+        return jnp.array(plant_output)
+    
+    def update_TR(self,x_initial,x_new,r,data_storage):
+        '''
+        Description:
+        Arguments:
+        Returns:
+            - x_new:
+            - r: 
+        '''
+        # Check plant constraints to update trust region
+        for i in range(self.n_fun-1):
+            plant_const_now = data_storage.data['plant_output'][-1][i+1]
+            print(plant_const_now)
+            
+            if plant_const_now < 0:
+                print("reduced bc violated plant_const")
+                return x_initial, r*0.8 # r_red
+            else:
+                pass
+
+        # Calculate rho and use to update trust region
+        plant_previous  = data_storage.data['plant_temporary'][0][0]
+        plant_now       = data_storage.data['plant_output'][-1][0]
+        GP_previous     = self.GP_inference_np_jit(x_initial)[0][0]
+        GP_now          = self.GP_inference_np_jit(x_new)[0][0]
+
+        rho             = (plant_now-plant_previous)/(GP_now-GP_previous)
+        print(f"plant now, previous: {plant_now,plant_previous}")
+        print(f"GP now, previous: {GP_now,GP_previous}")
+        if rho < 0.2:
+            print('reduced bc rho is too small')
+            return x_initial, r*0.8     # r_red
+        
+        elif plant_previous < plant_now:
+            print('reduced bc worse plant')
+            return x_initial, r*0.8
+        
+        elif rho >= 0.2 or rho < 0.8: 
+            print('constant bc rho is moderate')
+            data_storage.data['plant_temporary'][0][0] = plant_now
+            return x_new, r
+        
+        else: # rho >= 0.8
+            r = min(r*1.2,2) # r_inc, r_max
+            print('increased bc rho was big')
+            data_storage.data['plant_temporary'][0][0] = plant_now
+            return x_new, r
+        
     
     def add_sample(self,x_new,y_new):
         '''

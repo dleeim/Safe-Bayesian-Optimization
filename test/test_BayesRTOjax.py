@@ -3,10 +3,11 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import jax.numpy as jnp
-from jax import grad
+from jax import grad, vmap, jit
 import pandas as pd
 import BayesRTOjax
 import Benoit_Problem
+import Rosenbrock_Problem
 
 
 # --- Preparation --- #
@@ -204,17 +205,21 @@ def test_RTOminimize_Benoit():
     multi_start=5
     b = 0.
 
-    data = GP_m.RTOminimize(n_iter=n_iter,x_initial=x_i,radius=r,multi_start=5,b=b)
+    data = GP_m.RTOminimize(n_iter=n_iter,x_initial=x_i,radius=r,multi_start=multi_start,b=b)
     
     # Data Processing
     processed_data = {
         'i': data['i'],
         'x_new_0': data['x_new'][:, 0],
         'x_new_1': data['x_new'][:, 1],
-        'plant_output_0': data['plant_output'][:, 0],
-        'plant_output_1': data['plant_output'][:, 1],
+        'plant_output': data['plant_output'][:, 0],
+        'plant_constraint': data['plant_output'][:, 1],
         'TR_radius': data['TR_radius']
     }
+
+    # print Data
+    df = pd.DataFrame(processed_data)
+    print("\n", df)
 
     # Plot Real-Time Optimization Step
     filenames = []
@@ -233,12 +238,32 @@ def test_RTOminimize_Benoit():
     # Plot plant output and its constraint
     figname = 'Plant_Output_Constraint_png'
     Benoit_Problem.plant_outputs_drawing(processed_data['i'],
-                                         processed_data['plant_output_0'],
-                                         processed_data['plant_output_1'],
+                                         processed_data['plant_output'],
+                                         processed_data['plant_constraint'],
                                          figname)
 
     
-def test_RTOminimize():
+def test_RTOminimize_Rosenbrock():
+    
+    # Initialization
+    plant_system = [Rosenbrock_Problem.Rosenbrock_f,
+                    Rosenbrock_Problem.con2contour_plot]
+    
+    GP_m = BayesRTOjax.BayesianOpt(plant_system)
+
+    # Data Sampling:
+    X = jnp.array([[-1.5,-0.6],
+                   [-1.8,-0.65],
+                   [-1.9,-0.5],
+                   [-1.7,-0.7],
+                   [-1.95,-0.8],
+                   [-1.5,-1]])
+    n_sample = X.shape[0]
+    n_fun = 2
+    Y = jnp.zeros((n_sample,n_fun))
+    for i in range(n_fun):
+        Y = Y.at[:,i].set(vmap(plant_system[i])(X))
+
     pass
         
 
