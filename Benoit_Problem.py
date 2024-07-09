@@ -91,7 +91,7 @@ def plant_drawing(is_constraint=True,is_tight_constraint=True):
                 uc0t = 1. + x ** 2 + 2. * x
                 plt.plot(uc0t,x,'m')
 
-def trustregion_drawing(r,input_0,input_1):
+def trustregion_drawing(r,inputold_0,inputold_1):
        
         d_trial_x = jnp.linspace(-r, r, 50)
         d_trial_ypos= []
@@ -106,8 +106,8 @@ def trustregion_drawing(r,input_0,input_1):
         d_trial_ypos = jnp.array(d_trial_ypos)
         d_trial_yneg = jnp.array(d_trial_yneg)
 
-        plt.plot(d_trial_x+input_0,d_trial_ypos+input_1,'k-',linewidth=0.5)
-        plt.plot(d_trial_x+input_0,d_trial_yneg+input_1,'k-',linewidth=0.5)
+        plt.plot(d_trial_x+inputold_0,d_trial_ypos+inputold_1,'k-',linewidth=0.5)
+        plt.plot(d_trial_x+inputold_0,d_trial_yneg+inputold_1,'k-',linewidth=0.5)
 
 def BRTO_Benoit_drawing(data,iter):
 
@@ -118,10 +118,12 @@ def BRTO_Benoit_drawing(data,iter):
         for i in range(iter+1):
             # Plot points for input observed
             plt.plot(data['x_new_0'][i],data['x_new_1'][i], 'ro')
-            trustregion_drawing(data['TR_radius'][i],data['x_new_0'][i],data['x_new_1'][i])
+            trustregion_drawing(data['TR_radius'][i],data['x_initial_0'][i],data['x_initial_1'][i])
 
             if i != 0:
-                plt.plot(data['x_new_0'][i-1:i+1],data['x_new_1'][i-1:i+1],'b-',linewidth=1,label='_nolegend_')
+                old_new_0 = [data['x_initial_0'][i],data['x_new_0'][i]]
+                old_new_1 = [data['x_initial_1'][i],data['x_new_1'][i]]
+                plt.plot(old_new_0,old_new_1,'b-',linewidth=1,label='_nolegend_')
 
         
 def create_frame(fun_drawing,filename):

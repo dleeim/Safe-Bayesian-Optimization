@@ -192,7 +192,7 @@ def test_RTOminimize_Benoit():
 
     # Data Sampling
     n_sample = 4
-    x_i = jnp.array([1.4,-0.8])
+    x_i = jnp.array([1.1,-0.8])
     r = 0.5
 
     X,Y = GP_m.Data_sampling(n_sample,x_i,r)
@@ -204,12 +204,23 @@ def test_RTOminimize_Benoit():
     n_iter = 10
     multi_start=5
     b = 0.
+    TR_parameters = {
+        'radius': 0.5,
+        'radius_max': 2,
+        'radius_red': 0.8,
+        'radius_inc': 1.2,
+        'rho_lb': 0.2,
+        'rho_ub': 0.8
+    }
 
-    data = GP_m.RTOminimize(n_iter=n_iter,x_initial=x_i,radius=r,multi_start=multi_start,b=b)
+    data = GP_m.RTOminimize(n_iter=n_iter,x_initial=x_i,TR_parameters=TR_parameters,
+                            multi_start=multi_start,b=b)
     
     # Data Processing
     processed_data = {
         'i': data['i'],
+        'x_initial_0': data['x_initial'][:,0],
+        'x_initial_1': data['x_initial'][:,1],
         'x_new_0': data['x_new'][:, 0],
         'x_new_1': data['x_new'][:, 1],
         'plant_output': data['plant_output'][:, 0],

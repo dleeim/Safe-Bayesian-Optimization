@@ -388,7 +388,7 @@ class BayesianOpt():
                 # --- Real Time Optimization --- #          
     ########################################################
 
-    def RTOminimize(self,n_iter,x_initial,radius,multi_start,b):
+    def RTOminimize(self,n_iter,x_initial,TR_parameters,multi_start,b):
         '''
         Description:
             Real-Time Optimization algorithm in (n_iter) iterations to conduct steps as follows:
@@ -404,12 +404,15 @@ class BayesianOpt():
             - data                  : data stored during each step in Real-Time Optimization
         '''
         # Initialize Data Storage
-        keys                        = ['i','x_new','plant_output','TR_radius','plant_temporary']
+        keys                        = ['i','x_initial','x_new','plant_output','TR_radius','plant_temporary']
         data_storage                = DataStorage(keys)
+
+        # Retrieve radius from Trust Region Parameters
+        radius = TR_parameters['radius']
 
         # Collect data at x_initial to DataStorage
         plant_output                = self.calculate_plant_outputs(x_initial)
-        data_dict                   = self.create_data_points(0,x_initial,plant_output,radius)
+        data_dict                   = self.create_data_points(0,x_initial,x_initial,plant_output,radius)
         data_storage.add_data_points(data_dict)
         
         # create temporary plant output for comparison in Trust Region Update
@@ -427,11 +430,12 @@ class BayesianOpt():
             plant_output            = self.calculate_plant_outputs(x_initial+d_new)
 
             # Collect Data to DataStorage
-            data_dict               = self.create_data_points(i+1,x_initial+d_new,plant_output,radius)
+            data_dict               = self.create_data_points(i+1,x_initial,x_initial+d_new,plant_output,radius)
             data_storage.add_data_points(data_dict)
 
             # Trust Region Update:
-            x_new, radius_new       = self.update_TR(x_initial,x_initial+d_new,radius,data_storage)
+            x_new, radius_new       = self.update_TR(x_initial,x_initial+d_new,radius,
+                                                     TR_parameters,data_storage)
 
             # Add sample to Gaussian Process
             self.add_sample(x_initial+d_new,plant_output)
@@ -444,9 +448,10 @@ class BayesianOpt():
 
         return data
     
-    def create_data_points(self,iter,x_new,plant_output,radius):
+    def create_data_points(self,iter,x_initial,x_new,plant_output,radius):
         data_dict = {
             'i'                     : iter,
+            'x_initial'             : x_initial.tolist(),
             'x_new'                 : x_new.tolist(),
             'plant_output'          : plant_output.tolist(),
             'TR_radius'             : radius
@@ -462,7 +467,7 @@ class BayesianOpt():
 
         return jnp.array(plant_output)
     
-    def update_TR(self,x_initial,x_new,r,data_storage):
+    def update_TR(self,x_initial,x_new,radius,TR_parameters,data_storage):
         '''
         Description:
         Arguments:
@@ -470,6 +475,13 @@ class BayesianOpt():
             - x_new:
             - r: 
         '''
+        # TR Parameters:
+        r = radius
+        r_max = TR_parameters['radius_max']
+        r_red = TR_parameters['radius_red']
+        r_inc = TR_parameters['radius_inc']
+        rho_lb = TR_parameters['rho_lb']
+        rho_ub = TR_parameters['rho_ub']
         # Check plant constraints to update trust region
         for i in range(self.n_fun-1):
             plant_const_now = data_storage.data['plant_output'][-1][i+1]
@@ -477,7 +489,7 @@ class BayesianOpt():
             
             if plant_const_now < 0:
                 print("reduced bc violated plant_const")
-                return x_initial, r*0.8 # r_red
+                return x_initial, r*r_red
             else:
                 pass
 
@@ -490,24 +502,23 @@ class BayesianOpt():
         rho             = (plant_now-plant_previous)/(GP_now-GP_previous)
         print(f"plant now, previous: {plant_now,plant_previous}")
         print(f"GP now, previous: {GP_now,GP_previous}")
-        if rho < 0.2:
+        if rho < rho_lb:
             print('reduced bc rho is too small')
-            return x_initial, r*0.8     # r_red
+            return x_initial, r*r_red
         
         elif plant_previous < plant_now:
             print('reduced bc worse plant')
-            return x_initial, r*0.8
+            return x_initial, r*r_red
         
-        elif rho >= 0.2 or rho < 0.8: 
+        elif rho >= rho_lb or rho < rho_ub: 
             print('constant bc rho is moderate')
             data_storage.data['plant_temporary'][0][0] = plant_now
             return x_new, r
         
-        else: # rho >= 0.8
-            r = min(r*1.2,2) # r_inc, r_max
+        else: # rho >= rho_ub
             print('increased bc rho was big')
             data_storage.data['plant_temporary'][0][0] = plant_now
-            return x_new, r
+            return x_new, min(r*r_inc,r_max)
         
     
     def add_sample(self,x_new,y_new):
