@@ -281,9 +281,9 @@ def test_RTOminimize_Rosenbrock():
 
     # Real-Time Optimization 
     x_i = jnp.array([-1.8,-.8])
-    n_iter = 100
+    n_iter = 20
     multi_start = 5
-    b = 0.
+    b = 3
     TR_parameters = {
         'radius': 0.25,
         'radius_max': 0.7,

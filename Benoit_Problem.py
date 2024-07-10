@@ -134,7 +134,7 @@ def create_frame(fun_drawing,filename):
 def create_GIF(frame_duration,filenames,GIFname,output_dir='output'):
     # create a GIF from saved frames
     gif_path = os.path.join(output_dir, GIFname)
-    with imageio.get_writer(gif_path, mode='I', duration=frame_duration) as writer:
+    with imageio.get_writer(gif_path, mode='I', duration=frame_duration, loop=0) as writer:
             for filename in filenames:
                     image = imageio.imread(filename)
                     writer.append_data(image)

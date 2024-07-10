@@ -301,7 +301,7 @@ class BayesianOpt():
                 # --- Optimize Acquisition --- #          
     #######################################################
 
-    def minimize_acquisition(self,r,x_0,b=0,multi_start=1):
+    def minimize_acquisition(self,r,x_0,data_storage,b=0,multi_start=1):
         '''
         Description:
             Find minimizer x* in a Gaussian Process Lower Confidence Bound
@@ -318,8 +318,8 @@ class BayesianOpt():
         # Initialization
         options                     = {'disp':False, 'maxiter':10000,'ftol': 1e-12} 
         cons                        = []
-        localsol                    = []
-        localval                    = []
+        localsol                    = [x_0.tolist()]
+        localval                    = [data_storage.data['plant_temporary'][0][0]]
 
         # Jit relavent class methods and JAX grad
         self.GP_inference_np_jit    = jit(self.GP_inference_np)
@@ -355,17 +355,23 @@ class BayesianOpt():
             
             for con in cons:
                 if con['fun'](res.x) < -0.1:
+                    passed = False
                     break # Barrier when minimize significantly fails 
                 else:
+                    passed = True
+            if passed:
                     localsol.append(res.x)
                     localval.append(res.fun)
 
+        print(localval)
         localsol                    = jnp.array(localsol)
         localval                    = jnp.array(localval)
         minindex                    = jnp.argmin(localval)
+        print(minindex)
         xopt                        = localsol[minindex]
+        print(x_0+xopt)
         funopt                      = localval[minindex]
-
+        print(funopt)
         return xopt, funopt
     
     def obj_fun(self, x, b):
@@ -380,7 +386,8 @@ class BayesianOpt():
         GP_inference                = self.GP_inference_np_jit(x)
         mean                        = GP_inference[0][index]
         std                         = jnp.sqrt(GP_inference[1][index])
-        value                       = mean + b*std
+        # value                       = mean + b*std
+        value                       = mean
 
         return value
     
@@ -427,7 +434,7 @@ class BayesianOpt():
         for i in range(n_iter):
 
             # Bayesian Optimization
-            d_new, obj              = self.minimize_acquisition(radius,x_initial,multi_start=multi_start,b=b)
+            d_new, obj              = self.minimize_acquisition(radius,x_initial,data_storage,multi_start=multi_start,b=b)
 
             # Retrieve Data from plant system
             plant_output            = self.calculate_plant_outputs(x_initial+d_new)
@@ -439,7 +446,7 @@ class BayesianOpt():
             # Trust Region Update:
             x_new, radius_new       = self.update_TR(x_initial,x_initial+d_new,radius,
                                                      TR_parameters,data_storage)
-
+            print(f"x_new: {x_new}")
             # Add sample to Gaussian Process
             self.add_sample(x_initial+d_new,plant_output)
 
@@ -500,19 +507,26 @@ class BayesianOpt():
         GP_previous     = self.GP_inference_np_jit(x_initial)[0][0]
         GP_now          = self.GP_inference_np_jit(x_new)[0][0]
 
-        rho             = (plant_now-plant_previous)/(GP_now-GP_previous)
+        rho             = (plant_now-plant_previous)/(GP_now-GP_previous+1e-8)
 
-        if rho < rho_lb:
-            return x_initial, r*r_red
         
-        elif plant_previous < plant_now:
+        if plant_previous < plant_now:
+            print(f"worse step")
+            return x_initial, r*r_red
+        else:
+            pass
+        
+        if rho < rho_lb:
+            print('too low rho')
             return x_initial, r*r_red
         
         elif rho >= rho_lb and rho < rho_ub: 
+            print("moderate rho")
             data_storage.data['plant_temporary'][0][0] = plant_now
             return x_new, r
         
         else: # rho >= rho_ub
+            print("big rho")
             data_storage.data['plant_temporary'][0][0] = plant_now
             return x_new, min(r*r_inc,r_max)
         
