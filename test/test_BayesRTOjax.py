@@ -203,8 +203,8 @@ def test_RTOminimize_Benoit():
 
     # Real-Time Optimization 
     n_iter = 10
-    multi_start=5
-    b = 0.
+    multi_start= 5
+    b = 3.
     TR_parameters = {
         'radius': 0.5,
         'radius_max': 1,

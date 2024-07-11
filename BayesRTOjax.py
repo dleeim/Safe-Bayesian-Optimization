@@ -354,7 +354,7 @@ class BayesianOpt():
                                                jac=obj_grad,options=options,tol=1e-8)
             
             for con in cons:
-                if con['fun'](res.x) < -0.1:
+                if con['fun'](res.x) < -0.01:
                     passed = False
                     break # Barrier when minimize significantly fails 
                 else:
@@ -363,15 +363,11 @@ class BayesianOpt():
                     localsol.append(res.x)
                     localval.append(res.fun)
 
-        print(localval)
         localsol                    = jnp.array(localsol)
         localval                    = jnp.array(localval)
         minindex                    = jnp.argmin(localval)
-        print(minindex)
         xopt                        = localsol[minindex]
-        print(x_0+xopt)
         funopt                      = localval[minindex]
-        print(funopt)
         return xopt, funopt
     
     def obj_fun(self, x, b):
@@ -386,7 +382,7 @@ class BayesianOpt():
         GP_inference                = self.GP_inference_np_jit(x)
         mean                        = GP_inference[0][index]
         std                         = jnp.sqrt(GP_inference[1][index])
-        # value                       = mean + b*std
+        # value                       = mean - b*std
         value                       = mean
 
         return value
@@ -446,7 +442,7 @@ class BayesianOpt():
             # Trust Region Update:
             x_new, radius_new       = self.update_TR(x_initial,x_initial+d_new,radius,
                                                      TR_parameters,data_storage)
-            print(f"x_new: {x_new}")
+            
             # Add sample to Gaussian Process
             self.add_sample(x_initial+d_new,plant_output)
 
@@ -511,22 +507,18 @@ class BayesianOpt():
 
         
         if plant_previous < plant_now:
-            print(f"worse step")
             return x_initial, r*r_red
         else:
             pass
         
         if rho < rho_lb:
-            print('too low rho')
             return x_initial, r*r_red
         
         elif rho >= rho_lb and rho < rho_ub: 
-            print("moderate rho")
             data_storage.data['plant_temporary'][0][0] = plant_now
             return x_new, r
         
         else: # rho >= rho_ub
-            print("big rho")
             data_storage.data['plant_temporary'][0][0] = plant_now
             return x_new, min(r*r_inc,r_max)
         
