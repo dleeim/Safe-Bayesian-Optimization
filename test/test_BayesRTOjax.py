@@ -1,15 +1,13 @@
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import jax.numpy as jnp
 from jax import grad, vmap, jit
-import pandas as pd
-import BayesRTOjax
-import Benoit_Problem
-import Rosenbrock_Problem
 import matplotlib.pyplot as plt
+import pandas as pd
 
+from models import BayesRTOjax as BayesRTOjax
+from problems import Benoit_Problem as Benoit_Problem
+from problems import Rosenbrock_Problem as Rosenbrock_Problem
 
 # --- Preparation --- #
 plant_system = [Benoit_Problem.Benoit_System_1,
@@ -103,86 +101,6 @@ def test_GP_inference_grad():
     for i in range(len(plant_system)):
         check_jaxgrad(x_2,delta,func_mean,index=i)
 
-##################################################
-#### Test Case 2: Optimization of Acquisition ####
-##################################################
-
-def test_minimize_acquisition():
-    # --- Initialization --- #
-    x_0 = jnp.array([1.4,-0.8])
-    r_i = 0.5
-
-    print('\n# --- minimize acquisiton')
-    d_new, obj = GP_m.minimize_acquisition(r_i,x_0,multi_start=1)
-    print(f"optimal new input(model): {x_0+d_new}")
-    print(f"corresponding new output(model): {obj}")
-    print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
-
-
-    print(f"\n#___Check Add Sample___#")
-    output_new = []
-    for plant in plant_system:
-        output_new.append(plant(x_0+d_new))
-    print(output_new)
-    output_new = jnp.array(output_new)
-    print(f"add sample: {x_0+d_new, output_new}")
-    GP_m.add_sample(x_0+d_new,output_new)
-
-    print(f"output after add sample(model): {func_mean(x_0+d_new,0)}")
-    print(f"constraint after add sample(model): {func_mean(x_0+d_new,1)}")
-    print(f"new variances(model): {variances(x_0+d_new)}")
-    print(f"plant output: {plant_system[0](x_0+d_new)}")
-    print(f"plant constraint: {plant_system[1](x_0+d_new)}")
-
-#############################################
-#### Test Case 3: Real Time Optimization ####
-#############################################
-
-def test_RealTimeOptimization():
-
-    print("# --- Real Time Optimization --- #")
-    # --- Initialization --- #
-    plant_system = [Benoit_Problem.Benoit_System_1,
-                    Benoit_Problem.con1_system,
-                    Benoit_Problem.con1_system_tight]
-    GP_m = BayesRTOjax.BayesianOpt(plant_system)
-    x_i = jnp.array([1.4,-0.8])
-    print(f"initial x: {x_i}")
-    n_sample = 4
-    n_iter = 5
-    r = 0.5
-    b = 0.
-
-    # GP initialization
-    X,Y = GP_m.Data_sampling(n_sample,x_i,r)
-    GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=2, var_out=True)
-
-    for i in range(n_iter):
-        # Bayesian Optimization
-        d_new, obj = GP_m.minimize_acquisition(r_i,x_i,multi_start=5,b=b)
-
-        # Collect Data
-        x_new = x_i + d_new  
-        output_new = []
-        for plant in plant_system:
-            output_new.append(plant(x_new))  
-        output_new = jnp.array(output_new)
-
-        # Add sample
-        GP_m.add_sample(x_new,output_new)
-
-        # Preparation for next iter:
-        x_i = x_new
-
-        # Print
-        print(f"iter: {i}")
-        print(f"d_new: {d_new}")
-        print(f"Euclidean norm of d_new(model): {jnp.linalg.norm(d_new)}")
-        print(f"x_new: {x_new}")
-        print(f"mean: {obj}")
-        print(f"output: {output_new}")
-        print(f"check add sample: {GP_m.GP_inference_np(x_i)}")
-
 def test_RTOminimize_Benoit():
 
     # Initialization
@@ -226,6 +144,8 @@ def test_RTOminimize_Benoit():
         'x_new_1': data['x_new'][:, 1],
         'plant_output': data['plant_output'][:, 0],
         'plant_constraint': data['plant_output'][:, 1],
+        'GP_constraint': data['GP_cons'][:,0],
+        'GP_constraint_safe': data['GP_cons_safe'][:,0],
         'TR_radius': data['TR_radius']
     }
 

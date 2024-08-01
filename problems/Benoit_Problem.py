@@ -1,8 +1,6 @@
 import numpy as np
 import random
-import jax
 import jax.numpy as jnp
-from jax import grad,jit,vmap
 from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 import os

@@ -18,6 +18,25 @@ class BayesianOpt():
         # --- Data Sampling --- #
     ##################################
     
+    def Ball_sampling(self,x_dim,n_sample,r_i,key):
+        '''
+        Description:
+            This function samples randomly at (0,0) within a ball of radius r_i.
+            By adding sampled point onto initial point (u1,u2) you will get 
+            randomly sampled points around (u1,u2)
+        Arguments:
+            - x_dim                 : no of dimensions required for sampled point
+            - n_sample              : number of sample required to create
+            - r_i                   : radius from (0,0) of circle area for sampling
+        Returns: 
+            - d_init                : sampled distances from (0,0)
+        '''
+        x                           = jax.random.normal(key, (n_sample,x_dim))
+        norm                        = jnp.linalg.norm(x,axis=-1).reshape(-1,1)
+        r                           = (jax.random.uniform(key, (n_sample,1))) 
+        d_init                      = r_i*r*x/norm
+        return d_init
+  
     def Data_sampling(self,n_sample,x_0,r):
         '''
         Description:
@@ -44,58 +63,10 @@ class BayesianOpt():
             Y                       = Y.at[:,i].set(vmap(self.plant_system[i])(X))
 
         return X,Y
-    
-    def Ball_sampling(self,x_dim,n_sample,r_i,key):
-        '''
-        Description:
-            This function samples randomly at (0,0) within a ball of radius r_i.
-            By adding sampled point onto initial point (u1,u2) you will get 
-            randomly sampled points around (u1,u2)
-        Arguments:
-            - x_dim                 : no of dimensions required for sampled point
-            - n_sample              : number of sample required to create
-            - r_i                   : radius from (0,0) of circle area for sampling
-        Returns: 
-            - d_init                : sampled distances from (0,0)
-        '''
-        x                           = jax.random.normal(key, (n_sample,x_dim))
-        norm                        = jnp.linalg.norm(x,axis=-1).reshape(-1,1)
-        r                           = (jax.random.uniform(key, (n_sample,1))) 
-        d_init                      = r_i*r*x/norm
-        return d_init
-  
 
     #########################################
         # --- GP Initialization --- #
     #########################################
-
-    def GP_initialization(self, X, Y, kernel, multi_hyper, var_out=True):
-        '''
-        Description:
-            Initialize GP by using input data X, output data Y
-        Arguments:
-            - X                     : training data input
-            - Y                     : training data output
-            - kernel                : type of kernel (RBF is only available)
-            - multi_hyper           : number of multistart for hyperparameter optimization
-            - var_out               :
-        Returns:
-            - X_norm                : normalized training data input
-            - Y_norm                : normalized training data output
-        '''
-        # GP variable definitions
-        self.X, self.Y, self.kernel = X, Y, kernel
-        self.n_point, self.nx_dim   = self.X.shape[0], self.X.shape[1]
-        self.ny_dim                 = self.Y.shape[1]
-        self.multi_hyper            = multi_hyper
-        self.var_out                = var_out
-
-        # Normalize data
-        self.X_norm,self.Y_norm     = self.data_normalization()
-
-        # Find optimal hyperparameter and inverse of covariance matrix
-        self.hypopt, self.invKopt   = self.determine_hyperparameters()
-
 
     def data_normalization(self):
         '''
@@ -258,6 +229,33 @@ class BayesianOpt():
             invKopt                 += [jnp.linalg.inv(Kopt)]
   
         return hypopt, invKopt
+
+    def GP_initialization(self, X, Y, kernel, multi_hyper, var_out=True):
+        '''
+        Description:
+            Initialize GP by using input data X, output data Y
+        Arguments:
+            - X                     : training data input
+            - Y                     : training data output
+            - kernel                : type of kernel (RBF is only available)
+            - multi_hyper           : number of multistart for hyperparameter optimization
+            - var_out               :
+        Returns:
+            - X_norm                : normalized training data input
+            - Y_norm                : normalized training data output
+        '''
+        # GP variable definitions
+        self.X, self.Y, self.kernel = X, Y, kernel
+        self.n_point, self.nx_dim   = self.X.shape[0], self.X.shape[1]
+        self.ny_dim                 = self.Y.shape[1]
+        self.multi_hyper            = multi_hyper
+        self.var_out                = var_out
+
+        # Normalize data
+        self.X_norm,self.Y_norm     = self.data_normalization()
+
+        # Find optimal hyperparameter and inverse of covariance matrix
+        self.hypopt, self.invKopt   = self.determine_hyperparameters()
     
     ###################################################
                 # --- GP inference --- #
@@ -308,6 +306,7 @@ class BayesianOpt():
         Argument:
             - r                     : radius of trust region area
             - x_0                   : previous input observed
+            - data_storage          : class for storing data
             - GP_m                  : Gaussian Process Model
             - b                     : parameter for exploration
         Results:
@@ -382,8 +381,8 @@ class BayesianOpt():
         GP_inference                = self.GP_inference_np_jit(x)
         mean                        = GP_inference[0][index]
         std                         = jnp.sqrt(GP_inference[1][index])
-        # value                       = mean - b*std
-        value                       = mean
+        value                       = mean - b*std
+        # value                       = mean
 
         return value
     
@@ -412,7 +411,8 @@ class BayesianOpt():
             - data                  : data stored during each step in Real-Time Optimization
         '''
         # Initialize Data Storage
-        keys                        = ['i','x_initial','x_new','plant_output','TR_radius','plant_temporary']
+        keys                        = ['i','x_initial','x_new','plant_output',"GP_cons","GP_cons_safe",
+                                       'TR_radius','plant_temporary']
         data_storage                = DataStorage(keys)
 
         # Retrieve radius from Trust Region Parameters
@@ -420,7 +420,8 @@ class BayesianOpt():
 
         # Collect data at x_initial to DataStorage
         plant_output                = self.calculate_plant_outputs(x_initial)
-        data_dict                   = self.create_data_points(0,x_initial,x_initial,plant_output,radius)
+        GP_cons,GP_cons_safe        = self.calculate_GP_cons(x_initial,b)
+        data_dict                   = self.create_data_points(0,x_initial,x_initial,plant_output,GP_cons,GP_cons_safe,radius)
         data_storage.add_data_points(data_dict)
         
         # create temporary plant output for comparison in Trust Region Update
@@ -434,9 +435,9 @@ class BayesianOpt():
 
             # Retrieve Data from plant system
             plant_output            = self.calculate_plant_outputs(x_initial+d_new)
-
+            GP_cons,GP_cons_safe        = self.calculate_GP_cons(x_initial,b)
             # Collect Data to DataStorage
-            data_dict               = self.create_data_points(i+1,x_initial,x_initial+d_new,plant_output,radius)
+            data_dict               = self.create_data_points(i+1,x_initial,x_initial+d_new,plant_output,GP_cons,GP_cons_safe,radius)
             data_storage.add_data_points(data_dict)
 
             # Trust Region Update:
@@ -454,12 +455,14 @@ class BayesianOpt():
 
         return data
     
-    def create_data_points(self,iter,x_initial,x_new,plant_output,radius):
+    def create_data_points(self,iter,x_initial,x_new,plant_output,GP_cons,GP_cons_safe,radius):
         data_dict = {
             'i'                     : iter,
             'x_initial'             : x_initial.tolist(),
             'x_new'                 : x_new.tolist(),
             'plant_output'          : plant_output.tolist(),
+            'GP_cons'               : GP_cons.tolist(),
+            'GP_cons_safe'          : GP_cons_safe.tolist(),
             'TR_radius'             : radius
         }
 
@@ -472,6 +475,23 @@ class BayesianOpt():
             plant_output.append(plant(x)) 
 
         return jnp.array(plant_output)
+    
+    def calculate_GP_cons(self,x,b):
+        cons = []
+        cons_safe = []
+        for i in range(self.n_fun):
+
+            if i != 0:
+                GP_inference = self.GP_inference_np(x)
+                mean                = GP_inference[0][i]
+                std                 = jnp.sqrt(GP_inference[1][i])
+
+                cons.append(mean)
+                cons_safe.append(mean-b*std)
+            else:
+                pass
+
+        return jnp.array(cons), jnp.array(cons_safe)
     
     def update_TR(self,x_initial,x_new,radius,TR_parameters,data_storage):
         '''
