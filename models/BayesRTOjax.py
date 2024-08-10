@@ -13,7 +13,7 @@ class BayesianOpt(GP):
                 # --- Optimize Acquisition --- #          
     #######################################################
 
-    def minimize_acquisition(self,r,x_0,data_storage,b=0,multi_start=1):
+    def minimize_acquisition(self,r,x_0,data_storage,b=0,multi_start=5):
         '''
         Description:
             Find minimizer x* in a Gaussian Process Lower Confidence Bound
@@ -67,9 +67,9 @@ class BayesianOpt(GP):
                                                jac=obj_grad,options=options,tol=1e-8)
             
             for con in cons:
-                if con['fun'](res.x) < -0.01:
+                if con['fun'](res.x) < -0.01: # Barrier when minimize significantly fails to satisfy any constraints
                     passed = False
-                    break # Barrier when minimize significantly fails 
+                    break 
                 else:
                     passed = True
             if passed:

@@ -4,9 +4,9 @@ import jax.numpy as jnp
 from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 import os
-import imageio.v2 as imageio
 import pandas as pd
-from IPython.display import Image
+# import imageio.v2 as imageio
+# from IPython.display import Image
 
 
 # Actual Plant System (if noise exists it equals to np.sqrt(1e-3))
@@ -124,44 +124,44 @@ def BRTO_Benoit_drawing(data,iter):
             plt.plot(old_new_0,old_new_1,'b-',linewidth=1,label='_nolegend_')
 
         
-def create_frame(fun_drawing,filename):
-    fun_drawing
-    plt.savefig(filename)
-    plt.close()
+# def create_frame(fun_drawing,filename):
+#     fun_drawing
+#     plt.savefig(filename)
+#     plt.close()
 
-def create_GIF(frame_duration,filenames,GIFname,output_dir='output'):
-    # create a GIF from saved frames
-    gif_path = os.path.join(output_dir, GIFname)
-    with imageio.get_writer(gif_path, mode='I', duration=frame_duration, loop=0) as writer:
-            for filename in filenames:
-                    image = imageio.imread(filename)
-                    writer.append_data(image)
-    # remove individual frame files
-    for filename in filenames:
-            os.remove(filename)
+# def create_GIF(frame_duration,filenames,GIFname,output_dir='output'):
+#     # create a GIF from saved frames
+#     gif_path = os.path.join(output_dir, GIFname)
+#     with imageio.get_writer(gif_path, mode='I', duration=frame_duration, loop=0) as writer:
+#             for filename in filenames:
+#                     image = imageio.imread(filename)
+#                     writer.append_data(image)
+#     # remove individual frame files
+#     for filename in filenames:
+#             os.remove(filename)
 
-def plant_outputs_drawing(iteration,output,constraint,figname,output_dir='output'):
-    # Create a figure and a set of subplots
-    plt.figure()
-    fig, axs = plt.subplots(2, 1, figsize=(5, 10))
+# def plant_outputs_drawing(iteration,output,constraint,figname,output_dir='output'):
+#     # Create a figure and a set of subplots
+#     plt.figure()
+#     fig, axs = plt.subplots(2, 1, figsize=(5, 10))
 
-    # First subplot
-    axs[0].plot(iteration, output)
-    axs[0].set_xlabel('Iteration',fontsize=14)
-    axs[0].set_ylabel('Plant Output',fontsize=14)
-    axs[0].legend()
+#     # First subplot
+#     axs[0].plot(iteration, output)
+#     axs[0].set_xlabel('Iteration',fontsize=14)
+#     axs[0].set_ylabel('Plant Output',fontsize=14)
+#     axs[0].legend()
 
-    # Second subplot
-    axs[1].plot(iteration, constraint)
-    axs[1].plot(iteration,np.array([0.]*len(iteration)),'r--',label='safety threshold')
-    axs[1].set_xlabel('Iteration',fontsize=14)
-    axs[1].set_ylabel('Plant Constraint',fontsize=14)
-    axs[1].legend()
+#     # Second subplot
+#     axs[1].plot(iteration, constraint)
+#     axs[1].plot(iteration,np.array([0.]*len(iteration)),'r--',label='safety threshold')
+#     axs[1].set_xlabel('Iteration',fontsize=14)
+#     axs[1].set_ylabel('Plant Constraint',fontsize=14)
+#     axs[1].legend()
 
-    # Adjust layout
-    plt.tight_layout()
+#     # Adjust layout
+#     plt.tight_layout()
 
-    # Save
-    output_path = os.path.join(output_dir, figname)
-    plt.savefig(output_path)
+#     # Save
+#     output_path = os.path.join(output_dir, figname)
+#     plt.savefig(output_path)
     

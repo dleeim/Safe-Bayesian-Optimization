@@ -7,9 +7,9 @@ from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import os
-import imageio.v2 as imageio
-import pandas as pd
-from IPython.display import Image
+# import pandas as pd
+# import imageio.v2 as imageio
+# from IPython.display import Image
 
 def Rosenbrock_f(x):
     z = (1.-x[0])**2 + 100*(x[1]-x[0]**2)**2
@@ -71,59 +71,59 @@ def trustregion_drawing(r,inputold_0,inputold_1):
     plt.plot(d_trial_x+inputold_0,d_trial_ypos+inputold_1,'k-',linewidth=0.5)
     plt.plot(d_trial_x+inputold_0,d_trial_yneg+inputold_1,'k-',linewidth=0.5)
 
-def BRTO_Rosenbrock_drawing(data,iter):
+# def BRTO_Rosenbrock_drawing(data,iter):
 
-    plt.figure()
-    # Drawing for Benoit's Problem
-    plant_drawing()
+#     plt.figure()
+#     # Drawing for Benoit's Problem
+#     plant_drawing()
 
-    for i in range(iter+1):
-        # Plot points for input observed
-        plt.plot(data['x_new_0'][i],data['x_new_1'][i], 'ro')
-        trustregion_drawing(data['TR_radius'][i],data['x_initial_0'][i],data['x_initial_1'][i])
+#     for i in range(iter+1):
+#         # Plot points for input observed
+#         plt.plot(data['x_new_0'][i],data['x_new_1'][i], 'ro')
+#         trustregion_drawing(data['TR_radius'][i],data['x_initial_0'][i],data['x_initial_1'][i])
 
-        if i != 0:
-            old_new_0 = [data['x_initial_0'][i],data['x_new_0'][i]]
-            old_new_1 = [data['x_initial_1'][i],data['x_new_1'][i]]
-            plt.plot(old_new_0,old_new_1,'b-',linewidth=1,label='_nolegend_')
+#         if i != 0:
+#             old_new_0 = [data['x_initial_0'][i],data['x_new_0'][i]]
+#             old_new_1 = [data['x_initial_1'][i],data['x_new_1'][i]]
+#             plt.plot(old_new_0,old_new_1,'b-',linewidth=1,label='_nolegend_')
         
-def create_frame(fun_drawing,filename):
-    fun_drawing
-    plt.savefig(filename)
-    plt.close()
+# def create_frame(fun_drawing,filename):
+#     fun_drawing
+#     plt.savefig(filename)
+#     plt.close()
 
-def create_GIF(frame_duration,filenames,GIFname,output_dir='output'):
-    # create a GIF from saved frames
-    gif_path = os.path.join(output_dir, GIFname)
-    with imageio.get_writer(gif_path, mode='I', duration=frame_duration, loop=0) as writer:
-            for filename in filenames:
-                    image = imageio.imread(filename)
-                    writer.append_data(image)
-    # remove individual frame files
-    for filename in filenames:
-            os.remove(filename)
+# def create_GIF(frame_duration,filenames,GIFname,output_dir='output'):
+#     # create a GIF from saved frames
+#     gif_path = os.path.join(output_dir, GIFname)
+#     with imageio.get_writer(gif_path, mode='I', duration=frame_duration, loop=0) as writer:
+#             for filename in filenames:
+#                     image = imageio.imread(filename)
+#                     writer.append_data(image)
+#     # remove individual frame files
+#     for filename in filenames:
+#             os.remove(filename)
 
-def plant_outputs_drawing(iteration,output,constraint,figname,output_dir='output'):
-    # Create a figure and a set of subplots
-    plt.figure()
-    fig, axs = plt.subplots(2, 1, figsize=(5, 10))
+# def plant_outputs_drawing(iteration,output,constraint,figname,output_dir='output'):
+#     # Create a figure and a set of subplots
+#     plt.figure()
+#     fig, axs = plt.subplots(2, 1, figsize=(5, 10))
 
-    # First subplot
-    axs[0].plot(iteration, output)
-    axs[0].set_xlabel('Iteration',fontsize=14)
-    axs[0].set_ylabel('Plant Output',fontsize=14)
-    axs[0].legend()
+#     # First subplot
+#     axs[0].plot(iteration, output)
+#     axs[0].set_xlabel('Iteration',fontsize=14)
+#     axs[0].set_ylabel('Plant Output',fontsize=14)
+#     axs[0].legend()
 
-    # Second subplot
-    axs[1].plot(iteration, constraint)
-    axs[1].plot(iteration,np.array([0.]*len(iteration)),'r--',label='safety threshold')
-    axs[1].set_xlabel('Iteration',fontsize=14)
-    axs[1].set_ylabel('Plant Constraint',fontsize=14)
-    axs[1].legend()
+#     # Second subplot
+#     axs[1].plot(iteration, constraint)
+#     axs[1].plot(iteration,np.array([0.]*len(iteration)),'r--',label='safety threshold')
+#     axs[1].set_xlabel('Iteration',fontsize=14)
+#     axs[1].set_ylabel('Plant Constraint',fontsize=14)
+#     axs[1].legend()
 
-    # Adjust layout
-    plt.tight_layout()
+#     # Adjust layout
+#     plt.tight_layout()
 
-    # Save
-    output_path = os.path.join(output_dir, figname)
-    plt.savefig(output_path)
+#     # Save
+#     output_path = os.path.join(output_dir, figname)
+#     plt.savefig(output_path)
