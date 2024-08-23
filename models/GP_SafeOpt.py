@@ -212,7 +212,7 @@ class GP():
                 hyp_init            = jnp.array(lb + (ub - lb) * multi_startvec[j,:])
 
                 res                 = minimize(self.NLL_jit, hyp_init, args=(self.X_norm, self.Y_norm[:,i:i+1]),
-                                               method='SLSQP', options=options,bounds=bounds, jac='3-point', tol=jnp.finfo(jnp.float32).eps)
+                                               method='SLSQP', options=options,bounds=bounds, jac=NLL_grad, tol=jnp.finfo(jnp.float32).eps)
                 localsol[j]         = res.x
                 localval            = localval.at[j].set(res.fun)
 
@@ -259,7 +259,7 @@ class GP():
                 # --- GP inference --- #
     ###################################################
     
-    def GP_inference_np(self,x):
+    def GP_inference(self,x):
         '''
         Description:
             GP inference for a new data point x
@@ -320,4 +320,23 @@ class GP():
         self.hypopt, self.invKopt   = self.determine_hyperparameters()
 
     
-        
+    def create_GP_arbitrary(self,x_new,y_new):
+        '''
+        Description:
+            Create arbitrary GP parameters by adding new observation x_new and y_new into arbitrary dataset
+            and find arbitrary optimal hyperparameters and inverse of covmat. This is used in expander.
+        Arguments:
+            - x_new                 : new input data
+            - y_new                 : new output data
+        '''
+        # Add new sample to arbitrary data set
+        self.X_arbitrary            = jnp.vstack([self.X_arbitrary,x_new])
+        self.Y_arbitrary            = jnp.vstack([self.Y_arbitrary,y_new])
+        self.n_point_arbitrary      = self.X_arbitrary[0]
+
+        # normalize data
+        self.X_mean_arbitrary, self.X_std_arbitrary     = jnp.mean(self.X_arbitrary, axis=0), jnp.std(self.X_arbitrary, axis=0)
+        self.Y_mean_arbitrary, self.Y_std_arbitrary     = jnp.mean(self.Y_arbitrary, axis=0), jnp.std(self.Y_arbitrary, axis=0)
+
+        # determine hyperparameters
+        self.hypopt_arbitrary, self.invKopt = self.determine_hyperparameters()

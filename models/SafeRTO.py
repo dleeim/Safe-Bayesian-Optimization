@@ -13,6 +13,9 @@ class SafeOpt(GP):
         self.GP_inference_np_jit = jit(self.GP_inference_np)
 
     def ucb(self, x, b):
+        '''
+        Description:
+        '''
         GP_inference                = self.GP_inference_np_jit(x)
         mean                        = GP_inference[0][0]
         std                         = jnp.sqrt(GP_inference[1][0])
