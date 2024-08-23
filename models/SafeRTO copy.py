@@ -22,7 +22,7 @@ class SafeOpt(GP):
         self.GP_inference_np_jit = jit(self.GP_inference_np)
 
     def lcb(self,x,b,index):
-        
+        pass
 
     def DE_minimize(self,n_iteration:int,bound,b:float):
         # Initialization

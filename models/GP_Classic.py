@@ -196,7 +196,6 @@ class GP():
                                                   ub.reshape(self.nx_dim+2,1)))
         
         multi_start                 = self.multi_hyper # multistart on hyperparameter optimization
-        multi_start= 1
         multi_startvec              = sobol_seq.i4_sobol_generate(self.nx_dim + 2, multi_start)
         options                     = {'disp':False,'maxiter':10000} # solver options
         hypopt                      = jnp.zeros((self.nx_dim+2, self.ny_dim)) # hyperparams w's + sf2+ sn2 (one for each GP i.e. output var)

@@ -196,7 +196,6 @@ class GP():
                                                   ub.reshape(self.nx_dim+2,1)))
         
         multi_start                 = self.multi_hyper # multistart on hyperparameter optimization
-        multi_start= 1
         multi_startvec              = sobol_seq.i4_sobol_generate(self.nx_dim + 2, multi_start)
         options                     = {'disp':False,'maxiter':10000} # solver options
         hypopt                      = jnp.zeros((self.nx_dim+2, self.ny_dim)) # hyperparams w's + sf2+ sn2 (one for each GP i.e. output var)
@@ -205,14 +204,14 @@ class GP():
         
         invKopt = []
         self.NLL_jit                = jit(self.negative_loglikelihood)
-        NLL_grad                    = grad(self.negative_loglikelihood,argnums=0)
+        NLL_grad                    = jit(grad(self.negative_loglikelihood,argnums=0))
         
         for i in range(self.ny_dim):
             for j in range(multi_start):
                 hyp_init            = jnp.array(lb + (ub - lb) * multi_startvec[j,:])
 
                 res                 = minimize(self.NLL_jit, hyp_init, args=(self.X_norm, self.Y_norm[:,i:i+1]),
-                                               method='SLSQP', options=options,bounds=bounds, jac='3-point', tol=jnp.finfo(jnp.float32).eps)
+                                               method='SLSQP', options=options,bounds=bounds, jac=NLL_grad, tol=jnp.finfo(jnp.float32).eps)
                 localsol[j]         = res.x
                 localval            = localval.at[j].set(res.fun)
 
