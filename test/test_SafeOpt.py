@@ -28,19 +28,19 @@ print(f"Data Sample Input:")
 print(f"{X}")
 print(f"Data Sample Output:")
 print(f"{Y}")
-print(f"\n")
+print(f"")
 print
 
 # Tests
 def test_GP_inference():
     i = 0
-    x = jnp.array([1.08137762, -1.04739777])
+    x = jnp.array([1.49497006, -0.74191489])
     plant = GP_m.calculate_plant_outputs(x)
     print(f"Test: GP Inference; check if Gp inference well with low var")
     print(f"x input: {x}")
     print(f"GP Inference: {GP_m.GP_inference(x)}")
     print(f"Actual plant: {plant}")
-    print(f"\n")
+    print(f"")
 
 
 def test_ucb():
@@ -53,7 +53,7 @@ def test_ucb():
     print(f"x input: {x}")
     print(f"ucb: {ucb}")
     print(f"Actual obj fun: {obj_fun}")
-    print(f"\n")
+    print(f"")
 
 def test_lcb():
     i = 1
@@ -65,14 +65,23 @@ def test_lcb():
     print(f"x input: {x}")
     print(f"lcb: {lcb}")
     print(f"Actual constraint: {constraint}")
-    print(f"\n")
+    print(f"")
 
 def test_minimize_objective_ucb():
     x_min, ucb_min = GP_m.minimize_objective_ucb()
 
     print(f"Test: minimize objective ucb")
     print(f"x_min, ucb_min: {x_min, ucb_min}")
-    print(f"\n")
+    print(f"")
+
+def test_Minimizer():   
+    minimizer,std_minimizer = GP_m.Minimizer()
+    print(f"Test: Minimizer")
+    print(f"minimizer, std_minimizer: {minimizer,std_minimizer}")
+    print(f"")
+
+    x_test = jnp.array([0.98590537, 0.99944873])
+    print(f"Check if the input is in safe set: {GP_m.GP_inference(x_test)}")
 
 def test_SafeOpt():
     n_iteration = 10
@@ -103,4 +112,5 @@ if __name__ == "__main__":
     test_ucb()
     test_lcb()
     test_minimize_objective_ucb()
+    test_Minimizer()
 

@@ -178,8 +178,7 @@ class GP():
 
         return NLL
 
-
-    def determine_hyperparameters(self):
+    def determine_hyperparameters(self,X_norm,Y_norm,arbitrary:bool):
         '''
         Description:
             Determine optimal hyperparameter (W,sf2,sn2) given sample data input and output.
@@ -201,16 +200,23 @@ class GP():
         hypopt                      = jnp.zeros((self.nx_dim+2, self.ny_dim)) # hyperparams w's + sf2+ sn2 (one for each GP i.e. output var)
         localsol                    = [0.]*multi_start # values for multistart
         localval                    = jnp.zeros((multi_start)) # variables for multistart
-        
         invKopt = []
-        NLL_jit                = jit(self.negative_loglikelihood)
-        NLL_grad                    = grad(self.negative_loglikelihood,argnums=0)
+
+        if arbitrary:
+            NLL_jit                     = jit(self.negative_loglikelihood_arb)
+            NLL_grad                    = jit(grad(self.negative_loglikelihood_arb,argnums=0))
+            n_point                     = self.n_point_arb
+        else:
+            NLL_jit                     = jit(self.negative_loglikelihood)
+            NLL_grad                    = jit(grad(self.negative_loglikelihood,argnums=0))
+            n_point                     = self.n_point
+
         
         for i in range(self.ny_dim):
             for j in range(multi_start):
                 hyp_init            = jnp.array(lb + (ub - lb) * multi_startvec[j,:])
 
-                res                 = minimize(NLL_jit, hyp_init, args=(self.X_norm, self.Y_norm[:,i:i+1]),
+                res                 = minimize(NLL_jit, hyp_init, args=(X_norm, Y_norm[:,i:i+1]),
                                                method='SLSQP', options=options,bounds=bounds, jac=NLL_grad, tol=jnp.finfo(jnp.float32).eps)
                 localsol[j]         = res.x
                 localval            = localval.at[j].set(res.fun)
@@ -222,7 +228,7 @@ class GP():
             sf2opt                  = jnp.exp(2.*hypopt[self.nx_dim,i])
             sn2opt                  = jnp.exp(2.*hypopt[self.nx_dim+1,i]) + jnp.finfo(jnp.float32).eps
 
-            Kopt                    = self.Cov_mat(self.kernel,self.X_norm,self.X_norm,ellopt,sf2opt) + sn2opt*jnp.eye(self.n_point)
+            Kopt                    = self.Cov_mat(self.kernel,X_norm,X_norm,ellopt,sf2opt) + sn2opt*jnp.eye(n_point)
             invKopt                 += [jnp.linalg.inv(Kopt)]
   
         return hypopt, invKopt
@@ -252,7 +258,7 @@ class GP():
         self.X_norm,self.Y_norm     = self.data_normalization()
 
         # Find optimal hyperparameter and inverse of covariance matrix
-        self.hypopt, self.invKopt   = self.determine_hyperparameters()
+        self.hypopt, self.invKopt   = self.determine_hyperparameters(self.X_norm,self.Y_norm,arbitrary=False)
     
     ###################################################
                 # --- GP inference --- #
@@ -318,6 +324,94 @@ class GP():
 
         # determine hyperparameters
         self.hypopt, self.invKopt   = self.determine_hyperparameters(self.X_norm,self.Y_norm,arbitrary=False)
+
+    def negative_loglikelihood_arb(self, hyper, X, Y):
+        '''
+        Description:
+            Negative log likelihood of hyperparameters for arbitrary GP.
+        Arguments:
+            hyper                   : hyperparameters (W,sf2,sn2)
+            X                       : data input (usually normalized)
+            Y                       : data output (usually normalized)
+        Returns:
+            NLL                     : negative log likelihood of hyperparameters (W,sf2,sn2)
+        '''
+        W                           = jnp.exp(2*hyper[:self.nx_dim]) # W <=> 1/lambda
+        sf2                         = jnp.exp(2*hyper[self.nx_dim]) # variance of the signal
+        sn2                         = jnp.exp(2*hyper[self.nx_dim+1]) # variance of noise
+        K                           = self.Cov_mat(self.kernel, X, X, W, sf2) # (nxn) covariance matrix (noise free)
+        K                           = K + (sn2+1e-8)*jnp.eye(self.n_point_arb) # (nxn) covariance matrix
+        K                           = (K + K.T)*0.5 # ensure K is symmetric
+        L                           = jnp.linalg.cholesky(K) # do a Cholesky decomposition
+        logdetK                     = 2 * jnp.sum(jnp.log(jnp.diag(L))) # calculate the log of the determinant of K
+        invLY                       = jax.scipy.linalg.solve_triangular(L, Y, lower=True) # obtain L^{-1}*Y
+        alpha                       = jax.scipy.linalg.solve_triangular(L.T, invLY, lower=False) # obtain (L.T L)^{-1}*Y = K^{-1}*Y
+        NLL                         = jnp.dot(Y.T, alpha)[0][0] + logdetK # construct the NLL
+
+        return NLL
+
+    def create_GP_arb(self,x_new,y_new):
+        '''
+        Description:
+            Create arbitrary GP parameters by adding new observation x_new and y_new into arbitrary dataset
+            and find arbitrary optimal hyperparameters and inverse of covmat. This is used in expander.
+        Arguments:
+            - x_new                 : new input data
+            - y_new                 : new output data
+        '''
+        # Add new sample to arbitrary data set
+        self.X_arb                  = jnp.vstack([self.X,x_new])
+        self.Y_arb                  = jnp.vstack([self.Y,y_new])
+        self.n_point_arb            = self.X_arb.shape[0]
+
+        # normalize data
+        self.X_mean_arb, self.X_std_arb     = jnp.mean(self.X_arb, axis=0), jnp.std(self.X_arb, axis=0)
+        self.Y_mean_arb, self.Y_std_arb     = jnp.mean(self.Y_arb, axis=0), jnp.std(self.Y_arb, axis=0)
+        self.X_norm_arb                     = (self.X_arb-self.X_mean_arb)/self.X_std_arb
+        self.Y_norm_arb                     = (self.Y_arb-self.Y_mean_arb)/self.Y_std_arb
+
+        # determine hyperparameters
+        self.hypopt_arb, self.invKopt_arb   = self.determine_hyperparameters(self.X_norm_arb,self.Y_norm_arb,arbitrary=True) 
+
+    def GP_inference_arb(self,x):
+        '''
+        Description:
+            GP inference using arbitrary GP parameters for a new data point x
+        Argument:
+            - x                     : new data point
+        Results:
+            - mean sample           : mean of GP inference of x
+            - var_sample            : variance of GP inference of x
+        '''
+        xnorm                       = (x-self.X_mean_arb)/self.X_std_arb
+        mean                        = jnp.zeros((self.ny_dim))
+        var                         = jnp.zeros((self.ny_dim))
         
+        # --- Set mean of constraints to be below 0 --- #
+        mean_set                    = -1.
+        mean_prior                  = (mean_set-self.Y_mean_arb)/self.Y_std_arb # Arbitrarily set prior mean = -1 Or you can change length hyperparameters
+        mean_prior                  = mean_prior.at[0].set(0.0)
+        
+        # --- Loop over each output (GP) --- #
+        for i in range(self.ny_dim):
+            invK                    = self.invKopt_arb[i]
+            hyper                   = self.hypopt_arb[:,i]
+            ellopt, sf2opt          = jnp.exp(2*hyper[:self.nx_dim]), jnp.exp(2*hyper[self.nx_dim])
+
+            # --- determine covariance of each output --- #
+            k                       = self.calc_Cov_mat(self.kernel,self.X_norm_arb,xnorm,ellopt,sf2opt)
+            mean                    = mean.at[i].set(mean_prior[i]+jnp.matmul(jnp.matmul(k.T,invK),(self.Y_norm_arb[:,i]-mean_prior[i]))[0])
+            var                     = var.at[i].set(jnp.maximum(0, (sf2opt - jnp.matmul(jnp.matmul(k.T,invK),k))[0,0]))
+
+        # --- compute un-normalized mean --- # 
+        mean_sample                 = mean*self.Y_std_arb + self.Y_mean_arb
+        var_sample                  = var*self.Y_std_arb**2
+        
+        if self.var_out:
+            return mean_sample, var_sample
+        else:
+            return mean_sample.flatten()[0]
+
+
 
         

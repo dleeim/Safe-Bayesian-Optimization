@@ -35,8 +35,8 @@ def test_GP_inference_arbitrary():
     print(f"Check if GP inference and Data provides same value")
     print(f"x_new: {x_new}")
 
-    GP_m.create_GP_arbitrary(x_new,Y_new)
-    print(f"GP inference arbitrary: {GP_m.GP_inference_arbitrary(x_new)[0]}")
+    GP_m.create_GP_arb(x_new,Y_new)
+    print(f"GP inference arbitrary: {GP_m.GP_inference_arb(x_new)[0]}")
 
     GP_m.add_sample(x_new,Y_new)
     print(f"GP inference: {GP_m.GP_inference(x_new)[0]}")
@@ -47,12 +47,12 @@ def test_check_mean_GP():
     x_test = jnp.array([10,10])
     print(f"check if GP inference at unknown region has constraint mean lower than 0")
     print(f"x_test: {x_test}")
-    print(f"GP inference: {GP_m.GP_inference_np(x_test)[0]}")
+    print(f"GP inference: {GP_m.GP_inference(x_test)[0]}")
 
     pass
 
 if __name__ == "__main__":
     test_mean_var()
-    # test_GP_inference_arbitrary()
-    # test_check_mean_GP()
+    test_GP_inference_arbitrary()
+    test_check_mean_GP()
 
