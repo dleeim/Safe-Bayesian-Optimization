@@ -8,7 +8,7 @@ from problems import Rosenbrock_Problem
 
 # --- Preparation --- #
 plant_system = [Benoit_Problem.Benoit_System_1,
-                Benoit_Problem.con1_system]
+                Benoit_Problem.con1_system_tight]
 
 GP_m = GP(plant_system)
 
@@ -98,3 +98,9 @@ def test_GP_inference_grad():
     print("\n# --- GP inference grad --- #")
     for i in range(len(plant_system)):
         check_jaxgrad(x_2,delta,func_mean,index=i)
+
+if __name__ == "__main__":
+    test_GP_initialization()
+    test_NLL()
+    test_GP_inference()
+    test_GP_inference_grad()
