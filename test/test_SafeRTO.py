@@ -60,7 +60,31 @@ def test_Safeset_sampling():
     # xopt,funopt = GP_m.minimize_expander(set_expander,b,eps)
     # print(f"opt for expander: {xopt, funopt}")
 
+def test_Safeset_cons():
+    # Test
+    x_test = jnp.array([1.5,1.])
+    print(GP_m.lcb(x_test,1))
+    
+    # Assuming GP_m.lcb is already defined and GP_m is properly initialized
+    x_0 = jnp.linspace(-0.6, 1.5, 400)
+    x_1 = jnp.linspace(-1.0, 1.0, 400)
+    X_0, X_1 = jnp.meshgrid(x_0, x_1)
 
+    # Flatten the meshgrid arrays
+    X_0_flat = X_0.ravel()
+    X_1_flat = X_1.ravel()
+
+    # Stack them to create points for lcb function
+    points = jnp.column_stack((X_0_flat, X_1_flat))
+
+    # Apply lcb function using vmap
+    lcb_vmap = vmap(GP_m.lcb_constraint, in_axes=(0,None,None))
+    mask_safe = lcb_vmap(points,3.,1).reshape(X_0.shape) > 0.
+    plt.figure()
+    plt.contourf(X_0, X_1, mask_safe, levels=[0, 0.5, 1], colors=['lightcoral','lightblue'])
+    plt.plot(X[:,0],X[:,1],'kx')
+    plt.show()
 
 if __name__ == "__main__":
-    test_Safeset_sampling()
+    # test_Safeset_sampling()
+    test_Safeset_cons()

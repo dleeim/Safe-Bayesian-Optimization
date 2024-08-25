@@ -4,7 +4,7 @@ import numpy as np
 from jax import grad, vmap, jit
 import matplotlib.pyplot as plt
 import pandas as pd
-
+import time
 from models import SafeOpt
 from problems import Benoit_Problem
 
@@ -67,8 +67,8 @@ def test_lcb():
     print(f"Actual constraint: {constraint}")
     print(f"")
 
-def test_minimize_objective_ucb():
-    x_min, ucb_min = GP_m.minimize_objective_ucb()
+def test_minimize_obj_ucb():
+    x_min, ucb_min = GP_m.minimize_obj_ucb()
 
     print(f"Test: minimize objective ucb")
     print(f"x_min, ucb_min: {x_min, ucb_min}")
@@ -78,10 +78,68 @@ def test_Minimizer():
     minimizer,std_minimizer = GP_m.Minimizer()
     print(f"Test: Minimizer")
     print(f"minimizer, std_minimizer: {minimizer,std_minimizer}")
-    print(f"")
 
     x_test = jnp.array([0.98590537, 0.99944873])
     print(f"Check if the input is in safe set: {GP_m.GP_inference(x_test)}")
+    print(f"")
+
+def test_create_point_arb():
+    x = jnp.array([1.49497006, -0.74191489])
+    point_arb = GP_m.create_point_arb(x)
+    print(f"Test: Create aribtrary point; makes point of given x input and ucb of all plant system")
+    print(f"x input: {x}")
+    print(f"arbitrary point: {point_arb} \n")
+
+def test_Expander_constraint():
+    x = jnp.array([1., -0.74191489])
+    start = time.time()
+    indicator = GP_m.Expander_constraint(x)
+    end = time.time()
+    print(f"Test: Expander constraint: Result is indicator; 1 means point can be classified as expander")
+    print(f"x input: {x}")
+    print(f"indicator: {indicator}")
+    print(f"time spent: {end-start} \n")
+
+    x_result = jnp.array([0.97956214, -0.99938686])
+    lcb_constraint_result = jnp.array([0.8045316299090333])
+    print(f"Point that had max constraint lcb in unsafe zone using GP_arbitrary was: {x_result}, lcb constraint: {lcb_constraint_result}")
+    print(f"check if the point is in unsafe zone: {GP_m.lcb(x_result,1)}")
+
+def test_Expander():
+    expander, std_expander = GP_m.Expander()
+    print(f"Test: Expander")
+    print(f"expander, std_expander: {expander, std_expander}")
+
+def test_Safeset_cons():
+    # Test
+    x_test = jnp.array([1.5,1.])
+    print(GP_m.lcb(x_test,1))
+    
+    # Assuming GP_m.lcb is already defined and GP_m is properly initialized
+    x_0 = jnp.linspace(-0.6, 1.5, 400)
+    x_1 = jnp.linspace(-1.0, 1.0, 400)
+    X_0, X_1 = jnp.meshgrid(x_0, x_1)
+
+    # Flatten the meshgrid arrays
+    X_0_flat = X_0.ravel()
+    X_1_flat = X_1.ravel()
+
+    # Stack them to create points for lcb function
+    points = jnp.column_stack((X_0_flat, X_1_flat))
+
+    # Apply lcb function using vmap
+    lcb_vmap = vmap(GP_m.lcb, in_axes=(0, None))
+    mask_safe = lcb_vmap(points, 1).reshape(X_0.shape) > 0.
+    plt.figure()
+    plt.contourf(X_0, X_1, mask_safe, levels=[0, 0.5, 1], colors=['lightcoral','lightblue'])
+    plt.plot(X[:,0],X[:,1],'kx')
+    plt.show()
+
+
+
+
+
+
 
 def test_SafeOpt():
     n_iteration = 10
@@ -108,9 +166,13 @@ def test_SafeOpt():
         
 
 if __name__ == "__main__":
-    test_GP_inference()
-    test_ucb()
-    test_lcb()
-    test_minimize_objective_ucb()
-    test_Minimizer()
+    # test_GP_inference()
+    # test_ucb()
+    # test_lcb()
+    # test_minimize_obj_ucb()
+    # test_Minimizer()
+    # test_create_point_arb()
+    # test_Expander_constraint()
+    # test_Expander()
+    test_Safeset_cons()
 

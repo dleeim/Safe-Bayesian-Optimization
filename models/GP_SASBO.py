@@ -273,7 +273,7 @@ class GP():
         var                         = jnp.zeros((self.ny_dim))
 
         # --- Set mean of constraints to be below 0 --- #
-        mean_prior                  = (-1.-self.Y_mean)/self.Y_std # Arbitrarily set prior mean = -10 Or you can change length hyperparameters
+        mean_prior                  = (-100.-self.Y_mean)/self.Y_std # Arbitrarily set prior mean = -10 Or you can change length hyperparameters
         mean_prior                  = mean_prior.at[0].set(0.0)
         
         # --- Loop over each output (GP) --- #
