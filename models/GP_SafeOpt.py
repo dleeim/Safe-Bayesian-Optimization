@@ -11,6 +11,24 @@ class GP():
         self.plant_system               = plant_system
         self.n_fun                      = len(plant_system)
         self.key                        = jax.random.PRNGKey(42)
+        self.inference_datasets         = {'X_mean'     :[],
+                                           'X_std'      :[],
+                                           'Y_mean'     :[],
+                                           'Y_std'      :[],
+                                           'X_norm'     :[],
+                                           'Y_norm'     :[],
+                                           'invKopt'   :[],
+                                           'hypopt'    :[]}
+        self.inference_datasets_arb     = {'X_mean'     :[],
+                                           'X_std'      :[],
+                                           'Y_mean'     :[],
+                                           'Y_std'      :[],
+                                           'X_norm'     :[],
+                                           'Y_norm'     :[],
+                                           'invKopt'   :[],
+                                           'hypopt'    :[]}
+        self.GP_inference_jit                = jit(self.GP_inference)
+        self.GP_inference_arb_jit            = jit(self.GP_inference_arb)
     
     ##################################
         # --- Data Sampling --- #
@@ -189,8 +207,8 @@ class GP():
             - hypopt                : optimal hyperparameter (W,sf2,sn2)
             - invKopt               : inverse of covariance matrix with optimal hyperparameters 
         ''' 
-        lb                          = jnp.array([-4.] * (self.nx_dim + 1) + [-8.])  # lb on parameters (this is inside the exponential)
-        ub                          = jnp.array([4.] * (self.nx_dim + 1) + [-2.])   # ub on parameters (this is inside the exponential)
+        lb                          = jnp.array([-2.] * (self.nx_dim) + [1.] + [-8.])  # lb on parameters (this is inside the exponential)
+        ub                          = jnp.array([2.] * (self.nx_dim) + [1.] + [-2.])   # ub on parameters (this is inside the exponential)
         bounds                      = jnp.hstack((lb.reshape(self.nx_dim+2,1),
                                                   ub.reshape(self.nx_dim+2,1)))
         
@@ -233,6 +251,31 @@ class GP():
   
         return hypopt, invKopt
 
+    def update_inference_dataset(self,arbitrary:bool):
+        
+        if arbitrary: 
+            inference_datasets = self.inference_datasets_arb
+            inference_datasets["X_mean"]   = self.X_mean_arb
+            inference_datasets["X_std"]    = self.X_std_arb
+            inference_datasets["Y_mean"]   = self.Y_mean_arb
+            inference_datasets["Y_std"]    = self.Y_std_arb
+            inference_datasets["X_norm"]   = self.X_norm_arb
+            inference_datasets["Y_norm"]   = self.Y_norm_arb
+            inference_datasets["invKopt"]  = self.invKopt_arb
+            inference_datasets["hypopt"]   = self.hypopt_arb
+        else:
+            inference_datasets = self.inference_datasets
+            inference_datasets["X_mean"]   = self.X_mean
+            inference_datasets["X_std"]    = self.X_std
+            inference_datasets["Y_mean"]   = self.Y_mean
+            inference_datasets["Y_std"]    = self.Y_std
+            inference_datasets["X_norm"]   = self.X_norm
+            inference_datasets["Y_norm"]   = self.Y_norm
+            inference_datasets["invKopt"]  = self.invKopt
+            inference_datasets["hypopt"]   = self.hypopt
+            
+
+
     def GP_initialization(self, X, Y, kernel, multi_hyper, var_out=True):
         '''
         Description:
@@ -259,49 +302,12 @@ class GP():
 
         # Find optimal hyperparameter and inverse of covariance matrix
         self.hypopt, self.invKopt   = self.determine_hyperparameters(self.X_norm,self.Y_norm,arbitrary=False)
-    
-    ###################################################
-                # --- GP inference --- #
-    ###################################################
-    
-    def GP_inference(self,x):
-        '''
-        Description:
-            GP inference for a new data point x
-        Argument:
-            - x                     : new data point
-        Results:
-            - mean sample           : mean of GP inference of x
-            - var_sample            : variance of GP inference of x
-        '''
-        xnorm                       = (x-self.X_mean)/self.X_std
-        mean                        = jnp.zeros((self.ny_dim))
-        var                         = jnp.zeros((self.ny_dim))
-        
-        # --- Set mean of constraints to be below 0 --- #
-        mean_prior                  = (-1.-self.Y_mean)/self.Y_std # Arbitrarily set prior mean = -10 Or you can change length hyperparameters
-        mean_prior                  = mean_prior.at[0].set(0.0)
-        
-        # --- Loop over each output (GP) --- #
-        for i in range(self.ny_dim):
-            invK                    = self.invKopt[i]
-            hyper                   = self.hypopt[:,i]
-            ellopt, sf2opt          = jnp.exp(2*hyper[:self.nx_dim]), jnp.exp(2*hyper[self.nx_dim])
+        self.update_inference_dataset(arbitrary=False)
 
-            # --- determine covariance of each output --- #
-            k                       = self.calc_Cov_mat(self.kernel,self.X_norm,xnorm,ellopt,sf2opt)
-            mean                    = mean.at[i].set(mean_prior[i]+jnp.matmul(jnp.matmul(k.T,invK),(self.Y_norm[:,i]-mean_prior[i]))[0])
-            var                     = var.at[i].set(jnp.maximum(0, (sf2opt - jnp.matmul(jnp.matmul(k.T,invK),k))[0,0]))
-
-        # --- compute un-normalized mean --- # 
-        mean_sample                 = mean*self.Y_std + self.Y_mean
-        var_sample                  = var*self.Y_std**2
-        
-        if self.var_out:
-            return mean_sample, var_sample
-        else:
-            return mean_sample.flatten()[0]
-        
+        # Create sobol_seq sample for Expander
+        self.n_sample = 10000
+        self.sobol_sample = self.sobol_seq_sampling(self.nx_dim,self.n_sample,self.bound)
+    
     def add_sample(self,x_new,y_new):
         '''
         Description:
@@ -323,6 +329,55 @@ class GP():
 
         # determine hyperparameters
         self.hypopt, self.invKopt   = self.determine_hyperparameters(self.X_norm,self.Y_norm,arbitrary=False)
+        self.update_inference_dataset(arbitrary=False)
+
+    ###################################################
+                # --- GP inference --- #
+    ###################################################
+    
+    def GP_inference(self,x,inference_dataset):
+        '''
+        Description:
+            GP inference for a new data point x
+        Argument:
+            - x                     : new data point
+            - inference_dataste     : dataset with mean, std, norm, invK, hyp; Prevent using global variables for function getting jitted.
+        Results:
+            - mean sample           : mean of GP inference of x
+            - var_sample            : variance of GP inference of x
+        '''
+        X_mean,X_std                = inference_dataset["X_mean"],inference_dataset["X_std"]
+        Y_mean,Y_std                = inference_dataset["Y_mean"],inference_dataset["Y_std"]
+        X_norm,Y_norm               = inference_dataset["X_norm"],inference_dataset["Y_norm"]
+        invKopt,hypopt              = inference_dataset["invKopt"],inference_dataset["hypopt"]
+
+        xnorm                       = (x-X_mean)/X_std
+        mean                        = jnp.zeros((self.ny_dim))
+        var                         = jnp.zeros((self.ny_dim))
+        
+        # --- Set mean of constraints to be below 0 --- #
+        mean_prior                  = (-1.-Y_mean)/Y_std # Arbitrarily set prior mean = -10 Or you can change length hyperparameters
+        mean_prior                  = mean_prior.at[0].set(0.)
+        
+        # --- Loop over each output (GP) --- #
+        for i in range(self.ny_dim):
+            invK                    = invKopt[i]
+            hyper                   = hypopt[:,i]
+            ellopt, sf2opt          = jnp.exp(2*hyper[:self.nx_dim]), jnp.exp(2*hyper[self.nx_dim])
+
+            # --- determine covariance of each output --- #
+            k                       = self.calc_Cov_mat(self.kernel,X_norm,xnorm,ellopt,sf2opt)
+            mean                    = mean.at[i].set(mean_prior[i]+jnp.matmul(jnp.matmul(k.T,invK),(Y_norm[:,i]-mean_prior[i]))[0])
+            var                     = var.at[i].set(jnp.maximum(0, (sf2opt - jnp.matmul(jnp.matmul(k.T,invK),k))[0,0]))
+
+        # --- compute un-normalized mean --- # 
+        mean_sample                 = mean*Y_std + Y_mean
+        var_sample                  = var*Y_std**2
+
+        if self.var_out:
+            return mean_sample, var_sample
+        else:
+            return mean_sample.flatten()[0]
 
     def negative_loglikelihood_arb(self, hyper, X, Y):
         '''
@@ -371,8 +426,9 @@ class GP():
 
         # determine hyperparameters
         self.hypopt_arb, self.invKopt_arb   = self.determine_hyperparameters(self.X_norm_arb,self.Y_norm_arb,arbitrary=True) 
+        self.update_inference_dataset(arbitrary=True)
 
-    def GP_inference_arb(self,x):
+    def GP_inference_arb(self,x,inference_dataset):
         '''
         Description:
             GP inference using arbitrary GP parameters for a new data point x
@@ -382,29 +438,34 @@ class GP():
             - mean sample           : mean of GP inference of x
             - var_sample            : variance of GP inference of x
         '''
-        xnorm                       = (x-self.X_mean_arb)/self.X_std_arb
+        X_mean_arb,X_std_arb                = inference_dataset["X_mean"],inference_dataset["X_std"]
+        Y_mean_arb,Y_std_arb                = inference_dataset["Y_mean"],inference_dataset["Y_std"]
+        X_norm_arb,Y_norm_arb               = inference_dataset["X_norm"],inference_dataset["Y_norm"]
+        invKopt_arb,hypopt_arb              = inference_dataset["invKopt"],inference_dataset["hypopt"]
+        
+        xnorm                       = (x-X_mean_arb)/X_std_arb
         mean                        = jnp.zeros((self.ny_dim))
         var                         = jnp.zeros((self.ny_dim))
         
         # --- Set mean of constraints to be below 0 --- #
         mean_set                    = -1.
-        mean_prior                  = (mean_set-self.Y_mean_arb)/self.Y_std_arb # Arbitrarily set prior mean = -1 Or you can change length hyperparameters
+        mean_prior                  = (mean_set-Y_mean_arb)/Y_std_arb # Arbitrarily set prior mean = -1 Or you can change length hyperparameters
         mean_prior                  = mean_prior.at[0].set(0.0)
         
         # --- Loop over each output (GP) --- #
         for i in range(self.ny_dim):
-            invK                    = self.invKopt_arb[i]
-            hyper                   = self.hypopt_arb[:,i]
+            invK                    = invKopt_arb[i]
+            hyper                   = hypopt_arb[:,i]
             ellopt, sf2opt          = jnp.exp(2*hyper[:self.nx_dim]), jnp.exp(2*hyper[self.nx_dim])
 
             # --- determine covariance of each output --- #
-            k                       = self.calc_Cov_mat(self.kernel,self.X_norm_arb,xnorm,ellopt,sf2opt)
-            mean                    = mean.at[i].set(mean_prior[i]+jnp.matmul(jnp.matmul(k.T,invK),(self.Y_norm_arb[:,i]-mean_prior[i]))[0])
+            k                       = self.calc_Cov_mat(self.kernel,X_norm_arb,xnorm,ellopt,sf2opt)
+            mean                    = mean.at[i].set(mean_prior[i]+jnp.matmul(jnp.matmul(k.T,invK),(Y_norm_arb[:,i]-mean_prior[i]))[0])
             var                     = var.at[i].set(jnp.maximum(0, (sf2opt - jnp.matmul(jnp.matmul(k.T,invK),k))[0,0]))
 
         # --- compute un-normalized mean --- # 
-        mean_sample                 = mean*self.Y_std_arb + self.Y_mean_arb
-        var_sample                  = var*self.Y_std_arb**2
+        mean_sample                 = mean*Y_std_arb + Y_mean_arb
+        var_sample                  = var*Y_std_arb**2
         
         if self.var_out:
             return mean_sample, var_sample

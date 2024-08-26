@@ -13,13 +13,13 @@ plant_system = [Benoit_Problem.Benoit_System_1,
 GP_m = GP(plant_system)
 
 def func_mean(x,index):
-    return GP_m.GP_inference_np(x)[0][index]
+    return GP_m.GP_inference(x,GP_m.inference_datasets)[0][index]
 
 def func_var(x,index):
-    return GP_m.GP_inference_np(x)[1][index]
+    return GP_m.GP_inference(x,GP_m.inference_datasets)[1][index]
 
 def variances(x):
-    return GP_m.GP_inference_np(x)[1]
+    return GP_m.GP_inference(x,GP_m.inference_datasets)[1]
 
 def change_jaxgrad(x,delta,func,index):
     func_grad = grad(func,argnums=0)(x,index)

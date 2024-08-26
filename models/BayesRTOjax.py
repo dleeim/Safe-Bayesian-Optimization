@@ -35,7 +35,7 @@ class BayesianOpt(GP):
         localval                    = [data_storage.data['plant_temporary'][0][0]]
 
         # Jit relavent class methods and JAX grad
-        self.GP_inference_np_jit    = jit(self.GP_inference_np)
+        self.GP_inference_jit    = jit(self.GP_inference)
         obj_fun_jitgrad             = jit(grad(self.obj_fun))
         constraint_jitgrad          = jit(grad(self.constraint,argnums=0))
         TR_constraint_jitgrad       = jit(grad(self.TR_constraint,argnums=0))
@@ -84,7 +84,7 @@ class BayesianOpt(GP):
         return xopt, funopt
     
     def obj_fun(self, x, b):
-        GP_inference                = self.GP_inference_np_jit(x)
+        GP_inference                = self.GP_inference_jit(x)
         mean                        = GP_inference[0][0]
         std                         = jnp.sqrt(GP_inference[1][0])
         value                       = mean - b*std
@@ -92,7 +92,7 @@ class BayesianOpt(GP):
         return value
 
     def constraint(self, x, b, index):
-        GP_inference                = self.GP_inference_np_jit(x)
+        GP_inference                = self.GP_inference_jit(x)
         mean                        = GP_inference[0][index]
         std                         = jnp.sqrt(GP_inference[1][index])
         value                       = mean - b*std
@@ -150,6 +150,7 @@ class BayesianOpt(GP):
             # Retrieve Data from plant system
             plant_output            = self.calculate_plant_outputs(x_initial+d_new)
             GP_cons,GP_cons_safe        = self.calculate_GP_cons(x_initial,b)
+            
             # Collect Data to DataStorage
             data_dict               = self.create_data_points(i+1,x_initial,x_initial+d_new,plant_output,GP_cons,GP_cons_safe,radius)
             data_storage.add_data_points(data_dict)
@@ -196,7 +197,7 @@ class BayesianOpt(GP):
         for i in range(self.n_fun):
 
             if i != 0:
-                GP_inference = self.GP_inference_np(x)
+                GP_inference = self.GP_inference(x)
                 mean                = GP_inference[0][i]
                 std                 = jnp.sqrt(GP_inference[1][i])
 
@@ -234,8 +235,8 @@ class BayesianOpt(GP):
         # Calculate rho and use to update trust region
         plant_previous  = data_storage.data['plant_temporary'][0][0]
         plant_now       = data_storage.data['plant_output'][-1][0]
-        GP_previous     = self.GP_inference_np_jit(x_initial)[0][0]
-        GP_now          = self.GP_inference_np_jit(x_new)[0][0]
+        GP_previous     = self.GP_inference_jit(x_initial)[0][0]
+        GP_now          = self.GP_inference_jit(x_new)[0][0]
 
         rho             = (plant_now-plant_previous)/(GP_now-GP_previous+1e-8)
 
@@ -255,30 +256,6 @@ class BayesianOpt(GP):
         else: # rho >= rho_ub
             data_storage.data['plant_temporary'][0][0] = plant_now
             return x_new, min(r*r_inc,r_max)
-        
-    
-    def add_sample(self,x_new,y_new):
-        '''
-        Description:
-            Add new observation x_new and y_new into dataset
-            and find new optimal hyperparameters and invers of cov mat
-        Arguments:
-            - x_new                 : new input data
-            - y_new                 : new output data
-        '''
-        # Add the new sample to the data set
-        self.X                      = jnp.vstack([self.X,x_new])
-        self.Y                      = jnp.vstack([self.Y,y_new])
-        self.n_point                = self.X.shape[0]
-
-        # normalize data
-        self.X_mean, self.X_std     = jnp.mean(self.X, axis=0), jnp.std(self.X, axis=0)
-        self.Y_mean, self.Y_std     = jnp.mean(self.Y, axis=0), jnp.std(self.Y, axis=0)
-        self.X_norm, self.Y_norm    = (self.X-self.X_mean)/self.X_std, (self.Y-self.Y_mean)/self.Y_std
-
-        # determine hyperparameters
-        self.hypopt, self.invKopt   = self.determine_hyperparameters()
-
 
 class DataStorage:
 
