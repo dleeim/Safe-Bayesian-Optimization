@@ -1,5 +1,6 @@
 import random
 import time
+import copy
 import numpy as np
 import jax
 import jax.numpy as jnp
@@ -8,14 +9,16 @@ from scipy.optimize import minimize, differential_evolution, NonlinearConstraint
 from scipy.spatial.distance import cdist
 import sobol_seq
 from models.GP_SafeOpt import GP
+from utils import utils_SafeOpt
 
-class SafeOpt(GP):
+class BO(GP):
     def __init__(self,plant_system,bound,b):
         GP.__init__(self,plant_system)
         self.bound = bound
         self.b = b
+        self.GP_inference_jit = jit(self.GP_inference)
+        self.mean_grad_jit = jit(grad(self.mean,argnums=0))
         self.safe_set_cons = []
-
         for i in range(1, self.n_fun):
             con = NonlinearConstraint(lambda x: self.lcb(x,i),0,jnp.inf)
             self.safe_set_cons.append(con)
@@ -27,6 +30,11 @@ class SafeOpt(GP):
             plant_output.append(plant(x)) 
 
         return jnp.array(plant_output)
+    
+    def mean(self,x,i):
+        GP_inference = self.GP_inference_jit(x,self.inference_datasets)
+        value         = GP_inference[0][i]
+        return value
     
     def ucb(self,x,i):
         GP_inference = self.GP_inference_jit(x,self.inference_datasets)
@@ -40,12 +48,6 @@ class SafeOpt(GP):
         value = mean - self.b*jnp.sqrt(var)
         return value
     
-    def lcb_arb(self,x,i):
-        GP_inference = self.GP_inference_arb_jit(x,self.inference_datasets_arb)
-        mean, var = GP_inference[0][i], GP_inference[1][i]
-        value = mean - self.b*jnp.sqrt(var)
-        return value
-    
     def minimize_obj_ucb(self):
         obj_fun = lambda x: self.ucb(x,0)
         result = differential_evolution(obj_fun,self.bound,constraints=self.safe_set_cons)
@@ -55,7 +57,7 @@ class SafeOpt(GP):
     def Minimizer(self):
         # Setting Optimization Problem
         obj_fun = lambda x: -self.GP_inference_jit(x,self.inference_datasets)[1][0] # objective function is -variance as differential equation finds min (convert to max)
-        cons = self.safe_set_cons
+        cons = copy.deepcopy(self.safe_set_cons)
         x_min, min_obj_ucb = self.minimize_obj_ucb()
         con = NonlinearConstraint(lambda x: min_obj_ucb - self.lcb(x,0),0,jnp.inf)
         cons.append(con)
@@ -64,13 +66,11 @@ class SafeOpt(GP):
         result = differential_evolution(obj_fun,self.bound,constraints=cons)
 
         return result.x, jnp.array(-result.fun)
+    
+    def maxnorm_mean_grad(self,x,i):
 
-    def create_point_arb(self,x):
-        fun_arb            = []
-        for i in range(self.n_fun):
-            fun_arb.append(self.ucb(x,i)) 
-
-        return jnp.array(fun_arb)
+        grad_mean = self.mean_grad_jit(x,i)
+        return jnp.max(jnp.abs(grad_mean))
     
     def sobol_seq_sampling(self,x_dim,n_sample,bound,skip=0):
         # Create sobol_seq sample
@@ -82,51 +82,56 @@ class SafeOpt(GP):
         return jnp.array(sample)
 
     def Expander_constraint(self,x):
-        start = time.time()
-        fun_arb = self.create_point_arb(x)
-        self.create_GP_arb(x,fun_arb)
-        indicator = 0.  # 0 == not satisfied expander constraint, 1 == satisfied expander constraint ; lcb(x) < 0, lcb_arb(x) > 0
-        
-        # Create random list of numbers 
-        n_constraints = list(range(1, self.n_fun))
+        # Initialization
+        lcb_maxnorm_grad_jit    = jit(self.maxnorm_mean_grad)
+        eps                     = jnp.sqrt(jnp.finfo(jnp.float32).eps)
+        boundary                = 0
+        indicator               = 0.
+        n_constraints           = list(range(1, self.n_fun))
         random.shuffle(n_constraints)
-
-        for sobol_point in self.sobol_sample:
-            safe = 0
-
-            for i in range(1,self.n_fun):
-                if self.lcb(sobol_point,i) < 0.:
-                    pass
-                else:
-                    safe = 1
-                    break
-
-            if safe == 1:
-                continue
-            else:
-                pass
-            
-            for i in n_constraints:
-                if self.lcb_arb(sobol_point,i) > 0.:
-                    indicator = 1.
-                    break
-
-            if indicator == 1.:
+        
+        for i in n_constraints:
+            if self.lcb(x,i) <= eps:
+                boundary        = 1
+                index           = i
                 break
-        end = time.time()
-
+        
+        if boundary == 0:
+            return indicator
+        
+        for sobol_point in self.sobol_sample:
+            if self.ucb(x,index) - lcb_maxnorm_grad_jit(x,index)*cdist(x.reshape(1, -1),sobol_point.reshape(1, -1)) >= 0.:
+                indicator = 1.
+                return indicator
         return indicator
     
     def Expander(self):
         obj_fun = lambda x: -self.GP_inference_jit(x,self.inference_datasets)[1][0] # objective function is -variance as differential equation finds min (convert to max)
-        cons = self.safe_set_cons
+        cons = copy.deepcopy(self.safe_set_cons)
         cons.append(NonlinearConstraint(lambda x: self.Expander_constraint(x),0.,jnp.inf))
-        result = differential_evolution(obj_fun,self.bound,constraints=cons,maxiter=100,popsize=15)
+        result = differential_evolution(obj_fun,self.bound,constraints=cons)
         return result.x, jnp.sqrt(-result.fun)
+    
+    def Safeminimize(self,n_sample,x_initial,radius,n_iter):
 
+        # Initialization
+        X,Y = self.Data_sampling(n_sample,x_initial,radius)
+        self.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
+
+        # SafeOpt
+        for i in range(n_iter):
+            minimizer,std_minimizer = self.Minimizer()
+            expander,std_expander = self.Expander()
+
+            if std_minimizer > std_expander:
+                x_new = minimizer
+            else:
+                x_new = expander
         
-
+            plant_output = self.calculate_plant_outputs(x_new)
+            self.add_sample(x_new,plant_output)
         
+        return x_new, plant_output
 
-            
+
 

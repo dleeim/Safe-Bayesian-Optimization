@@ -8,6 +8,7 @@ import time
 from models import SafeOpt
 from problems import Benoit_Problem
 import warnings
+from utils import utils_SafeOpt
 warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
 
 # Class Initialization
@@ -16,7 +17,7 @@ plant_system = [Benoit_Problem.Benoit_System_1,
                 Benoit_Problem.con1_system_tight]
 bound = jnp.array([[-.6,1.5],[-1.,1.]])
 b = 3.
-GP_m = SafeOpt.SafeOpt(plant_system,bound,b)
+GP_m = SafeOpt.BO(plant_system,bound,b)
 
 # GP Initialization: 
 n_sample = 4
@@ -77,34 +78,35 @@ def test_minimize_obj_ucb():
     print(f"")
 
 def test_Minimizer():   
+    # x_new = jnp.array([1., -0.74191489])
+    # y_new = GP_m.calculate_plant_outputs(x_new)
+    # GP_m.add_sample(x_new,y_new)
     minimizer,std_minimizer = GP_m.Minimizer()
     print(f"Test: Minimizer")
     print(f"minimizer, std_minimizer: {minimizer,std_minimizer}")
     print(f"Check if the input is in safe set: {GP_m.GP_inference(minimizer,GP_m.inference_datasets)}")
     print(f"")
-    plant_output = GP_m.calculate_plant_outputs(minimizer)
-    GP_m.add_sample(minimizer,plant_output)
-    plot_safe_region()
 
-
-def test_create_point_arb():
+def test_mean_grad_jit():
     x = jnp.array([1.45698204, -0.76514894])
-    fun_arb = GP_m.create_point_arb(x)
-    print(f"Test: Create aribtrary point; makes point of given x input and ucb of all plant system")
-    print(f"x input: {x}")
-    print(f"arbitrary ucb for all functions: {fun_arb} \n")
+    delta = 0.0001
+    xdelta_0 = x + jnp.array([delta,0.])
+    xdelta_1 = x + jnp.array([0.,delta])
 
-def test_lcb_arb():
-    x = jnp.array([1., -0.74191489])
-    y = GP_m.create_point_arb(x)
-    GP_m.create_GP_arb(x,y)
+    mean = GP_m.mean(x,1)
+    mean_new_0 = GP_m.mean(xdelta_0,1)
+    mean_new_1 = GP_m.mean(xdelta_1,1)
 
-    value_arb = GP_m.lcb_arb(x,1)
-    value = GP_m.lcb(x,1)
-    print(f"Test: lcb for arbitrary GP")
-    print(f"x for arbitrary GP: {x}")
-    print(f"value of lcb for GP arb: {value_arb}")
-    print(f"value of lcb for GP: {value}")
+    mean_grad = GP_m.mean_grad_jit(x,1)
+    predicted_changed = mean_grad*delta
+    predicted_mean_new_0 = mean + predicted_changed[0]
+    predicted_mean_new_1 = mean + predicted_changed[1]
+    
+    print(f"Test: mean grad for 2 dimensions")
+    print(f"mean_new_0: {mean_new_0}")
+    print(f"mean_new_1: {mean_new_1}")
+    print(f"predicted_mean_new_0: {predicted_mean_new_0}")
+    print(f"predicted_mean_new_1: {predicted_mean_new_1} \n")
 
 def test_Expander_constraint():
     x = jnp.array([1., -0.74191489])
@@ -127,42 +129,50 @@ def test_Expander():
 
     plant_output = GP_m.calculate_plant_outputs(expander)
     GP_m.add_sample(expander,plant_output)
-    print(f"updated ")
     print(f"updated lcb?: {GP_m.lcb(expander,1)}")
-
-    plot_safe_region()
     
-def test_SafeOpt():
-    print(f"Test: SafeOpt")
-    n_iteration = 1
+def test_SafeOpt_Benoit():
+    # Preparation for plot
+    filenames = []
+    data = {'i':[],'obj':[],'con':[],'x_0':[],'x_1':[]}
+    points = jnp.array([[1.,-0.7],[0.44,-1.]])
+
+    # SafeOpt
+    n_iteration = 10
+
     for i in range(n_iteration):
-        print(f"iteration: {i}")
         minimizer,std_minimizer = GP_m.Minimizer()
-
-        start = time.time()
         expander,std_expander = GP_m.Expander()
-        end = time.time()
-
+        
         if std_minimizer > std_expander:
             x_new = minimizer
         else:
             x_new = expander
         
         plant_output = GP_m.calculate_plant_outputs(x_new)
-        GP_m.add_sample(x_new,plant_output)
-        print(f"time taken: {end-start}")
-        print(f"x_new, plant_output: {x_new, plant_output} \n")
-    
-    plot_safe_region()
 
-def test_Safeset_cons():
-    x_new = jnp.array([1.00036055, -0.71751819])
-    plant_output = GP_m.calculate_plant_outputs(x_new)
-    GP_m.add_sample(x_new,plant_output)
-    plot_safe_region()
-        
-def plot_safe_region():
-    # Assuming GP_m.lcb is already defined and GP_m is properly initialized
+        # Create frame
+        data['i'].append(i)
+        data['obj'].append(plant_output[0])
+        data['con'].append(plant_output[1])
+        data['x_0'].append(x_new[0])
+        data['x_1'].append(x_new[1])
+        t = i*0.1
+        filename = f'frame_{i:02d}.png'
+        X_0, X_1, mask_safe, obj = create_data_for_plot()
+        utils_SafeOpt.create_frame(utils_SafeOpt.plot_safe_region_Benoit(X,X_0,X_1, mask_safe,obj,bound,data),filename)
+        filenames.append(filename)
+
+        GP_m.add_sample(x_new,plant_output)
+    
+    # Create GIF
+    frame_duration = 700
+    GIFname = 'Benoit_SafeOpt_Outputs.gif'
+    utils_SafeOpt.create_GIF(frame_duration,filenames,GIFname)
+    # Create plot for outputs
+    utils_SafeOpt.plant_outputs_drawing(data['i'],data['obj'],data['con'],'Benoit_SafeOpt_Outputs.png')
+
+def create_data_for_plot():
     x_0 = jnp.linspace(-0.6, 1.5, 400)
     x_1 = jnp.linspace(-1.0, 1.0, 400)
     X_0, X_1 = jnp.meshgrid(x_0, x_1)
@@ -177,11 +187,48 @@ def plot_safe_region():
     # Apply lcb function using vmap
     lcb_vmap = vmap(GP_m.lcb, in_axes=(0, None))
     mask_safe = lcb_vmap(points, 1).reshape(X_0.shape) > 0.
-    plt.figure()
-    plt.contourf(X_0, X_1, mask_safe, levels=[0, 0.5, 1], colors=['lightcoral','lightblue'])
-    plt.plot(X[:,0],X[:,1],'kx')
-    plt.show()
+
+    # Create points for plant system
+    plant_obj_vmap = vmap(plant_system[0])
+    plant_con_vmap = vmap(plant_system[1])
+    obj = jnp.array(plant_obj_vmap(points)).reshape(X_0.shape)
+
+    return X_0, X_1, mask_safe, obj
+
+def test_GIF():
+    # Preparation for plot
+    filenames = []
+    data = {'i':[],'obj':[],'con':[],'x_0':[],'x_1':[]}
+    points = jnp.array([[1.,-0.7],[0.44,-1.]])
+
+    for i in range(2):
+        x_new = points[i]
+        plant_output = GP_m.calculate_plant_outputs(x_new)
+
+        # Create frame
+        data['i'].append(i)
+        data['obj'].append(plant_output[0])
+        data['con'].append(plant_output[1])
+        data['x_0'].append(x_new[0])
+        data['x_1'].append(x_new[1])
+        t = i*0.1
+        filename = f'frame_{i:02d}.png'
+        X_0, X_1, mask_safe, obj = create_data_for_plot()
+        utils_SafeOpt.create_frame(utils_SafeOpt.plot_safe_region_Benoit(X,X_0,X_1, mask_safe,obj,bound,data),filename)
+        filenames.append(filename)
+
+        GP_m.add_sample(x_new,plant_output)
+    
+    # Create GIF
+    frame_duration = 700
+    GIFname = 'Benoit_SafeOpt_Outputs.gif'
+    utils_SafeOpt.create_GIF(frame_duration,filenames,GIFname)
+    # Create plot for outputs
+    utils_SafeOpt.plant_outputs_drawing(data['i'],data['obj'],data['con'],'Benoit_SafeOpt_Outputs.png')
         
+
+
+
     
 if __name__ == "__main__":
     # test_GP_inference()
@@ -189,10 +236,9 @@ if __name__ == "__main__":
     # test_lcb()
     # test_minimize_obj_ucb()
     # test_Minimizer()
-    # test_create_point_arb()
-    # test_lcb_arb()
+    # test_mean_grad_jit()
     # test_Expander_constraint()
     # test_Expander() 
-    # test_SafeOpt()
-    test_Safeset_cons()
+    test_SafeOpt_Benoit()
+    # test_GIF()
 
