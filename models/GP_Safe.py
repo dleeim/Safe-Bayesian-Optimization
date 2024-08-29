@@ -275,10 +275,6 @@ class GP():
         # Find optimal hyperparameter and inverse of covariance matrix
         self.hypopt, self.invKopt   = self.determine_hyperparameters(self.X_norm,self.Y_norm)
         self.update_inference_dataset()
-
-        # Create sobol_seq sample for Expander
-        self.n_sample = 1000
-        self.sobol_sample = self.sobol_seq_sampling(self.nx_dim,self.n_sample,self.bound)
     
     def add_sample(self,x_new,y_new):
         '''

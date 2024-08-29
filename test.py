@@ -1,5 +1,8 @@
-import numpy as np
+import jax.numpy as jnp
 
-a = np.array([1,2,3])
-mask = a > 1
-print(a[not mask])
+a = 0.
+b = 1.
+if a:
+    print(b)
+else:
+    print(a)

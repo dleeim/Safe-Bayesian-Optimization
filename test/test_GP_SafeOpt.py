@@ -3,7 +3,7 @@ import jax.numpy as jnp
 from jax import grad, vmap, jit
 import matplotlib.pyplot as plt
 import pandas as pd
-from models.GP_SafeOpt import GP
+from models.GP_Safe import GP
 from problems import Benoit_Problem
 from problems import Rosenbrock_Problem 
 

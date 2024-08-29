@@ -25,6 +25,9 @@ x_i = jnp.array([1.4,-.8])
 r = 0.3
 X,Y = GP_m.Data_sampling(n_sample,x_i,r)
 GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
+# Create sobol_seq sample for Expander
+n_sample = 1000
+unsafe_sobol_sample = GP_m.unsafe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
 
 print(f"\n")
 print(f"Data Sample Input:")
@@ -108,10 +111,15 @@ def test_mean_grad_jit():
     print(f"predicted_mean_new_0: {predicted_mean_new_0}")
     print(f"predicted_mean_new_1: {predicted_mean_new_1} \n")
 
+def test_unsafe_sobol_seq_sampling():
+    n_sample = 1000
+    sample = GP_m.unsafe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
+    pass
+
 def test_Expander_constraint():
     x = jnp.array([1., -0.74191489])
     start = time.time()
-    indicator = GP_m.Expander_constraint(x)
+    indicator = GP_m.Expander_constraint(x,unsafe_sobol_sample)
     end = time.time()
     print(f"Test: Expander constraint: Result is indicator; 1 means point can be classified as expander")
     print(f"x input: {x}")
@@ -132,6 +140,7 @@ def test_Expander():
     print(f"updated lcb?: {GP_m.lcb(expander,1)}")
     
 def test_SafeOpt_Benoit():
+    
     # Preparation for plot
     filenames = []
     data = {'i':[],'obj':[],'con':[],'x_0':[],'x_1':[]}
@@ -142,7 +151,7 @@ def test_SafeOpt_Benoit():
 
     for i in range(n_iteration):
         minimizer,std_minimizer = GP_m.Minimizer()
-        expander,std_expander = GP_m.Expander()
+        expander,std_expander = GP_m.Expander(unsafe_sobol_sample)
         
         if std_minimizer > std_expander:
             x_new = minimizer
@@ -237,6 +246,7 @@ if __name__ == "__main__":
     # test_minimize_obj_ucb()
     # test_Minimizer()
     # test_mean_grad_jit()
+    # test_unsafe_sobol_seq_sampling
     # test_Expander_constraint()
     # test_Expander() 
     test_SafeOpt_Benoit()
