@@ -8,7 +8,7 @@ import time
 from models import GoOSE
 from problems import Benoit_Problem
 import warnings
-from utils import utils_SafeOpt
+from utils import utils_GoOSE
 from scipy.spatial.distance import cdist
 
 warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
@@ -113,18 +113,35 @@ def test_explore_safeset():
     print(f"target: {target}")
     print(f"x_observe: {x_observe}")
 
+def test():
+    x_1 = jnp.array([0.98963043, -0.42596487])
+    plant_output = GP_m.calculate_plant_outputs(x_1)
+    GP_m.add_sample(x_1,plant_output)
+    safe_sobol_sample = GP_m.safe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
+    maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
+    # print(maximum_maxnorm_mean_constraints)
+    # x_target = jnp.array([0.97, -0.42596487])
+    # indicator = GP_m.optimistic_safeset_constraint(x_target,safe_sobol_sample,maximum_maxnorm_mean_constraints)
+    # print(indicator)
+    start = time.time()
+    x_target_min,min_target_lcb = GP_m.Target(safe_sobol_sample,maximum_maxnorm_mean_constraints)
+    end = time.time()
+    print(f"x_target: {x_target_min}")
+    print(f"min_target_lcb: {min_target_lcb}")
+    print(f"time: {end-start}")
+
 def test_GoOSE():
     
     # Preparation for plot
     filenames = []
     data = {'i':[],'obj':[],'con':[],'x_0':[],'x_1':[], 'x_target_0':[], 'x_target_1':[]}
-    points = jnp.array([[1.,-0.7],[0.44,-1.]])
 
     # GoOSE
     n_iteration = 10
 
     for i in range(n_iteration):
         x_safe_min,min_safe_lcb = GP_m.minimize_obj_lcb()
+        safe_sobol_sample = GP_m.safe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
         maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
         x_target_min,min_target_lcb = GP_m.Target(safe_sobol_sample,maximum_maxnorm_mean_constraints)
 
@@ -143,12 +160,12 @@ def test_GoOSE():
         data['con'].append(plant_output[1])
         data['x_0'].append(x_new[0])
         data['x_1'].append(x_new[1])
-        data['x_target_0'].append(x_target_min[0])
-        data['x_target_1'].append(x_target_min[1])
+        data['x_target_0']=x_target_min[0]
+        data['x_target_1']=x_target_min[1]
         t = i*0.1
         filename = f'frame_{i:02d}.png'
         X_0, X_1, mask_safe, obj = create_data_for_plot()
-        utils_SafeOpt.create_frame(utils_SafeOpt.plot_safe_region_Benoit(X,X_0,X_1, mask_safe,obj,bound,data),filename)
+        utils_GoOSE.create_frame(utils_GoOSE.plot_safe_region_Benoit(X,X_0,X_1, mask_safe,obj,bound,data),filename)
         filenames.append(filename)
 
         GP_m.add_sample(x_new,plant_output)
@@ -156,9 +173,9 @@ def test_GoOSE():
     # Create GIF
     frame_duration = 700
     GIFname = 'Benoit_GoOSE_Outputs.gif'
-    utils_SafeOpt.create_GIF(frame_duration,filenames,GIFname)
+    utils_GoOSE.create_GIF(frame_duration,filenames,GIFname)
     # Create plot for outputs
-    utils_SafeOpt.plant_outputs_drawing(data['i'],data['obj'],data['con'],'Benoit_GoOSE_Outputs.png')
+    utils_GoOSE.plant_outputs_drawing(data['i'],data['obj'],data['con'],'Benoit_GoOSE_Outputs.png')
 
 def create_data_for_plot():
     x_0 = jnp.linspace(-0.6, 1.5, 400)
@@ -183,6 +200,43 @@ def create_data_for_plot():
 
     return X_0, X_1, mask_safe, obj
 
+def test_GIF():
+    # Preparation for plot
+    filenames = []
+    data = {'i':[],'obj':[],'con':[],'x_0':[],'x_1':[], 'x_target_0':[], 'x_target_1':[]}
+    points = jnp.array([[0.98963043, -0.42596487],[0.44,-1.]])
+    targets = jnp.array([[1.,0.8],[jnp.nan,jnp.nan]])
+
+    for i in range(2):
+        x_new = points[i]
+        target = targets[i]
+        plant_output = GP_m.calculate_plant_outputs(x_new)
+
+        # Create frame
+        data['i'].append(i)
+        data['obj'].append(plant_output[0])
+        data['con'].append(plant_output[1])
+        data['x_0'].append(x_new[0])
+        data['x_1'].append(x_new[1])
+        data['x_target_0']=target[0]
+        data['x_target_1']=target[1]
+
+        t = i*0.1
+        filename = f'frame_{i:02d}.png'
+        X_0, X_1, mask_safe, obj = create_data_for_plot()
+        utils_GoOSE.create_frame(utils_GoOSE.plot_safe_region_Benoit(X,X_0,X_1, mask_safe,obj,bound,data),filename)
+        filenames.append(filename)
+
+        GP_m.add_sample(x_new,plant_output)
+
+    # Create GIF
+    frame_duration = 700
+    GIFname = 'Benoit_GoOSE_Outputs.gif'
+    utils_GoOSE.create_GIF(frame_duration,filenames,GIFname)
+    # Create plot for outputs
+    utils_GoOSE.plant_outputs_drawing(data['i'],data['obj'],data['con'],'Benoit_GoOSE_Outputs.png')
+    
+
 
 if __name__ == "__main__":
     # test_GP_inference()
@@ -193,5 +247,8 @@ if __name__ == "__main__":
     # test_minimize_obj_lcb()
     # test_Target()
     # test_explore_safeset()
+    # test_GoOSE()
+    # test()
+    test_GIF()
 
 

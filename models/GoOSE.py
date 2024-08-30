@@ -76,7 +76,6 @@ class BO(GP):
         for i in range(1,self.n_fun):
             obj_fun = lambda x: -lcb_maxnorm_grad_jit(x,i)
             result = differential_evolution(obj_fun,self.bound,tol=0.1)
-            print(result.x)
             maximum_maxnorm_mean_constraints.append(-result.fun)
 
         return maximum_maxnorm_mean_constraints
@@ -100,10 +99,11 @@ class BO(GP):
             satisfied = jnp.any(condition >= 0.).astype(int)
 
             if satisfied:
-                indicator = 1.
+                indicator = 10.
                 return indicator
             else:
                 pass
+
         return indicator
     
     def minimize_obj_lcb(self):
@@ -111,11 +111,11 @@ class BO(GP):
         result = differential_evolution(obj_fun,self.bound,constraints=self.safe_set_cons)
 
         return result.x,result.fun
-    
+
     def Target(self,safe_sobol_sample,maximum_maxnorm_mean_constraints):
         obj_fun = lambda x: self.lcb(x,0)
         cons = copy.deepcopy(self.unsafe_set_cons)
-        cons.append(NonlinearConstraint(lambda x:self.optimistic_safeset_constraint(x,safe_sobol_sample,maximum_maxnorm_mean_constraints),1,jnp.inf))
+        cons.append(NonlinearConstraint(lambda x:self.optimistic_safeset_constraint(x,safe_sobol_sample,maximum_maxnorm_mean_constraints),10.,jnp.inf))
         result = differential_evolution(obj_fun,self.bound,constraints=cons,tol=0.1)
 
         return result.x, result.fun
@@ -124,6 +124,6 @@ class BO(GP):
         obj_fun = lambda x: cdist(x.reshape(1,-1),target.reshape(1,-1))[0][0]
         cons = copy.deepcopy(self.safe_set_cons)
         result = differential_evolution(obj_fun,self.bound,constraints=cons,tol=0.1)
-
+        # ALERT!!!!!!!!!: Need to add constraint that g(x,z) > 0 when finding closest distance..
         return result.x
         

@@ -117,7 +117,7 @@ def test_unsafe_sobol_seq_sampling():
     pass
 
 def test_Expander_constraint():
-    x = jnp.array([1., -0.74191489])
+    x = jnp.array([1.12949687, -0.51840191])
     start = time.time()
     indicator = GP_m.Expander_constraint(x,unsafe_sobol_sample)
     end = time.time()
@@ -127,9 +127,8 @@ def test_Expander_constraint():
     print(f"time spent: {end-start} \n")
 
 def test_Expander():
-    x_old = jnp.array([1.00036285, -0.71751398])
     start = time.time()
-    expander, std_expander = GP_m.Expander()
+    expander, std_expander = GP_m.Expander(unsafe_sobol_sample)
     end = time.time()
     print(f"Test: Expander")
     print(f"expander, std_expander: {expander, std_expander}")
@@ -144,19 +143,25 @@ def test_SafeOpt_Benoit():
     # Preparation for plot
     filenames = []
     data = {'i':[],'obj':[],'con':[],'x_0':[],'x_1':[]}
-    points = jnp.array([[1.,-0.7],[0.44,-1.]])
 
     # SafeOpt
     n_iteration = 10
 
     for i in range(n_iteration):
+        start = time.time()
         minimizer,std_minimizer = GP_m.Minimizer()
+        print(f"minimizer:{minimizer},std: {std_minimizer}")
         expander,std_expander = GP_m.Expander(unsafe_sobol_sample)
+        print(f"expander: {expander},std: {std_expander}")
+        end = time.time()
         
         if std_minimizer > std_expander:
             x_new = minimizer
+            print("I am minimizing!")
         else:
             x_new = expander
+            print("I am Expanding!")
+        print(f"time taken: {end-start}")
         
         plant_output = GP_m.calculate_plant_outputs(x_new)
 
@@ -247,8 +252,8 @@ if __name__ == "__main__":
     # test_Minimizer()
     # test_mean_grad_jit()
     # test_unsafe_sobol_seq_sampling
-    # test_Expander_constraint()
+    test_Expander_constraint()
     # test_Expander() 
-    test_SafeOpt_Benoit()
+    # test_SafeOpt_Benoit()
     # test_GIF()
 

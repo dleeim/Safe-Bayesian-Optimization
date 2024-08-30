@@ -35,7 +35,11 @@ def plot_safe_region_Benoit(X,X_0,X_1,mask_safe,obj,bound,data=None):
     # Plot point for new observed point
     if data != None:
         plt.plot(data['x_0'][:],data['x_1'][:],'ko',linewidth=1.,markersize=5)
-        plt.plot(data['x_0'][:],data['x_1'][:],'k-',linewidth=0.5,label='_nolegend_')        
+        plt.plot(data['x_0'][:],data['x_1'][:],'k-',linewidth=0.5,label='_nolegend_')
+        plt.plot(data['x_target_0'],data['x_target_1'],'kx')
+        x_target_new_0 = jnp.array([data['x_0'][-1],data['x_target_0']])
+        x_target_new_1 = jnp.array([data['x_1'][-1],data['x_target_1']])  
+        plt.plot(x_target_new_0,x_target_new_1,'k--')      
 
 
     # Set bound for plt plot
