@@ -84,17 +84,9 @@ class BO(GP):
 
         return jnp.array(sample)
 
-    def Expander_condition(self,sobol_point,x,i):
-        lcb_maxnorm_grad_jit                        = jit(self.maxnorm_mean_grad)
-        squared_seuclidean_jax_jit                  = jit(self.squared_seuclidean_jax)
-        V                                           = jnp.array([1.]*self.nx_dim)
-        dist                                        = jnp.sqrt(squared_seuclidean_jax_jit(x.reshape(1, -1),sobol_point.reshape(1, -1),V))
-        
-        return self.ucb(x,i) - lcb_maxnorm_grad_jit(x,i)*dist
-    
     def Expander_constraint(self,x,unsafe_sobol_sample):
         # Initialization
-        Expander_condition_vmap_jit = jit(vmap(self.Expander_condition,in_axes=(0,None,None)))
+        lcb_maxnorm_grad_jit    = jit(self.maxnorm_mean_grad)
         eps                     = jnp.sqrt(jnp.finfo(jnp.float32).eps)
         boundary                = False
         indicator               = 0.
@@ -110,52 +102,29 @@ class BO(GP):
         if boundary == False:
             print(indicator)
             return indicator
+        
+        for sobol_point in unsafe_sobol_sample:
 
-        condition = Expander_condition_vmap_jit(unsafe_sobol_sample,x,index)
-        start = time.time()
-        satisfied = jnp.any(condition >= 0.).astype(int)
+            if self.ucb(x,index) - lcb_maxnorm_grad_jit(x,index)*cdist(x.reshape(1, -1),sobol_point.reshape(1, -1)) >= 0.:
+                indicator = 10.
+                print(indicator)
 
-        if satisfied:
-            indicator = 10.
-            print(indicator)
-            return indicator
+                if jnp.any(unsafe_sobol_sample[:50] == sobol_point):
+                    pass
+                else:
+                    index = jnp.where(sobol_point == unsafe_sobol_sample)[0][0]
+                    unsafe_sobol_sample = jnp.vstack((sobol_point,unsafe_sobol_sample[:index],unsafe_sobol_sample[index+1:]))
 
-        print(indicator)  
+                return indicator
+        print(indicator)
         return indicator
-
-    # def Expander_constraint(self,x,unsafe_sobol_sample):
-    #     # Initialization
-    #     lcb_maxnorm_grad_jit    = jit(self.maxnorm_mean_grad)
-    #     eps                     = jnp.sqrt(jnp.finfo(jnp.float32).eps)
-    #     boundary                = False
-    #     indicator               = 0.
-    #     n_constraints           = list(range(1, self.n_fun))
-    #     random.shuffle(n_constraints)
-    #     print(x)
-    #     for i in n_constraints:
-    #         if self.lcb(x,i) <= eps:
-    #             boundary        = True
-    #             index           = i
-    #             break
-        
-    #     if boundary == False:
-    #         print(indicator)
-    #         return indicator
-        
-    #     for sobol_point in unsafe_sobol_sample:
-
-    #         if self.ucb(x,index) - lcb_maxnorm_grad_jit(x,index)*cdist(x.reshape(1, -1),sobol_point.reshape(1, -1)) >= 0.:
-    #             indicator = 10.
-    #             print(indicator)
-    #             return indicator
-    #     print(indicator)
-    #     return indicator
     
     def Expander(self,unsafe_sobol_sample):
+        eps = jnp.sqrt(jnp.finfo(jnp.float32).eps)
         obj_fun = lambda x: -self.GP_inference_jit(x,self.inference_datasets)[1][0] # objective function is -variance as differential equation finds min (convert to max)
         cons = copy.deepcopy(self.safe_set_cons)
         cons.append(NonlinearConstraint(lambda x: self.Expander_constraint(x,unsafe_sobol_sample),10.,jnp.inf))
-        result = differential_evolution(obj_fun,self.bound,constraints=cons,tol=0.1)
+        result = differential_evolution(obj_fun,self.bound,constraints=cons,tol=eps)
         return result.x, jnp.sqrt(-result.fun)
     
     # Overall Algorithm
@@ -164,13 +133,12 @@ class BO(GP):
         # Initialization
         X,Y = self.Data_sampling(n_sample,x_initial,radius)
         self.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
-        
-        # Create sobol_seq sample for Expander
-        n_sample = 1000
-        unsafe_sobol_sample = self.unsafe_sobol_seq_sampling(self.nx_dim,n_sample,self.bound)
 
         # SafeOpt
         for i in range(n_iter):
+            # Create sobol_seq sample for Expander
+            n_sample = 1000
+            unsafe_sobol_sample = self.unsafe_sobol_seq_sampling(self.nx_dim,n_sample,self.bound)
             minimizer,std_minimizer = self.Minimizer()
             expander,std_expander = self.Expander(unsafe_sobol_sample)
 

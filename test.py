@@ -1,17 +1,13 @@
-import matplotlib.pyplot as plt
+import jax.numpy as jnp
+import time
 
-# Define the coordinates of the two points
-x1, y1 = 0, 0  # First point
-x2, y2 = 4, 3  # Second point
 
-# Plot the dashed black line between the two points
-plt.plot([x1, x2], [y1, y2], 'k--')
+import jax.numpy as jnp
 
-# Add labels and title for clarity
-plt.xlabel('X-axis')
-plt.ylabel('Y-axis')
-plt.title('Dashed Black Line Between Two Points')
+my_list = jnp.array([[1],
+                     [2],
+                     [3],
+                     [4]])
+a = jnp.array([4])
 
-# Show the plot
-plt.grid(True)
-plt.show()
+print(jnp.any(my_list[:]==a))

@@ -148,6 +148,9 @@ def test_SafeOpt_Benoit():
     n_iteration = 10
 
     for i in range(n_iteration):
+        # Create sobol_seq sample for Expander
+        n_sample = 1000
+        unsafe_sobol_sample = GP_m.unsafe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
         start = time.time()
         minimizer,std_minimizer = GP_m.Minimizer()
         print(f"minimizer:{minimizer},std: {std_minimizer}")
@@ -178,6 +181,10 @@ def test_SafeOpt_Benoit():
         filenames.append(filename)
 
         GP_m.add_sample(x_new,plant_output)
+
+        # Finish the iteration early 
+        if std_expander < 0.01 and std_minimizer < 0.01:
+            break
     
     # Create GIF
     frame_duration = 700
@@ -252,8 +259,8 @@ if __name__ == "__main__":
     # test_Minimizer()
     # test_mean_grad_jit()
     # test_unsafe_sobol_seq_sampling
-    test_Expander_constraint()
+    # test_Expander_constraint()
     # test_Expander() 
-    # test_SafeOpt_Benoit()
+    test_SafeOpt_Benoit()
     # test_GIF()
 
