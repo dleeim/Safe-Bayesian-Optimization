@@ -1,13 +1,11 @@
 import jax.numpy as jnp
-import time
 
+def check_1d_array(array):
+    if array.ndim != 1:
+        raise ValueError("The input array must be 1-dimensional.")
 
-import jax.numpy as jnp
+# Example usage
+input_array = jnp.array([1,2,3])  # 2D array
 
-my_list = jnp.array([[1],
-                     [2],
-                     [3],
-                     [4]])
-a = jnp.array([4])
-
-print(jnp.any(my_list[:]==a))
+# Check if the array is 1D
+check_1d_array(input_array)

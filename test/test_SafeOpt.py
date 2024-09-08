@@ -35,7 +35,6 @@ print(f"{X}")
 print(f"Data Sample Output:")
 print(f"{Y}")
 print(f"")
-print
 
 # Tests
 def test_GP_inference():
