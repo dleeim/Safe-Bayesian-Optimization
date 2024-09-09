@@ -111,7 +111,6 @@ class GP():
 
         # Compute pairwise squared Euclidean distances efficiently
         dist_mat                    = -2 * jnp.dot(X_adjusted, Y_adjusted.T) + jnp.sum(X_adjusted**2, axis=1)[:, None] + jnp.sum(Y_adjusted**2, axis=1)
-        
         return dist_mat
 
     def Cov_mat(self, kernel, X_norm, Y_norm, W, sf2):
@@ -159,7 +158,6 @@ class GP():
         else:
             dist                    = self.squared_seuclidean_jax(X_norm, x_norm, ell)
             cov_matrix              = sf2 * jnp.exp(-0.5*dist) 
-            
             return cov_matrix
 
     def negative_loglikelihood(self, hyper, X, Y):

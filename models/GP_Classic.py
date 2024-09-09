@@ -294,7 +294,7 @@ class GP():
         self.X_norm, self.Y_norm    = (self.X-self.X_mean)/self.X_std, (self.Y-self.Y_mean)/self.Y_std
 
         # determine hyperparameters
-        self.hypopt, self.invKopt   = self.determine_hyperparameters(self.X_norm,self.Y_norm,arbitrary=False)
+        self.hypopt, self.invKopt   = self.determine_hyperparameters()
         self.update_inference_dataset()
     
     ###################################################

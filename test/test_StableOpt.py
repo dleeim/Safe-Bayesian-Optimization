@@ -5,6 +5,7 @@ from jax import grad, vmap, jit, random
 from scipy.optimize import differential_evolution
 import matplotlib.pyplot as plt
 import pandas as pd
+import json
 import time
 from models import StableOpt
 from problems import W_shape_Problem
@@ -52,35 +53,91 @@ def test_lcb():
     print(f"GP Inference: {GP_m.lcb(xc,d,0)}")
     print(f"")
 
-def test_robust_filter():
-    x = jnp.array([0.7224331])
-    max_robust_f = GP_m.robust_filter(GP_m.lcb,x,0)
+def test_Maximize_d():
+    xc = jnp.array([1.99855295])
+    max_robust_f = GP_m.Maximise_d(GP_m.lcb,xc,0)
     print(f"Test: robust filter; check if robust filter is in appropriate value")
-    print(f"x input: {x}")
+    print(f"xc input: {xc}")
     print(f"max_robust_f: {max_robust_f}")
     print(f"")
 
-def test_Minimize_Robust():
-    xmin, fmin = GP_m.Minimize_Robust()
-    print(f"Test: Minimize Robust; check if Minimize Robust is in appropriate value")
-    print(f"xmin, fmin: {xmin, fmin}")
+def test_Minimize_Maximise():
+    xcmin, fmin = GP_m.Minimize_Maximise(GP_m.lcb)
+    print(f"Test: Minimize Maximise; min max lcb")
+    print(f"xmin, fmin: {xcmin, fmin} \n")
 
-def test_
+def test_Maximize_d_with_constraints():
+    xcmin = GP_m.xc_min[0]
+    d_max,output = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin)
+    print(f"Test: Maximize_d_with_constriants; d = argmax ucb s.t constraints")
+    print(f"xmin, d_max, output: {xcmin, d_max, output} \n")
+
+def test_Best_xc_Guess():
+    xc_min_of_min = GP_m.Best_xc_Guess(GP_m.ucb)
+    print(f"Test: Best_xc_Guess; check if Best variable without perbutation guess is made")
+    print(f"xcmin: {xc_min_of_min} \n")
+
+def test_StageOpt():
+    # Class Initialization
+    plant_system = [W_shape_Problem.W_shape]
+    bound = jnp.array([[-1,2]])
+    bound_d = jnp.array([[2,4]])
+    b = 3.
+    GP_m = StableOpt.BO(plant_system,bound,bound_d,b)
+
+    # GP Initialization:
+    n_sample = 3
+    x_samples, plant_output = GP_m.Data_sampling_with_perbutation(n_sample)
+    GP_m.GP_initialization(x_samples,plant_output,'RBF',multi_hyper=5,var_out=True)
+
+    # StageOpt
+    n_iter = 10
+    data = {'xc_min_of_min':[],'output':[],'gridworld_input':[],'gridworld_output':[]}
+    x_grid = jnp.linspace(bound[:,0],bound[:,1],100)
+    data['gridworld_input'].append(x_grid)
+
+    for i in range(n_iter):
+        xcmin, fmin = GP_m.Minimize_Maximise(GP_m.mean)
+        dmax, dmax_output = GP_m.Maximise_d_with_constraints(GP_m.mean,xcmin)
+        plant_output = GP_m.calculate_plant_outputs(xcmin,dmax)[0]
+        
+        x = jnp.concatenate((xcmin,dmax))
+        print(f"x, plantoutput for add sample: {x,plant_output}")
+        GP_m.add_sample(x,plant_output)
+        
+        xc_min_of_min,d = GP_m.Best_xc_Guess(GP_m.mean)
+        plant_output_min = GP_m.calculate_plant_outputs(xc_min_of_min,d)
+        print(f"xc_min_of_min, plant output{xc_min_of_min, plant_output_min}")
+
+        # Store data
+        data['xc_min_of_min'].append(xc_min_of_min), data['output'].append(plant_output_min)
+        outputs = []
+        for i in x_grid:
+            output = GP_m.Maximise_d(GP_m.lcb,i,0)
+            outputs.append(output)
+        data['gridworld_output'].append(outputs)
+
+    jnp.savez('data/data_StableOpt.npz', **data)
+
 
 def test_draw_robust(): 
     x = jnp.linspace(bound[:,0],bound[:,1],100)
     outputs = []
     for i in x:
-        output = GP_m.robust_filter(GP_m.lcb,i,0)
+        print(i)
+        output = GP_m.Maximise_d(GP_m.lcb,i,0)
         outputs.append(output)
     plt.figure()
     plt.plot(x,outputs)
     plt.show()
 
 if __name__ == "__main__":
-    test_GP_inference()
-    test_lcb()
-    test_robust_filter()
-    test_Minimize_Robust()
-    test_draw_robust()
+    # test_GP_inference()
+    # test_lcb()
+    # test_Maximize_d()
+    # test_Minimize_Maximise()
+    # test_Maximize_d_with_constraints()
+    # test_Best_xc_Guess()
+    test_StageOpt()
+    # test_draw_robust()
     pass
