@@ -1,6 +1,6 @@
 import jax.numpy as jnp
+import sobol_seq
 
-a = 1
-b = 2
-c = jnp.concatenate((a,b))
-print(c)
+a=jnp.array([[2]])
+b = a.item()
+print(b)

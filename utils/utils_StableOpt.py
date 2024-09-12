@@ -56,17 +56,29 @@ def create_frame(i,filename,GP_m,Robust_Regret):
     plot_observed_points(fig,axs,i)
 
     # Store data for robust regret
-    if i != 0:
-        output_min = jnp.inf
-        for i in data['observed_x']:
-            xc_min = jnp.array([i[0]])
-            dmax, output = GP_m.Maximise_d_with_constraints(GP_m.ucb,xc_min)
-            if output < output_min:
-                output_min = output
-                xc_min_of_min = xc_min
-                d = dmax
+    output_min = jnp.inf
+    for j in data['observed_x'][:i+1]:
+        xc_min = jnp.array([j[0]])
+        d0_sample = GP_m.d0_sampling(n_sample=5)
+        dmax, value = GP_m.Maximise_d_with_constraints(GP_m.ucb,xc_min,d0_sample)
         
-        Robust_Regret.append(output_min)
+        output = GP_m.calculate_plant_outputs(xc_min,dmax)
+        
+        print(f"xc_min,dmax,output:{xc_min,dmax,output}")
+        
+        if output < output_min:
+            output_min = output.item()
+            xc_min_of_min = xc_min
+            dmax_for_min = dmax
+    
+    print(f"_____xc_min_of_min,dmax_for_min,output_min {xc_min_of_min,dmax_for_min,output_min}")
+
+    if i == 0:
+        Robust_Regret.append(output_min-(-0.2961))
+    elif output_min < Robust_Regret[-1]:
+        Robust_Regret.append(output_min-(-0.2961))
+    else:
+        Robust_Regret.append(Robust_Regret[-1]-(-0.2961))
 
     plt.savefig(filename)
     plt.close()
@@ -138,12 +150,6 @@ create_W_Shape_outcomes()
 
 
 
-# # Robust Regret
-# xc_min_of_min,d = GP_m.Best_xc_Guess(GP_m.mean)
-# plant_output_min = GP_m.calculate_plant_outputs(xc_min_of_min,d)
-# print(f"xc_min_of_min, plant output{xc_min_of_min, plant_output_min}")
-
-# data['xc_min_of_min'].append(xc_min_of_min), data['output'].append(plant_output_min)
 
 
 

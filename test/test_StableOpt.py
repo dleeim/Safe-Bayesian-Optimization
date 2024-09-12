@@ -17,7 +17,7 @@ warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the appro
 plant_system = [W_shape_Problem.W_shape]
 bound = jnp.array([[-1,2]])
 bound_d = jnp.array([[2,4]])
-b = 3
+b = 2.
 GP_m = StableOpt.BO(plant_system,bound,bound_d,b)
 
 # GP Initialization:
@@ -72,72 +72,18 @@ def test_Maximize_d():
     print(f"")
 
 def test_Minimize_Maximise():
-    xcmin, fmin = GP_m.Minimize_Maximise(GP_m.lcb)
+    xc0_sample = GP_m.xc0_sampling(n_sample=5)
+    xcmin, fmin = GP_m.Minimize_Maximise(GP_m.lcb,xc0_sample)
     print(f"Test: Minimize Maximise; min max lcb")
     print(f"xmin, fmin: {xcmin, fmin} \n")
 
-    # # Create meshgrid from the boundaries
-    # xc = jnp.linspace(bound[:, 0], bound[:, 1], 100)
-    # d = jnp.linspace(bound_d[:, 0], bound_d[:, 1], 100)
-    # xc, d = jnp.meshgrid(xc.flatten(), d.flatten())
-
-    # # Initialize the outputs array with correct shape (100, 100)
-    # outputs = []
-
-    # # Loop over the meshgrid and update outputs
-    # for i in range(jnp.shape(xc)[0]):
-    #     for j in range(jnp.shape(xc)[1]):  # Use jnp.shape(xc)[1] for columns
-    #         # Debugging the values before passing to GP_m.lcb
-    #         xc_val = jnp.array([xc[i, j]])
-    #         d_val = jnp.array([d[i, j]])
-
-    #         # Call GP_m.lcb and store the result in a variable to inspect it
-    #         lcb_result = GP_m.lcb(xc_val, d_val, 0)
-
-    #         # Correctly update 'outputs' with re-assignment
-    #         outputs.append(lcb_result)
-    # outputs = jnp.array(outputs)
-    # outputs = outputs.reshape(jnp.shape(xc)[0],jnp.shape(xc)[1])
-
-    # plt.figure()
-    # plt.contourf(xc,d,outputs)
-    # plt.colorbar()
-    # plt.show()
-
 def test_Maximize_d_with_constraints():
     xcmin = jnp.array([-1.])
-    print(xcmin)
-    d_max,output = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin)
+    d0_sample = GP_m.d0_sampling(n_sample=5)
+    print(d0_sample)
+    d_max,output = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin,d0_sample)
     print(f"Test: Maximize_d_with_constriants; d = argmax ucb s.t constraints")
     print(f"xmin, d_max, output: {xcmin, d_max, output} \n")
-
-    # # Create meshgrid from the boundaries
-    # xc = jnp.linspace(bound[:, 0], bound[:, 1], 100)
-    # d = jnp.linspace(bound_d[:, 0], bound_d[:, 1], 100)
-    # xc, d = jnp.meshgrid(xc.flatten(), d.flatten())
-
-    # # Initialize the outputs array with correct shape (100, 100)
-    # outputs = []
-
-    # # Loop over the meshgrid and update outputs
-    # for i in range(jnp.shape(xc)[0]):
-    #     for j in range(jnp.shape(xc)[1]):  # Use jnp.shape(xc)[1] for columns
-    #         # Debugging the values before passing to GP_m.lcb
-    #         xc_val = jnp.array([xc[i, j]])
-    #         d_val = jnp.array([d[i, j]])
-
-    #         # Call GP_m.lcb and store the result in a variable to inspect it
-    #         lcb_result = GP_m.ucb(xc_val, d_val, 0)
-
-    #         # Correctly update 'outputs' with re-assignment
-    #         outputs.append(lcb_result)
-    # outputs = jnp.array(outputs)
-    # outputs = outputs.reshape(jnp.shape(xc)[0],jnp.shape(xc)[1])
-
-    # plt.figure()
-    # plt.contourf(xc,d,outputs)
-    # plt.colorbar()
-    # plt.show()
 
 def test_StageOpt():
     # Class Initialization
@@ -162,8 +108,10 @@ def test_StageOpt():
 
     for i in range(n_iter):
         # Find x and d for sample
-        xcmin, fmin = GP_m.Minimize_Maximise(GP_m.lcb)
-        dmax, fdmax = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin)
+        xc0_sample = GP_m.xc0_sampling(n_sample=5)
+        xcmin, fmin = GP_m.Minimize_Maximise(GP_m.lcb,xc0_sample)
+        d0_sample = GP_m.d0_sampling(n_sample=5)
+        dmax, fdmax = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin,d0_sample)
         plant_output = GP_m.calculate_plant_outputs(xcmin,dmax)[0]
 
         # Add sample into GP
@@ -188,10 +136,6 @@ def test_draw_robust():
     plt.plot(x,outputs)
     plt.show()
 
-# xc = jnp.array([-1.])
-# d = jnp.array([4])
-# print(GP_m.lcb(xc,d,0))
-
 if __name__ == "__main__":
     # test_GP_inference()
     # test_lcb()
@@ -201,3 +145,4 @@ if __name__ == "__main__":
     test_StageOpt()
     # test_draw_robust()
     pass
+
