@@ -9,9 +9,12 @@ import json
 import time
 from models import StableOpt
 from problems import W_shape_Problem
+from problems import Benoit_Problem
 import warnings
 from utils import utils_SafeOpt
 warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
+
+##########_____W_Shape_____###########
 
 # Class Initialization
 plant_system = [W_shape_Problem.W_shape]
@@ -54,7 +57,7 @@ def test_lcb():
     print(f"")
 
 def test_Maximize_d():
-    xc = jnp.array([1.99855295])
+    xc = jnp.array([1.8,0.4])
     max_robust_f = GP_m.Maximise_d(GP_m.lcb,xc,0)
     print(f"Test: robust filter; check if robust filter is in appropriate value")
     print(f"xc input: {xc}")
@@ -79,18 +82,16 @@ def test_Minimize_Maximise():
 
 def test_Maximize_d_with_constraints():
     xcmin = jnp.array([-1.])
-    d0_sample = GP_m.d0_sampling(n_sample=5)
-    print(d0_sample)
-    d_max,output = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin,d0_sample)
+    d_max,output = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin)
     print(f"Test: Maximize_d_with_constriants; d = argmax ucb s.t constraints")
     print(f"xmin, d_max, output: {xcmin, d_max, output} \n")
 
-def test_StageOpt():
+def test_StageOpt_W_shape():
     # Class Initialization
     plant_system = [W_shape_Problem.W_shape]
     bound = jnp.array([[-1,2]])
     bound_d = jnp.array([[2,4]])
-    b = 3.
+    b = 2.
     GP_m = StableOpt.BO(plant_system,bound,bound_d,b)
 
     # Data Storage
@@ -104,14 +105,14 @@ def test_StageOpt():
     data['sampled_output']=plant_output
 
     # StageOpt
-    n_iter = 10
+    n_iter = 15
 
     for i in range(n_iter):
         # Find x and d for sample
         xc0_sample = GP_m.xc0_sampling(n_sample=5)
         xcmin, fmin = GP_m.Minimize_Maximise(GP_m.lcb,xc0_sample)
         d0_sample = GP_m.d0_sampling(n_sample=5)
-        dmax, fdmax = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin,d0_sample)
+        dmax, fdmax = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin)
         plant_output = GP_m.calculate_plant_outputs(xcmin,dmax)[0]
 
         # Add sample into GP
@@ -122,7 +123,33 @@ def test_StageOpt():
         data['observed_x'].append(x)
         data['observed_output'].append(plant_output)
 
-    jnp.savez('data/data_StableOpt.npz', **data)
+    jnp.savez('data/data_StableOpt_W_shape.npz', **data)
+
+def test_StageOpt_Benoit():
+    # Class Initialization:
+    jax.config.update("jax_enable_x64", True)
+    plant_system = [Benoit_Problem.Benoit_System_1,
+                    Benoit_Problem.con1_system_tight]
+    bound = jnp.array([[-.6,1.5],[-1.,1.]])
+    b = 3.
+    GP_m = StableOpt.BO(plant_system,bound,b)
+
+    # GP Initialization: 
+    n_sample = 4
+    x_i = jnp.array([1.4,-.8])
+    r = 0.3
+    X,Y = GP_m.Data_sampling(n_sample,x_i,r)
+    GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
+    print(f"\n")
+    print(f"Data Sample Input:")
+    print(f"{X}")
+    print(f"Data Sample Output:")
+    print(f"{Y}")
+    print(f"")
+
+
+
+
 
 
 def test_draw_robust(): 
@@ -139,10 +166,11 @@ def test_draw_robust():
 if __name__ == "__main__":
     # test_GP_inference()
     # test_lcb()
-    # test_Maximize_d()
+    test_Maximize_d()
     # test_Minimize_Maximise()
     # test_Maximize_d_with_constraints()
-    test_StageOpt()
+    # test_StageOpt_W_shape()
+
     # test_draw_robust()
     pass
 

@@ -3,7 +3,7 @@ import jax.numpy as jnp
 from jax import grad, vmap, jit
 import matplotlib.pyplot as plt
 import pandas as pd
-from models.GP_Safe import GP
+from models.GP_Robust import GP
 from problems import Benoit_Problem
 from problems import Rosenbrock_Problem 
 
@@ -23,7 +23,7 @@ GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=10, var_out=True)
 
 def test_mean_var():
     x = jnp.array([1.19497006, -0.74191489])
-    print(GP_m.GP_inference(x))
+    print(GP_m.GP_inference(x,GP_m.inference_datasets))
 
 x_new = jnp.array([0.9, -0.6])
 Y_new = jnp.zeros((1,GP_m.n_fun))
@@ -39,7 +39,7 @@ def test_GP_inference_arbitrary():
     print(f"GP inference arbitrary: {GP_m.GP_inference_arb(x_new)[0]}")
 
     GP_m.add_sample(x_new,Y_new)
-    print(f"GP inference: {GP_m.GP_inference(x_new)[0]}")
+    print(f"GP inference: {GP_m.GP_inference(x_new,GP_m.inference_datasets)[0]}")
     print(f"Data: {Y_new}")
     print(f"\n")
 
@@ -53,6 +53,6 @@ def test_check_mean_GP():
 
 if __name__ == "__main__":
     test_mean_var()
-    test_GP_inference_arbitrary()
-    test_check_mean_GP()
+    # test_GP_inference_arbitrary()
+    # test_check_mean_GP()
 

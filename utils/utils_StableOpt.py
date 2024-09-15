@@ -29,8 +29,8 @@ def plot_contour_W_shape(fig,axs,GP_m):
 
     contourf1 = axs[0].contourf(xc,d,outputs_lcb,50,)
     contourf2 = axs[1].contourf(xc,d,outputs_ucb,50)
-    fig.colorbar(contourf1,ax=axs[0])
-    fig.colorbar(contourf2,ax=axs[1])
+    fig.colorbar(contourf1)
+    fig.colorbar(contourf2)
 
 
 def plot_sampled_points(fig,axs):
@@ -43,7 +43,6 @@ def plot_observed_points(fig,axs,i):
     axs[1].plot(data['observed_x'][:i+1,0],data['observed_x'][:i+1,1],'ro',markersize=10)
 
 def create_frame(i,filename,GP_m,Robust_Regret):
-    plt.figure()
     fig, axs = plt.subplots(1, 2,figsize=(12,6))
     
     # Adjust tick label font size for both subplots
@@ -59,8 +58,7 @@ def create_frame(i,filename,GP_m,Robust_Regret):
     output_min = jnp.inf
     for j in data['observed_x'][:i+1]:
         xc_min = jnp.array([j[0]])
-        d0_sample = GP_m.d0_sampling(n_sample=5)
-        dmax, value = GP_m.Maximise_d_with_constraints(GP_m.ucb,xc_min,d0_sample)
+        dmax, value = GP_m.Maximise_d_with_constraints(GP_m.ucb,xc_min)
         
         output = GP_m.calculate_plant_outputs(xc_min,dmax)
         
@@ -73,12 +71,7 @@ def create_frame(i,filename,GP_m,Robust_Regret):
     
     print(f"_____xc_min_of_min,dmax_for_min,output_min {xc_min_of_min,dmax_for_min,output_min}")
 
-    if i == 0:
-        Robust_Regret.append(output_min-(-0.2961))
-    elif output_min < Robust_Regret[-1]:
-        Robust_Regret.append(output_min-(-0.2961))
-    else:
-        Robust_Regret.append(Robust_Regret[-1]-(-0.2961))
+    Robust_Regret.append(output_min-(-0.2961))
 
     plt.savefig(filename)
     plt.close()
@@ -97,6 +90,9 @@ def create_GIF(frame_duration, filenames, GIFname, output_dir='output'):
 def create_Robust_Regret_Plot(Robust_Regret):
     plt.figure()
     plt.plot(Robust_Regret)
+    plt.plot(jnp.array([0.]*len(Robust_Regret)))
+    plt.xlabel("Iteration")
+    plt.ylabel("Robust Regret")
     plt.savefig("output/W_shaped_Robust_Regret_Output.png")
     plt.close()
 
@@ -108,7 +104,7 @@ def create_W_Shape_outcomes():
     plant_system = [W_shape_Problem.W_shape]
     bound = jnp.array([[-1,2]])
     bound_d = jnp.array([[2,4]])
-    b = 3.
+    b = 2.
     GP_m = StableOpt.BO(plant_system,bound,bound_d,b)
     GP_m.GP_initialization(data['sampled_x'],data['sampled_output'],'RBF',multi_hyper=5,var_out=True)
     Robust_Regret = []
@@ -132,6 +128,61 @@ def create_W_Shape_outcomes():
     create_Robust_Regret_Plot(Robust_Regret)
 
 
+# def play():
+#     plant_system = [W_shape_Problem.W_shape]
+#     bound = jnp.array([[-1,2]])
+#     bound_d = jnp.array([[2,4]])
+#     b = 2.
+#     GP_m = StableOpt.BO(plant_system,bound,bound_d,b)
+#     GP_m.GP_initialization(data['sampled_x'],data['sampled_output'],'RBF',multi_hyper=5,var_out=True)
+#     for i in range(1,data['observed_x'].shape[0]+1):
+#         print(data['observed_x'][i-1])
+#         GP_m.add_sample(data['observed_x'][i-1],data['observed_output'][i-1])
+    
+
+#     for j in data['observed_x'][:i]:
+#         xc_min = jnp.array([j[0]])
+#         d0_sample = GP_m.d0_sampling(n_sample=5)
+#         dmax, value = GP_m.Maximise_d_with_constraints(GP_m.ucb,xc_min)
+        
+#         output = GP_m.calculate_plant_outputs(xc_min,dmax)
+        
+#         print(f"xc_min,dmax,output:{xc_min,dmax,output}")
+
+#     xc = jnp.array([-0.3371355])
+#     output_max = -100.
+
+#     for w in jnp.linspace(GP_m.bound_d[:,0],GP_m.bound_d[:,1],100):
+#         output = GP_m.ucb(xc,w,0)
+#         if output > output_max:
+#             output_max = output
+#             d_max = w
+    
+#     print(output_max)
+#     print(d_max)
+
+#     # Store data for robust regret
+#     output_min = jnp.inf
+#     for j in data['observed_x'][:i+1]:
+#         xc_min = jnp.array([j[0]])
+#         dmax, value = GP_m.Maximise_d_with_constraints(GP_m.ucb,xc_min)
+        
+#         output = GP_m.calculate_plant_outputs(xc_min,dmax)
+        
+#         print(f"xc_min,dmax,output:{xc_min,dmax,output}")
+        
+#         if output < output_min:
+#             output_min = output.item()
+#             xc_min_of_min = xc_min
+#             dmax_for_min = dmax
+    
+#     print(f"_____xc_min_of_min,dmax_for_min,output_min {xc_min_of_min,dmax_for_min,output_min}")
+
+#     fig, axs = plt.subplots(1, 2,figsize=(12,6))
+#     plot_contour_W_shape(fig,axs,GP_m)
+#     plt.show()
+
+
 
 # Load Data
 data = jnp.load('data/data_StableOpt.npz')
@@ -146,6 +197,8 @@ for key, value in data.items():
 
 # Create diagrams
 create_W_Shape_outcomes()
+# play() 
+
 
 
 

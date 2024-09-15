@@ -7,7 +7,7 @@ from jax import grad, vmap, jit, random
 from scipy.optimize import minimize, differential_evolution, NonlinearConstraint
 from scipy.spatial.distance import cdist
 import sobol_seq
-from models.GP_Safe import GP
+from models.GP_Robust import GP
 
 class BO(GP):
     def __init__(self,plant_system,bound,bound_d,b):
@@ -160,24 +160,10 @@ class BO(GP):
         
         return res_best.x, res_best.fun
     
-    def Maximise_d_with_constraints(self,fun,xc,d0_sample): # NEED TO ADD CONSTRAINT 
+    def Maximise_d_with_constraints(self,fun,xc):
         if fun not in [self.ucb, self.lcb, self.mean]:
             raise ValueError("fun needs to be either self.ucb, lcb or mean")
-
         obj_fun = lambda d: -1*fun(xc,d,0)
-        n_start = 5
-        max_val = -jnp.inf
-        fun_grad_jit = jit(grad(fun,argnums=1))
-        obj_grad = lambda d: fun_grad_jit(xc,d,0)
-        # for d0 in d0_sample:
-        #     res = minimize(obj_fun,d0,bounds=self.bound_d,jac=obj_grad,method='SLSQP',constraints=self.max_safe_cons)
-
-        #     if res.fun == jnp.nan:
-        #         res = differential_evolution(d0,self.bound_d,constraints=self.max_safe_cons)
-        #     print(f"xc,res.x, res.fun: {xc,res.x,res.fun}")
-        #     if -res.fun > max_val:
-        #         res_best = res
-        #         max_val = -res.fun
         res_best = differential_evolution(obj_fun,self.bound_d,constraints=self.max_safe_cons)
         return res_best.x, -res_best.fun
         

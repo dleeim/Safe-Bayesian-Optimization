@@ -196,8 +196,8 @@ class GP():
             - hypopt                : optimal hyperparameter (W,sf2,sn2)
             - invKopt               : inverse of covariance matrix with optimal hyperparameters 
         ''' 
-        lb                          = jnp.array([-4.] * (self.nx_dim + 1) + [-8.])  # lb on parameters (this is inside the exponential)
-        ub                          = jnp.array([4.] * (self.nx_dim + 1) + [-2.])   # ub on parameters (this is inside the exponential)
+        lb                          = jnp.array([-2.] * (self.nx_dim) + [1.] + [-8.])  # lb on parameters (this is inside the exponential)
+        ub                          = jnp.array([2.] * (self.nx_dim) + [1.] + [-2.])   # ub on parameters (this is inside the exponential)
         bounds                      = jnp.hstack((lb.reshape(self.nx_dim+2,1),
                                                   ub.reshape(self.nx_dim+2,1)))
         
@@ -219,7 +219,7 @@ class GP():
                 hyp_init            = jnp.array(lb + (ub - lb) * multi_startvec[j,:])
 
                 res                 = minimize(NLL_jit, hyp_init, args=(X_norm, Y_norm[:,i:i+1]),
-                                               method='SLSQP', options=options,bounds=bounds, jac=NLL_grad, tol=jnp.finfo(jnp.float32).eps)
+                                               method='SLSQP', options=options,bounds=bounds, jac='3-point', tol=jnp.finfo(jnp.float32).eps)
                 localsol[j]         = res.x
                 localval            = localval.at[j].set(res.fun)
 
@@ -322,8 +322,7 @@ class GP():
         var                         = jnp.zeros((self.ny_dim))
         
         # --- Set mean of constraints to be below 0 --- #
-        mean_prior                  = (-1.-Y_mean)/Y_std # Arbitrarily set prior mean = -10 Or you can change length hyperparameters
-        mean_prior                  = mean_prior.at[0].set(0.)
+        mean_prior                  = jnp.array([-1.]*self.n_fun)   
         
         # --- Loop over each output (GP) --- #
         for i in range(self.ny_dim):
