@@ -115,10 +115,17 @@ def test_unsafe_sobol_seq_sampling():
     sample = GP_m.unsafe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
     pass
 
+def test_maxmimize_maxnorm_mean_grad():
+    print(f"Test: lcb: check if maximum of max-norm mean gradient")
+    maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
+    print(f"maximum_maxnorm_mean_constraints: {maximum_maxnorm_mean_constraints} \n")
+
+
 def test_Expander_constraint():
-    x = jnp.array([1.12949687, -0.51840191])
+    x = jnp.array([1.2, -0.6])
+    maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
     start = time.time()
-    indicator = GP_m.Expander_constraint(x,unsafe_sobol_sample)
+    indicator = GP_m.Expander_constraint(x,unsafe_sobol_sample,maximum_maxnorm_mean_constraints)
     end = time.time()
     print(f"Test: Expander constraint: Result is indicator; 1 means point can be classified as expander")
     print(f"x input: {x}")
@@ -126,8 +133,9 @@ def test_Expander_constraint():
     print(f"time spent: {end-start} \n")
 
 def test_Expander():
+    maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
     start = time.time()
-    expander, std_expander = GP_m.Expander(unsafe_sobol_sample)
+    expander, std_expander = GP_m.Expander(unsafe_sobol_sample,maximum_maxnorm_mean_constraints)
     end = time.time()
     print(f"Test: Expander")
     print(f"expander, std_expander: {expander, std_expander}")
@@ -150,10 +158,11 @@ def test_SafeOpt_Benoit():
         # Create sobol_seq sample for Expander
         n_sample = 1000
         unsafe_sobol_sample = GP_m.unsafe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
+        maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
         start = time.time()
         minimizer,std_minimizer = GP_m.Minimizer()
         print(f"minimizer:{minimizer},std: {std_minimizer}")
-        expander,std_expander = GP_m.Expander(unsafe_sobol_sample)
+        expander,std_expander = GP_m.Expander(unsafe_sobol_sample,maximum_maxnorm_mean_constraints)
         print(f"expander: {expander},std: {std_expander}")
         end = time.time()
         
@@ -257,9 +266,11 @@ if __name__ == "__main__":
     # test_minimize_obj_ucb()
     # test_Minimizer()
     # test_mean_grad_jit()
-    # test_unsafe_sobol_seq_sampling
+    # test_maxmimize_maxnorm_mean_grad()
+    # test_unsafe_sobol_seq_sampling()
     # test_Expander_constraint()
     # test_Expander() 
     test_SafeOpt_Benoit()
     # test_GIF()
+    pass
 

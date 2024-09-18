@@ -36,13 +36,13 @@ print(f"Data Sample Input:")
 print(f"{X}")
 print(f"Data Sample Output:")
 print(f"{Y}")
-print(f"")
-print
-
+print(f"Y norm")
+print(f"{GP_m.Y_norm}")
+print()
 # Tests
 def test_GP_inference():
     i = 0
-    x = jnp.array([1.45698204, -0.76514894])
+    x = jnp.array([0.,0.])
     plant = GP_m.calculate_plant_outputs(x)
     print(f"Test: GP Inference; check if Gp inference well with low var")
     print(f"x input: {x}")
@@ -75,17 +75,24 @@ def test_lcb():
     print(f"Actual constraint: {constraint}")
     print(f"")
 
+def test_min_lcb_cons():
+    x = jnp.array([1.4, -0.8])
+    min_value = GP_m.min_lcb_cons(x)
+    print(f"Test minvalue of all lcb cons:")
+    print(f"min value: {min_value} \n")
+
 def test_maxmimize_maxnorm_mean_grad():
+    print(f"Test: lcb: check if maximum of max-norm mean gradient")
     maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
-    print(maximum_maxnorm_mean_constraints)
+    print(f"maximum_maxnorm_mean_constraints: {maximum_maxnorm_mean_constraints} \n")
 
 def test_optimistic_safeset_constraint():
-    x = jnp.array([1.09323804, -0.59091112])
+    x = jnp.array([1.4, -0.59091112])
     maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
     start = time.time()
     indicator = GP_m.optimistic_safeset_constraint(x,safe_sobol_sample,maximum_maxnorm_mean_constraints)
     end = time.time()
-    print(f"Test: optimisitic safeset constraint; outputs indicator: 0 - not satisfied condition, 1 - satisfied condition")
+    print(f"Test: optimisitic safeset constraint; outputs indicator: 0 - not satisfied condition, 10 - satisfied condition")
     print(f"x input: {x}")
     print(f"indicator: {indicator}")
     print(f"time_taken: {end-start}")
@@ -94,7 +101,7 @@ def test_minimize_obj_lcb():
     x_min,min_lcb = GP_m.minimize_obj_lcb()
     print(f"Test: minimize objective function lcb")
     print(f"x_min: {x_min}")
-    print(f"min_lcb: {min_lcb}")
+    print(f"min_lcb: {min_lcb} \n")
 
 def test_Target():
     maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
@@ -137,17 +144,23 @@ def test_GoOSE():
     data = {'i':[],'obj':[],'con':[],'x_0':[],'x_1':[], 'x_target_0':[], 'x_target_1':[]}
 
     # GoOSE
-    n_iteration = 10
+    n_iteration = 8
 
     for i in range(n_iteration):
+        print(f"Iteration: {i}")
         x_safe_min,min_safe_lcb = GP_m.minimize_obj_lcb()
+        print(f"x_safe_min, min_safe_lcb: {x_safe_min,min_safe_lcb}")
         safe_sobol_sample = GP_m.safe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
         maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
         x_target_min,min_target_lcb = GP_m.Target(safe_sobol_sample,maximum_maxnorm_mean_constraints)
+        print(f"x_target_min,min_target_lcb: {x_target_min,min_target_lcb}")
 
-        if min_safe_lcb <= min_target_lcb:
+        # check if target satisfied optimistic safe set condition:
+        value = GP_m.optimistic_safeset_constraint(x_target_min,safe_sobol_sample,maximum_maxnorm_mean_constraints)
+
+        if value > 0. or min_safe_lcb <= min_target_lcb:
             x_new = x_safe_min
-            x_target_min = jnp.array([None]*GP_m.nx_dim)
+            x_target_min = jnp.array([jnp.nan]*GP_m.nx_dim)
         else:
             x_safe_observe = GP_m.explore_safeset(x_target_min)
             x_new = x_safe_observe
@@ -242,13 +255,15 @@ if __name__ == "__main__":
     # test_GP_inference()
     # test_ucb()
     # test_lcb()
+    # test_min_lcb_cons()
     # test_maxmimize_maxnorm_mean_grad()
     # test_optimistic_safeset_constraint()
     # test_minimize_obj_lcb()
     # test_Target()
     # test_explore_safeset()
-    # test_GoOSE()
+    test_GoOSE()
     # test()
-    test_GIF()
+    # test_GIF()
+    pass
 
 

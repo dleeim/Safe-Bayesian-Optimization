@@ -322,7 +322,7 @@ class GP():
         var                         = jnp.zeros((self.ny_dim))
         
         # --- Set mean of constraints to be below 0 --- #
-        mean_prior                  = jnp.array([-1.]*self.n_fun)   
+        mean_prior                  = (-2*Y_mean)/Y_std        
         
         # --- Loop over each output (GP) --- #
         for i in range(self.ny_dim):
