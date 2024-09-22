@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
+import random
 from jax import grad, vmap, jit
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -9,14 +10,14 @@ from models import SafeOpt
 from problems import Benoit_Problem
 import warnings
 from utils import utils_SafeOpt
-warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
+# warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
 
 # Class Initialization
 jax.config.update("jax_enable_x64", True)
 plant_system = [Benoit_Problem.Benoit_System_1,
                 Benoit_Problem.con1_system_tight]
 bound = jnp.array([[-.6,1.5],[-1.,1.]])
-b = 3.
+b = 2.
 GP_m = SafeOpt.BO(plant_system,bound,b)
 
 # GP Initialization: 
@@ -201,6 +202,57 @@ def test_SafeOpt_Benoit():
     # Create plot for outputs
     utils_SafeOpt.plant_outputs_drawing(data['i'],data['obj'],data['con'],'Benoit_SafeOpt_Outputs.png')
 
+def test_multiple_Benoit():
+    # Class Initialization
+    plant_system = [Benoit_Problem.Benoit_System_1,
+                    Benoit_Problem.con1_system_tight]
+    bound = jnp.array([[-.6,1.5],[-1.,1.]])
+    b = 2.
+    GP_m = SafeOpt.BO(plant_system,bound,b)
+    n_start = 5
+    data = {}
+
+    for i in range(n_start):
+        print(f"iteration: {i}")
+        # Data Storage
+        data[f'{i}'] = {'sampled_x':[],'sampled_output':[],'observed_x':[],'observed_output':[]}
+        random_number = random.randint(1, 100)
+        GP_m.key = jax.random.PRNGKey(random_number)
+
+        # GP Initialization: 
+        n_sample = 4
+        x_i = jnp.array([1.4,-.8])
+        r = 0.3
+        X,Y = GP_m.Data_sampling(n_sample,x_i,r)
+        GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
+        data[f'{i}']['sampled_x'] = X
+        data[f'{i}']['sampled_output'] = Y
+
+        # SafeOpt
+        n_iteration = 10
+
+        for j in range(n_iteration):
+            # Create sobol_seq sample for Expander
+            n_sample = 1000
+            unsafe_sobol_sample = GP_m.unsafe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
+            maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
+            minimizer,std_minimizer = GP_m.Minimizer()
+            expander,std_expander = GP_m.Expander(unsafe_sobol_sample,maximum_maxnorm_mean_constraints)
+            
+            if std_minimizer > std_expander:
+                x_new = minimizer
+            else:
+                x_new = expander
+
+            plant_output = GP_m.calculate_plant_outputs(x_new)
+            GP_m.add_sample(x_new,plant_output)
+
+            # Store Data
+            data[f'{i}']['observed_x'].append(x_new)
+            data[f'{i}']['observed_output'].append(plant_output)
+    
+    jnp.savez('data/data_multi_SafeOpt_Benoit.npz',**data)
+
 def create_data_for_plot():
     x_0 = jnp.linspace(-0.6, 1.5, 400)
     x_1 = jnp.linspace(-1.0, 1.0, 400)
@@ -270,7 +322,8 @@ if __name__ == "__main__":
     # test_unsafe_sobol_seq_sampling()
     # test_Expander_constraint()
     # test_Expander() 
-    test_SafeOpt_Benoit()
+    # test_SafeOpt_Benoit()
+    test_multiple_Benoit()
     # test_GIF()
     pass
 

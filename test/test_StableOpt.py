@@ -86,7 +86,7 @@ def test_Maximize_d_with_constraints():
     print(f"Test: Maximize_d_with_constriants; d = argmax ucb s.t constraints")
     print(f"xmin, d_max, output: {xcmin, d_max, output} \n")
 
-def test_StageOpt_W_shape():
+def test_StableOpt_W_shape():
     # Class Initialization
     plant_system = [W_shape_Problem.W_shape]
     bound = jnp.array([[-1,2]])
@@ -125,7 +125,7 @@ def test_StageOpt_W_shape():
 
     jnp.savez('data/data_StableOpt_W_shape.npz', **data)
 
-def test_StageOpt_Benoit():
+def test_StableOpt_Benoit():
     # Class Initialization:
     jax.config.update("jax_enable_x64", True)
     plant_system = [Benoit_Problem.Benoit_System_1,
@@ -147,11 +147,6 @@ def test_StageOpt_Benoit():
     print(f"{Y}")
     print(f"")
 
-
-
-
-
-
 def test_draw_robust(): 
     x = jnp.linspace(bound[:,0],bound[:,1],100)
     outputs = []
@@ -166,11 +161,11 @@ def test_draw_robust():
 if __name__ == "__main__":
     # test_GP_inference()
     # test_lcb()
-    test_Maximize_d()
+    # test_Maximize_d()
     # test_Minimize_Maximise()
     # test_Maximize_d_with_constraints()
-    # test_StageOpt_W_shape()
-
+    # test_StableOpt_W_shape()
+    test_StableOpt_Benoit()
     # test_draw_robust()
     pass
 
