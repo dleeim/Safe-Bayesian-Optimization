@@ -3,6 +3,7 @@ import numpy as np
 import jax.numpy as jnp
 from jax import grad, vmap, jit
 from scipy.optimize import minimize
+from scipy.stats import qmc
 import sobol_seq
 
 class GP():
@@ -38,10 +39,12 @@ class GP():
         Returns: 
             - d_init                : sampled distances from (0,0)
         '''
-        x                           = jax.random.normal(key, (n_sample,x_dim))
-        norm                        = jnp.linalg.norm(x,axis=-1).reshape(-1,1)
+        # points                           = jax.random.normal(key, (n_sample,x_dim))
+        sampler                     = qmc.Sobol(d=x_dim, scramble=True)
+        points                      = sampler.random(n=n_sample) * 2 - 1
+        norm                        = jnp.linalg.norm(points,axis=-1).reshape(-1,1)
         r                           = (jax.random.uniform(key, (n_sample,1))) 
-        d_init                      = r_i*r*x/norm
+        d_init                      = r_i*r*points/norm
         return d_init
   
     def Data_sampling(self,n_sample,x_0,r):
@@ -196,8 +199,8 @@ class GP():
             - hypopt                : optimal hyperparameter (W,sf2,sn2)
             - invKopt               : inverse of covariance matrix with optimal hyperparameters 
         ''' 
-        lb                          = jnp.array([-2.] * (self.nx_dim) + [1.] + [-8.])  # lb on parameters (this is inside the exponential)
-        ub                          = jnp.array([2.] * (self.nx_dim) + [1.] + [-2.])   # ub on parameters (this is inside the exponential)
+        lb                          = jnp.array([-1.5] * (self.nx_dim) + [1.] + [-8.])  # lb on parameters (this is inside the exponential)
+        ub                          = jnp.array([1.5] * (self.nx_dim) + [1.] + [-2.])   # ub on parameters (this is inside the exponential)
         bounds                      = jnp.hstack((lb.reshape(self.nx_dim+2,1),
                                                   ub.reshape(self.nx_dim+2,1)))
         
@@ -329,7 +332,7 @@ class GP():
         for i in range(self.ny_dim):
             invK                    = invKopt[i]
             hyper                   = hypopt[:,i]
-            ellopt, sf2opt          = jnp.exp(2*hyper[:self.nx_dim]), jnp.exp(2*hyper[self.nx_dim])
+            ellopt, sf2opt, sn2opt  = jnp.exp(2*hyper[:self.nx_dim]), jnp.exp(2*hyper[self.nx_dim]), jnp.exp(2*hyper[self.nx_dim+1])
 
             # --- determine covariance of each output --- #
             k                       = self.calc_Cov_mat(self.kernel,X_norm,xnorm,ellopt,sf2opt)

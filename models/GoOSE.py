@@ -172,7 +172,16 @@ class BO(GP):
         obj_fun = lambda x: self.lcb(x,0)
         cons = []
         cons.append(NonlinearConstraint(lambda x:self.optimistic_safeset_constraint(x,safe_sobol_sample,maximum_maxnorm_mean_constraints),-jnp.inf,0.))
-        result = differential_evolution(obj_fun,self.bound,constraints=cons,tol=0.1)
+        satisfied = False
+        while not satisfied:
+            result = differential_evolution(obj_fun,self.bound,constraints=cons,tol=0.1)
+            for i in range(1, self.n_fun):
+                lcb_value = self.lcb(result.x,i)
+
+                if lcb_value < -0.001:
+                    break
+            
+            satisfied = True
         return result.x, result.fun
     
     # def Target(self,safe_sobol_sample,maximum_maxnorm_mean_constraints):

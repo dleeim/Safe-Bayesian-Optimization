@@ -10,7 +10,7 @@ from models import SafeOpt
 from problems import Benoit_Problem
 import warnings
 from utils import utils_SafeOpt
-# warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
+warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
 
 # Class Initialization
 jax.config.update("jax_enable_x64", True)
@@ -25,6 +25,17 @@ n_sample = 4
 x_i = jnp.array([1.4,-.8])
 r = 0.3
 X,Y = GP_m.Data_sampling(n_sample,x_i,r)
+
+X= jnp.array([[ 1.31363217, -0.90980796],
+ [ 1.4101821,  -0.79601953],
+ [ 1.48843436, -0.91311992],
+ [ 1.32465785, -0.60083922]])
+
+Y=jnp.array([[1.358227,   1.30549757],
+ [1.49972815, 1.36857407],
+ [1.69010578, 1.48088622],
+ [1.3198198,  1.16532852]])
+
 GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
 # Create sobol_seq sample for Expander
 n_sample = 1000
@@ -228,6 +239,13 @@ def test_multiple_Benoit():
         data[f'{i}']['sampled_x'] = X
         data[f'{i}']['sampled_output'] = Y
 
+        print(f"\n")
+        print(f"Data Sample Input:")
+        print(f"{X}")
+        print(f"Data Sample Output:")
+        print(f"{Y}")
+        print(f"")
+
         # SafeOpt
         n_iteration = 10
 
@@ -306,9 +324,6 @@ def test_GIF():
     utils_SafeOpt.create_GIF(frame_duration,filenames,GIFname)
     # Create plot for outputs
     utils_SafeOpt.plant_outputs_drawing(data['i'],data['obj'],data['con'],'Benoit_SafeOpt_Outputs.png')
-        
-
-
 
     
 if __name__ == "__main__":
@@ -322,7 +337,7 @@ if __name__ == "__main__":
     # test_unsafe_sobol_seq_sampling()
     # test_Expander_constraint()
     # test_Expander() 
-    # test_SafeOpt_Benoit()
+    # test_SafeOpt_Benoit() 
     test_multiple_Benoit()
     # test_GIF()
     pass

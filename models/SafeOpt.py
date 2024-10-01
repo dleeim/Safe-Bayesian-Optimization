@@ -164,7 +164,16 @@ class BO(GP):
         obj_fun = lambda x: -self.GP_inference_jit(x,self.inference_datasets)[1][0] # objective function is -variance as differential equation finds min (convert to max)
         cons = []
         cons.append(NonlinearConstraint(lambda x: self.Expander_constraint(x,unsafe_sobol_sample,maximum_maxnorm_mean_constraints),0.,eps))
-        result = differential_evolution(obj_fun,self.bound,constraints=cons)
+        satisfied = False
+        while not satisfied:
+            result = differential_evolution(obj_fun,self.bound,constraints=cons)
+            for i in range(1, self.n_fun):
+                lcb_value = self.lcb(result.x,i)
+                
+                if lcb_value < 0.:
+                    break
+            
+            satisfied = True
         return result.x, jnp.sqrt(-result.fun)
     
     # Overall Algorithm

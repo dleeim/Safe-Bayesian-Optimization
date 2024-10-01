@@ -9,7 +9,7 @@ import imageio.v2 as imageio
 from IPython.display import Image
 
 
-# Actual Plant System (if noise exists it equals to np.sqrt(1e-3))
+# Actual Plant System (if noise exists it equals to jnp.sqrt(1e-3))
 def Benoit_System_1(u, noise = 0):
 
     f = u[0] ** 2 + u[1] ** 2 + u[0] * u[1]

@@ -3,6 +3,7 @@ import numpy as np
 import jax.numpy as jnp
 from jax import grad, vmap, jit
 from scipy.optimize import minimize
+from scipy.stats import qmc
 import sobol_seq
 
 class GP():
@@ -37,10 +38,12 @@ class GP():
         Returns: 
             - d_init                : sampled distances from (0,0)
         '''
-        x                           = jax.random.normal(key, (n_sample,x_dim))
-        norm                        = jnp.linalg.norm(x,axis=-1).reshape(-1,1)
+        # x                           = jax.random.normal(key, (n_sample,x_dim))
+        sampler                     = qmc.Sobol(d=x_dim, scramble=True)
+        points                      = sampler.random(n=n_sample) * 2 - 1
+        norm                        = jnp.linalg.norm(points,axis=-1).reshape(-1,1)
         r                           = (jax.random.uniform(key, (n_sample,1))) 
-        d_init                      = r_i*r*x/norm
+        d_init                      = r_i*r*points/norm
         return d_init
   
     def Data_sampling(self,n_sample,x_0,r):

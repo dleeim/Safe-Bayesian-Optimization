@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
+import random
 from jax import grad, vmap, jit
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -39,6 +40,7 @@ print(f"{Y}")
 print(f"Y norm")
 print(f"{GP_m.Y_norm}")
 print()
+
 # Tests
 def test_GP_inference():
     i = 0
@@ -144,7 +146,7 @@ def test_GoOSE():
     data = {'i':[],'obj':[],'con':[],'x_0':[],'x_1':[], 'x_target_0':[], 'x_target_1':[]}
 
     # GoOSE
-    n_iteration = 8
+    n_iteration = 10
 
     for i in range(n_iteration):
         print(f"Iteration: {i}")
@@ -182,6 +184,9 @@ def test_GoOSE():
         filenames.append(filename)
 
         GP_m.add_sample(x_new,plant_output)
+        print(plant_output[0])
+        if abs(plant_output[0] - 0.145249) <= 0.001:
+            break
 
     # Create GIF
     frame_duration = 700
@@ -189,6 +194,74 @@ def test_GoOSE():
     utils_GoOSE.create_GIF(frame_duration,filenames,GIFname)
     # Create plot for outputs
     utils_GoOSE.plant_outputs_drawing(data['i'],data['obj'],data['con'],'Benoit_GoOSE_Outputs.png')
+
+def test_multiple_Benoit():
+    # Class Initialization
+    plant_system = [Benoit_Problem.Benoit_System_1,
+                    Benoit_Problem.con1_system_tight]
+    bound = jnp.array([[-.6,1.5],[-1.,1.]])
+    b = 2.
+    GP_m = GoOSE.BO(plant_system,bound,b)
+    n_start = 5
+    data = {}
+
+    for i in range(n_start):
+        print(f"iteration: {i}")
+        # Data Storage
+        data[f'{i}'] = {'sampled_x':[],'sampled_output':[],'observed_x':[],'observed_output':[]}
+        random_number = random.randint(1, 100)
+        GP_m.key = jax.random.PRNGKey(random_number)
+
+        # GP Initialization: 
+        n_sample = 4
+        x_i = jnp.array([1.4,-.8])
+        r = 0.3
+        X,Y = GP_m.Data_sampling(n_sample,x_i,r)
+        GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
+        data[f'{i}']['sampled_x'] = X
+        data[f'{i}']['sampled_output'] = Y
+
+        print(f"\n")
+        print(f"Data Sample Input:")
+        print(f"{X}")
+        print(f"Data Sample Output:")
+        print(f"{Y}")
+        print(f"")
+
+        # GoOSE
+        n_iteration = 10
+
+        for j in range(n_iteration):
+            x_safe_min,min_safe_lcb = GP_m.minimize_obj_lcb()
+            
+            # Create sobol_seq sample for Optimistic Safe Set
+            sobol_seq_n_sample = 1000
+            safe_sobol_sample = GP_m.safe_sobol_seq_sampling(GP_m.nx_dim,sobol_seq_n_sample,GP_m.bound)
+            maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
+            x_target_min,min_target_lcb = GP_m.Target(safe_sobol_sample,maximum_maxnorm_mean_constraints)
+
+            # check if target satisfied optimistic safe set condition:
+            value = GP_m.optimistic_safeset_constraint(x_target_min,safe_sobol_sample,maximum_maxnorm_mean_constraints)
+
+            if value > 0. or min_safe_lcb <= min_target_lcb:
+                x_new = x_safe_min
+                x_target_min = jnp.array([jnp.nan]*GP_m.nx_dim)
+            else:
+                x_safe_observe = GP_m.explore_safeset(x_target_min)
+                x_new = x_safe_observe
+
+            plant_output = GP_m.calculate_plant_outputs(x_new)
+            GP_m.add_sample(x_new,plant_output)
+
+            # Store Data
+            data[f'{i}']['observed_x'].append(x_new)
+            data[f'{i}']['observed_output'].append(plant_output)
+
+            if abs(plant_output[0] - 0.145249) <= 0.005:
+                break
+    
+    jnp.savez('data/data_multi_GoOSE_Benoit.npz',**data)
+
 
 def create_data_for_plot():
     x_0 = jnp.linspace(-0.6, 1.5, 400)
@@ -261,8 +334,8 @@ if __name__ == "__main__":
     # test_minimize_obj_lcb()
     # test_Target()
     # test_explore_safeset()
-    test_GoOSE()
-    # test()
+    # test_GoOSE()
+    test_multiple_Benoit()
     # test_GIF()
     pass
 

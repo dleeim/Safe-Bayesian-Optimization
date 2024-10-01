@@ -53,6 +53,20 @@ def check_jaxgrad(x,delta,func,index):
 #### Test Case 1: Gaussian Process ####
 #######################################
 
+def test_Data_sampling():
+    n_sample = 4
+    x_0 = jnp.array([-1.4,-0.8 ])
+    r = 0.5
+
+    print("\n# --- Data Sampling --- #")
+    X,Y = GP_m.Data_sampling(n_sample,x_0,r)
+    print(f'X: \n{X}')
+    print(f"Y: \n{Y}")
+
+    plt.figure()
+    plt.plot(X[:,0],X[:,1],'bo')
+    plt.show()
+
 def test_GP_initialization():
     # --- Initialization --- #
     x_0 = jnp.array([1.4,-0.8])
@@ -100,7 +114,8 @@ def test_GP_inference_grad():
         check_jaxgrad(x_2,delta,func_mean,index=i)
 
 if __name__ == "__main__":
-    test_GP_initialization()
-    test_NLL()
-    test_GP_inference()
-    test_GP_inference_grad()
+    test_Data_sampling()
+    # test_GP_initialization()
+    # test_NLL()
+    # test_GP_inference()
+    # test_GP_inference_grad()

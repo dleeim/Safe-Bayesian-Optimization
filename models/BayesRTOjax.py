@@ -35,7 +35,7 @@ class BayesianOpt(GP):
         localval                    = [data_storage.data['plant_temporary'][0][0]]
 
         # Jit relavent class methods and JAX grad
-        self.GP_inference_jit    = jit(self.GP_inference)
+        self.GP_inference_jit       = jit(self.GP_inference)
         obj_fun_jitgrad             = jit(grad(self.obj_fun))
         constraint_jitgrad          = jit(grad(self.constraint,argnums=0))
         TR_constraint_jitgrad       = jit(grad(self.TR_constraint,argnums=0))
