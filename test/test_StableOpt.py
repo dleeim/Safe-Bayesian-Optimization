@@ -131,8 +131,9 @@ def test_StableOpt_Benoit():
     plant_system = [Benoit_Problem.Benoit_System_1,
                     Benoit_Problem.con1_system_tight]
     bound = jnp.array([[-.6,1.5],[-1.,1.]])
-    b = 3.
-    GP_m = StableOpt.BO(plant_system,bound,b)
+    bound_d = jnp.array([[2,4]])
+    b = 2.
+    GP_m = StableOpt.BO(plant_system,bound,bound_d,b)
 
     # GP Initialization: 
     n_sample = 4
@@ -164,8 +165,8 @@ if __name__ == "__main__":
     # test_Maximize_d()
     # test_Minimize_Maximise()
     # test_Maximize_d_with_constraints()
-    # test_StableOpt_W_shape()
-    test_StableOpt_Benoit()
+    test_StableOpt_W_shape()
+    # test_StableOpt_Benoit()
     # test_draw_robust()
     pass
 

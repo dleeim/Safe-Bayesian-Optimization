@@ -4,6 +4,7 @@ import jax.numpy as jnp
 from jax import grad, vmap, jit
 from scipy.optimize import minimize
 import sobol_seq
+jax.config.update("jax_enable_x64", True)
 
 class GP():
     def __init__(self,plant_system) -> None:

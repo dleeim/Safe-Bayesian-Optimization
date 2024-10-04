@@ -4,7 +4,9 @@ import numpy as np
 import jax.numpy as jnp
 from jax import grad, vmap, jit
 from scipy.optimize import minimize, differential_evolution, NonlinearConstraint
-from models.GP_Classic import GP
+from models.GP_Safe import GP
+jax.config.update("jax_enable_x64", True)
+
 
 class BO(GP):
     def __init__(self,plant_system,bound,b,TR_parameters):
@@ -44,90 +46,29 @@ class BO(GP):
 
         return value
 
-    # def minimize_obj_lcb(self,r,x_0):
-    #     satisfied = False
+    def minimize_obj_lcb(self,r,x_0):
+        satisfied = False
 
-    #     obj_fun = lambda x: self.lcb(x,0)
-    #     safe_set_cons = copy.deepcopy(self.safe_set_cons)
-    #     safe_set_cons.append(NonlinearConstraint(lambda x: jnp.linalg.norm(x-x_0),0,r))
+        obj_fun = lambda x: self.lcb(x,0)
+        safe_set_cons = copy.deepcopy(self.safe_set_cons)
+        safe_set_cons.append(NonlinearConstraint(lambda x: jnp.linalg.norm(x-x_0),0,r))
         
-    #     while not satisfied:
-    #         result = differential_evolution(obj_fun,self.bound,constraints=safe_set_cons)
-    #         print(f"TR: {jnp.linalg.norm(result.x-x_0)}")
-    #         for i in range(1,self.n_fun):
-    #             lcb_value = self.lcb(result.x,i)
-    #             print(result.x,i)
-    #             print(f"lcb_value: {lcb_value}")
-    #             if lcb_value < -0.001:
-    #                 break
+        while not satisfied:
+            result = differential_evolution(obj_fun,self.bound,constraints=safe_set_cons)
+            for i in range(1,self.n_fun):
+                lcb_value = self.lcb(result.x,i)
+                if lcb_value < -0.001:
+                    break
             
-    #         if jnp.linalg.norm(result.x-x_0) > r:
-    #             continue
+            if jnp.linalg.norm(result.x-x_0) > r:
+                continue
 
-    #         print("Im at the last!")
-    #         satisfied = True
+            satisfied = True
 
-    #     return result.x, result.fun
+        return result.x, result.fun
 
     def TR_constraint(self,x,x_0,r):
         return r - jnp.linalg.norm(x-x_0+1e-8)
-
-    def minimize_obj_lcb(self,r,x_0):
-        cons = []
-        localsol = []
-        localval = []
-
-        
-        lcb_jitgrad = jit(grad(self.lcb,argnums=0))
-        TR_constraint_jitgrad = jit(grad(self.TR_constraint,argnums=0))
-
-        for i in range(self.n_fun):
-            
-            if i==0:
-                obj_fun = lambda x: self.lcb(x,0)
-                obj_grad = lambda x: lcb_jitgrad(x,0)
-            else: 
-                cons.append({'type' : 'ineq',
-                             'fun'  : lambda x: self.lcb(x,i),
-                             'jac'  : lambda x: lcb_jitgrad(x,i)
-                             })
-        
-        cons.append({'type'         : 'ineq',
-                     'fun'          : lambda x: self.TR_constraint(x,x_0,r),
-                     'jac'          : lambda x: TR_constraint_jitgrad(x,x_0,r)
-                     })
-
-        self.key, subkey = jax.random.split(self.key)
-        multi_start = 5
-        x_multi_0 = x_0+self.Ball_sampling(self.nx_dim,multi_start,r,subkey)
-
-        for j in range(multi_start):
-            x_0j = x_multi_0[j,:]
-          
-            satisfied = False
-            while not satisfied:
-                result = minimize(obj_fun,x_0j,constraints=cons,method='SLSQP',
-                                    jac=obj_grad,tol=1e-8)
-
-                for i in range(1,self.n_fun):
-                    lcb_value = self.lcb(result.x,i)
-                    if lcb_value < -0.001:
-                        break
-        
-                if jnp.linalg.norm(result.x-x_0) > r:
-                    continue
-
-                satisfied = True
-                localsol.append(result.x)
-                localval.append(result.fun)
-        
-        localsol = jnp.array(localsol)
-        localval = jnp.array(localval)
-        minindex = jnp.argmin(localval)
-        xopt = localsol[minindex]
-        funopt = localval[minindex]
-
-        return xopt,funopt
     
     def update_TR(self,x_initial,x_new,radius,plant_oldoutput,plant_newoutput):
         # TR Parameters:
@@ -146,8 +87,7 @@ class BO(GP):
 
         # Check plant constraints to update trust region
         for i in range(1,self.n_fun):
-            if plant_newoutput[i] < 0.:
-                print("violated constraints!")
+            if plant_newoutput[i] < -0.001:
                 return x_initial, r*r_red
             else:
                 pass
@@ -155,20 +95,16 @@ class BO(GP):
         rho = (plant_obj_new-plant_obj_old)/(GP_obj_new-GP_obj_old)
 
         if plant_obj_old < plant_obj_new:
-            print("worse plant output!")
             return x_initial, r*r_red
         else:
             pass
 
         if rho < rho_lb:
-            print("not good improvement!")
             return x_initial, r*r_red
 
         elif rho >= rho_lb and rho < rho_ub: 
-            print("Good improvement!")
             return x_new, r
 
         else: # rho >= rho_ub
-            print("Good impr")
             return x_new, min(r*r_inc,r_max)
         

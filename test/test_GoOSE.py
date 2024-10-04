@@ -12,6 +12,7 @@ import warnings
 from utils import utils_GoOSE
 from scipy.spatial.distance import cdist
 
+jax.config.update("jax_enable_x64", True)
 warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
 
 # Class Initialization

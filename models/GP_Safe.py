@@ -5,6 +5,7 @@ from jax import grad, vmap, jit
 from scipy.optimize import minimize
 from scipy.stats import qmc
 import sobol_seq
+jax.config.update("jax_enable_x64", True)
 
 class GP():
     def __init__(self,plant_system) -> None:
@@ -220,9 +221,8 @@ class GP():
         for i in range(self.ny_dim):
             for j in range(multi_start):
                 hyp_init            = jnp.array(lb + (ub - lb) * multi_startvec[j,:])
-
                 res                 = minimize(NLL_jit, hyp_init, args=(X_norm, Y_norm[:,i:i+1]),
-                                               method='SLSQP', options=options,bounds=bounds, jac='3-point', tol=jnp.finfo(jnp.float32).eps)
+                                               method='SLSQP', options=options,bounds=bounds, jac=NLL_grad, tol=1e-12)
                 localsol[j]         = res.x
                 localval            = localval.at[j].set(res.fun)
 
@@ -231,7 +231,7 @@ class GP():
             hypopt                  = hypopt.at[:,i].set(localsol[minindex])
             ellopt                  = jnp.exp(2. * hypopt[:self.nx_dim,i])
             sf2opt                  = jnp.exp(2.*hypopt[self.nx_dim,i])
-            sn2opt                  = jnp.exp(2.*hypopt[self.nx_dim+1,i]) + jnp.finfo(jnp.float32).eps
+            sn2opt                  = jnp.exp(2.*hypopt[self.nx_dim+1,i]) + 1e-8
 
             Kopt                    = self.Cov_mat(self.kernel,X_norm,X_norm,ellopt,sf2opt) + sn2opt*jnp.eye(n_point)
             invKopt                 += [jnp.linalg.inv(Kopt)]

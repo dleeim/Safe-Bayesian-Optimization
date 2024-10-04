@@ -158,7 +158,8 @@ def test_RTOminimize_Rosenbrock():
                                              processed_data['plant_constraint'],
                                              figname)
 
-
+if __name__ == "__main__":
+    test_RTOminimize_Benoit()
 
         
 

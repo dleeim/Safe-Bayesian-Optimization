@@ -71,7 +71,7 @@ b = 2.
 GP_m = SafeOpt.BO(plant_system,bound,b)
 
 # Load Data
-data_SafeOpt = jnp.load('data/data_multi_GoOSE_Benoit.npz', allow_pickle=True)
+data_SafeOpt = jnp.load('data/data_multi_SafeOpt_Benoit.npz', allow_pickle=True)
 
 # # Check data
 # for i in range(5):

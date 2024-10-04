@@ -9,6 +9,8 @@ from scipy.spatial.distance import cdist
 import sobol_seq
 from models.GP_Robust import GP
 
+jax.config.update("jax_enable_x64", True)
+
 class BO(GP):
     def __init__(self,plant_system,bound,bound_d,b):
         GP.__init__(self,plant_system)
