@@ -54,39 +54,37 @@ class BO(GP):
             fraction_x = sobol_seq.i4_sobol_generate(self.nxc_dim,1,i)
             xc = fraction_x*(self.bound[:,1]-self.bound[:,0])+self.bound[:,0]
             xc = xc.flatten()
-            if self.max_safe_cons == []:
-                xc0_samples.append(xc)
-                continue
 
-            for con in self.max_safe_cons:
-                if con(xc) >= 0.:
-                    break 
+            for j in range(1,self.n_fun):
+                con = self.Maximise_d(self.lcb,xc,j)
                 
-                if con == self.max_safe_cons[-1]:
-                    xc0_samples.append(xc)
-
+                if con >=0.:
+                    break
+            
+            xc0_samples.append(xc)
+                
         return xc0_samples
     
-    def d0_sampling(self,n_sample):
-        # Need to sample initial d points that satisfy constraints. 
-        d0_samples = []
-        i = -1
-        while len(d0_samples) < n_sample:
-            i = i+1
-            fraction_d = sobol_seq.i4_sobol_generate(self.nd_dim,1,i)
-            d = fraction_d*(self.bound_d[:,1]-self.bound_d[:,0])+self.bound_d[:,0]
-            d = d.flatten()
-            if self.max_safe_cons == []:
-                d0_samples.append(d)
-                continue
+    # def d0_sampling(self,n_sample):
+    #     # Need to sample initial d points that satisfy constraints. 
+    #     d0_samples = []
+    #     i = -1
+    #     while len(d0_samples) < n_sample:
+    #         i = i+1
+    #         fraction_d = sobol_seq.i4_sobol_generate(self.nd_dim,1,i)
+    #         d = fraction_d*(self.bound_d[:,1]-self.bound_d[:,0])+self.bound_d[:,0]
+    #         d = d.flatten()
+    #         if self.max_safe_cons == []:
+    #             d0_samples.append(d)
+    #             continue
 
-            for con in self.max_safe_cons:
-                if con(d) >= 0.:
-                    break 
+    #         for con in self.max_safe_cons:
+    #             if con(d) >= 0.:
+    #                 break 
                 
-                if con == self.max_safe_cons[-1]:
-                    d0_samples.append(d)
-        return d0_samples
+    #             if con == self.max_safe_cons[-1]:
+    #                 d0_samples.append(d)
+    #     return d0_samples
 
     def mean(self,xc,d,i):
         if xc.ndim != 1 or d.ndim != 1:

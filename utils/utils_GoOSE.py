@@ -9,6 +9,7 @@ from problems import Benoit_Problem
 import imageio.v2 as imageio
 from IPython.display import Image
 import os
+jax.config.update("jax_enable_x64", True)
     
 def plot_safe_region_Benoit(X,X_0,X_1,mask_safe,obj,bound,data=None):
 

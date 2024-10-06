@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 from jax import grad, vmap, jit
 import matplotlib.pyplot as plt
@@ -5,6 +6,7 @@ import pandas as pd
 from models.GP_Classic import GP
 from problems import Benoit_Problem
 from problems import Rosenbrock_Problem 
+jax.config.update("jax_enable_x64", True)
 
 # --- Preparation --- #
 plant_system = [Benoit_Problem.Benoit_System_1,

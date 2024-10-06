@@ -4,6 +4,7 @@ import jax.numpy as jnp
 from jax import grad, vmap, jit
 from scipy.optimize import minimize
 from models.GP_Classic import GP
+jax.config.update("jax_enable_x64", True)
 
 class BayesianOpt(GP):
     def __init__(self,plant_system):

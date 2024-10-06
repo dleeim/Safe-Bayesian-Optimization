@@ -1,7 +1,9 @@
+import jax
 import jax.numpy as jnp
 from jax import grad, vmap, jit
 import matplotlib.pyplot as plt
 import pandas as pd
+jax.config.update("jax_enable_x64", True)
 
 from models import BayesRTOjax
 from problems import Benoit_Problem

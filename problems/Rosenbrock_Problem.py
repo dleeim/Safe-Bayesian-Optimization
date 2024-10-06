@@ -7,6 +7,7 @@ from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import os
+jax.config.update("jax_enable_x64", True)
 # import pandas as pd
 # import imageio.v2 as imageio
 # from IPython.display import Image

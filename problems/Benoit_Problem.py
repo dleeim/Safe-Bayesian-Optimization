@@ -1,3 +1,4 @@
+import jax
 import numpy as np
 import random
 import jax.numpy as jnp
@@ -7,7 +8,7 @@ import os
 import pandas as pd
 import imageio.v2 as imageio
 from IPython.display import Image
-
+jax.config.update("jax_enable_x64", True)
 
 # Actual Plant System (if noise exists it equals to jnp.sqrt(1e-3))
 def Benoit_System_1(u, noise = 0):

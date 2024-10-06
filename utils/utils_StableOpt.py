@@ -10,6 +10,7 @@ from IPython.display import Image
 import os
 from models import StableOpt
 from problems import W_shape_Problem
+jax.config.update("jax_enable_x64", True)
 
 def plot_contour_W_shape(fig,axs,GP_m):
     # Contour for GP_m.lcb and GP_m.ucb

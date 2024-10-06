@@ -10,7 +10,7 @@ from problems import Rosenbrock_Problem
 from utils import utils_SafeOpt
 
 import warnings
-
+jax.config.update("jax_enable_x64", True)
 warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
 
 plant_system = [Benoit_Problem.Benoit_System_1,

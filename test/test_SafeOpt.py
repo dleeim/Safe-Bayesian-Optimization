@@ -10,6 +10,7 @@ from models import SafeOpt
 from problems import Benoit_Problem
 import warnings
 from utils import utils_SafeOpt
+jax.config.update("jax_enable_x64", True)
 warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
 
 # Class Initialization

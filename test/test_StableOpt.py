@@ -12,6 +12,7 @@ from problems import W_shape_Problem
 from problems import Benoit_Problem
 import warnings
 from utils import utils_SafeOpt
+jax.config.update("jax_enable_x64", True)
 warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
 
 ##########_____W_Shape_____###########
@@ -88,7 +89,8 @@ def test_Maximize_d_with_constraints():
 
 def test_StableOpt_W_shape():
     # Class Initialization
-    plant_system = [W_shape_Problem.W_shape]
+    plant_system = [W_shape_Problem.W_shape,
+                    W_shape_Problem.W_shape_constraint]
     bound = jnp.array([[-1,2]])
     bound_d = jnp.array([[2,4]])
     b = 2.
@@ -104,14 +106,13 @@ def test_StableOpt_W_shape():
     data['sampled_x']=x_samples
     data['sampled_output']=plant_output
 
-    # StageOpt
+    # StableOpt
     n_iter = 15
 
     for i in range(n_iter):
         # Find x and d for sample
         xc0_sample = GP_m.xc0_sampling(n_sample=5)
         xcmin, fmin = GP_m.Minimize_Maximise(GP_m.lcb,xc0_sample)
-        d0_sample = GP_m.d0_sampling(n_sample=5)
         dmax, fdmax = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin)
         plant_output = GP_m.calculate_plant_outputs(xcmin,dmax)[0]
 
@@ -124,29 +125,6 @@ def test_StableOpt_W_shape():
         data['observed_output'].append(plant_output)
 
     jnp.savez('data/data_StableOpt_W_shape.npz', **data)
-
-def test_StableOpt_Benoit():
-    # Class Initialization:
-    jax.config.update("jax_enable_x64", True)
-    plant_system = [Benoit_Problem.Benoit_System_1,
-                    Benoit_Problem.con1_system_tight]
-    bound = jnp.array([[-.6,1.5],[-1.,1.]])
-    bound_d = jnp.array([[2,4]])
-    b = 2.
-    GP_m = StableOpt.BO(plant_system,bound,bound_d,b)
-
-    # GP Initialization: 
-    n_sample = 4
-    x_i = jnp.array([1.4,-.8])
-    r = 0.3
-    X,Y = GP_m.Data_sampling(n_sample,x_i,r)
-    GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
-    print(f"\n")
-    print(f"Data Sample Input:")
-    print(f"{X}")
-    print(f"Data Sample Output:")
-    print(f"{Y}")
-    print(f"")
 
 def test_draw_robust(): 
     x = jnp.linspace(bound[:,0],bound[:,1],100)
@@ -166,7 +144,6 @@ if __name__ == "__main__":
     # test_Minimize_Maximise()
     # test_Maximize_d_with_constraints()
     test_StableOpt_W_shape()
-    # test_StableOpt_Benoit()
     # test_draw_robust()
     pass
 
