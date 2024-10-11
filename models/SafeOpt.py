@@ -96,55 +96,20 @@ class BO(GP):
 
         return maximum_maxnorm_mean_constraints
 
-    # def Expander_constraint(self,x,unsafe_sobol_sample):
-    #     # Initialization
-    #     lcb_maxnorm_grad_jit    = jit(self.maxnorm_mean_grad)
-    #     eps                     = jnp.sqrt(jnp.finfo(jnp.float32).eps)
-    #     boundary                = False
-    #     indicator               = 0.
-    #     n_constraints           = list(range(1, self.n_fun))
-    #     random.shuffle(n_constraints)
-
-    #     for i in n_constraints:
-    #         if self.lcb(x,i) <= eps:
-    #             boundary        = True
-    #             index           = i
-    #             break
-        
-    #     if boundary == False:
-    #         return indicator
-        
-    #     for sobol_point in unsafe_sobol_sample:
-
-    #         if self.ucb(x,index) - lcb_maxnorm_grad_jit(x,index)*cdist(x.reshape(1, -1),sobol_point.reshape(1, -1)) >= 0.:
-    #             indicator = 10.
-
-    #             num_samples = int(0.05*len(unsafe_sobol_sample))
-    #             if jnp.any(unsafe_sobol_sample[:num_samples] == sobol_point):
-    #                 pass
-    #             else:
-    #                 index = jnp.where(sobol_point == unsafe_sobol_sample)[0].item()
-    #                 unsafe_sobol_sample = jnp.vstack((sobol_point,unsafe_sobol_sample[:index],unsafe_sobol_sample[index+1:]))
-
-    #             return indicator
-
-    #     return indicator
-
-    def Expander_constraint(self,x,unsafe_sobol_sample,maximum_maxnorm_mean_constraints):
-        eps = jnp.sqrt(jnp.finfo(jnp.float32).eps)
+    def Expander_constraint(self,x,unsafe_sobol_sample,maximum_maxnorm_mean_constraints,eps):
         min_val = jnp.inf
         lcb_non_expander = []
         for i in range(1,self.n_fun):
             lcb_value = self.lcb(x,i)
 
             if lcb_value <= eps and lcb_value >= 0.:
-                for i in range(len(unsafe_sobol_sample)):
-                    sobol_point = unsafe_sobol_sample[i]
+                for j in range(len(unsafe_sobol_sample)):
+                    sobol_point = unsafe_sobol_sample[j]
                     value = self.ucb(x,i) - maximum_maxnorm_mean_constraints*cdist(x.reshape(1, -1),sobol_point.reshape(1, -1))
 
                     if value >= 0.:
-                        if i > int(0.05*len(unsafe_sobol_sample)):
-                            unsafe_sobol_sample = jnp.vstack((sobol_point,unsafe_sobol_sample[:i],unsafe_sobol_sample[i+1:]))
+                        if j > int(0.05*len(unsafe_sobol_sample)):
+                            unsafe_sobol_sample = jnp.vstack((sobol_point,unsafe_sobol_sample[:j],unsafe_sobol_sample[j+1:]))
                         return lcb_value
                     else:
                         if value < min_val:
@@ -160,12 +125,43 @@ class BO(GP):
                 return lcb_value
             else:
                 return min_val
+
+    # def Expander_constraint(self,x,unsafe_sobol_sample,maximum_maxnorm_mean_constraints,eps):
+    #     max_lcb = -jnp.inf
+    #     min_lcb = jnp.inf
+    #     max_val = -jnp.inf
+
+    #     for i in range(1,self.n_fun):
+    #         lcb_value = self.lcb(x,i)
+
+    #         if lcb_value > eps and lcb_value > max_lcb:
+    #             max_lcb = lcb_value
+    #         elif lcb_value < 0 and lcb_value < min_lcb:
+    #             min_lcb = lcb_value
+
+    #         else:
+    #             for j in range(len(unsafe_sobol_sample)):
+    #                 sobol_point = unsafe_sobol_sample[j]
+    #                 value = self.ucb(x,i) - maximum_maxnorm_mean_constraints*cdist(x.reshape(1, -1),sobol_point.reshape(1, -1))
+
+    #                 if value >= 0.:
+    #                     if j > int(0.05*len(unsafe_sobol_sample)):
+    #                         unsafe_sobol_sample = jnp.vstack((sobol_point,unsafe_sobol_sample[:j],unsafe_sobol_sample[j+1:]))
+    #                     return lcb_value
+    #                 else:
+    #                     if value > max_val:
+    #                         max_val = value.item()
+        
+    #     values = jnp.array([max_lcb,min_lcb,max_val])
+    #     values = values[jnp.isfinite(values)]
+    #     print(max(values,key=abs))
+    #     return max(values,key=abs)
     
     def Expander(self,unsafe_sobol_sample,maximum_maxnorm_mean_constraints):
-        eps = jnp.sqrt(jnp.finfo(jnp.float32).eps)
+        eps = jnp.sqrt(jnp.finfo(jnp.float64).eps)
         obj_fun = lambda x: -self.GP_inference_jit(x,self.inference_datasets)[1][0] # objective function is -variance as differential equation finds min (convert to max)
         cons = []
-        cons.append(NonlinearConstraint(lambda x: self.Expander_constraint(x,unsafe_sobol_sample,maximum_maxnorm_mean_constraints),0.,eps))
+        cons.append(NonlinearConstraint(lambda x: self.Expander_constraint(x,unsafe_sobol_sample,maximum_maxnorm_mean_constraints,eps),0.,eps))
         satisfied = False
         while not satisfied:
             result = differential_evolution(obj_fun,self.bound,constraints=cons)

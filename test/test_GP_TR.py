@@ -162,7 +162,7 @@ def test_multiple_Benoit():
         GP_m.key = jax.random.PRNGKey(random_number)
 
         # GP Initialization:
-        n_sample = 4
+        n_sample = 10
         x_old = jnp.array([1.4,-0.8])
         r_old = 0.3
         X,Y = GP_m.Data_sampling(n_sample,x_old,r_old)
@@ -198,7 +198,7 @@ def test_multiple_Benoit():
             data[f'{i}']['observed_x'].append(x_new)
             data[f'{i}']['observed_output'].append(plant_newoutput)
 
-            if abs(plant_newoutput[0] - 0.145249) <= 0.005:
+            if abs(plant_newoutput[0] - 0.145249) <= 0.001:
                 break
     
     jnp.savez('data/data_multi_GP_TR_Benoit.npz',**data)

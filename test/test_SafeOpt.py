@@ -269,6 +269,10 @@ def test_multiple_Benoit():
             # Store Data
             data[f'{i}']['observed_x'].append(x_new)
             data[f'{i}']['observed_output'].append(plant_output)
+
+            # Finish the iteration early 
+            if std_expander < 0.01 and std_minimizer < 0.01:
+                break
     
     jnp.savez('data/data_multi_SafeOpt_Benoit.npz',**data)
 
@@ -338,8 +342,8 @@ if __name__ == "__main__":
     # test_unsafe_sobol_seq_sampling()
     # test_Expander_constraint()
     # test_Expander() 
-    # test_SafeOpt_Benoit() 
-    test_multiple_Benoit()
+    test_SafeOpt_Benoit() 
+    # test_multiple_Benoit()
     # test_GIF()
     pass
 

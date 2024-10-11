@@ -91,13 +91,7 @@ class BO(GP):
             maximum_maxnorm_mean_constraints.append(-result.fun)
 
         return maximum_maxnorm_mean_constraints
-    
-    # def optimistic_safeset_condition(self,x,i,sobol_point,maximum_maxnorm_mean_constraint):
-    #     V = jnp.array([1.]*self.nx_dim)
-    #     distance = jnp.sqrt(self.squared_seuclidean_jax(x.reshape(1,-1),sobol_point.reshape(1,-1),V))
-        
-    #     return self.ucb(sobol_point,i) - maximum_maxnorm_mean_constraint*distance
-    
+
     def optimistic_safeset_constraint(self,x,safe_sobol_sample,maximum_maxnorm_mean_constraints):
         max_lcb = -jnp.inf
         max_val = -jnp.inf
@@ -127,42 +121,6 @@ class BO(GP):
             return max_lcb
         else:
             return max_val
-
-    # def optimistic_safeset_constraint(self,x,safe_sobol_sample,maximum_maxnorm_mean_constraints):
-        
-    #     for i in range(1,self.n_fun):
-    #         lcb_value = self.lcb(x,i)
-
-    #         if lcb_value < 0.:
-                
-    #             for i in range(len(safe_sobol_sample)):
-    #                 sobol_point = safe_sobol_sample[i]
-    #                 value = maximum_maxnorm_mean_constraints*cdist(x.reshape(1,-1),sobol_point.reshape(1,-1)) - self.ucb(sobol_point,i)
-
-    #                 if value <= 0.:
-    #                     if i > int(0.05*len(safe_sobol_sample)):
-    #                         safe_sobol_sample = jnp.vstack((sobol_point,safe_sobol_sample[:i],safe_sobol_sample[i+1:]))
-    #                     return value.item()
-
-    #     return jnp.abs(self.Y_mean[0])
-
-        # # Initialization
-        # optimistic_safeset_condition_vmap = jit(vmap(self.optimistic_safeset_condition,in_axes=(None,None,0,None,)))
-        # indicator                       = 0.
-        # n_constraints                   = list(range(1, self.n_fun))
-        # random.shuffle(n_constraints)
-        # for i in n_constraints:
-        #     maximum_maxnorm_mean_constraint = maximum_maxnorm_mean_constraints[i-1]
-        #     condition = optimistic_safeset_condition_vmap(x,i,safe_sobol_sample,maximum_maxnorm_mean_constraint)
-        #     satisfied = jnp.any(condition >= 0.).astype(int)
-
-        #     if satisfied:
-        #         indicator = 10.
-        #         return indicator
-        #     else:
-        #         pass
-
-        # return indicator
     
     def minimize_obj_lcb(self):
         obj_fun = lambda x: self.lcb(x,0)
@@ -185,13 +143,6 @@ class BO(GP):
             
             satisfied = True
         return result.x, result.fun
-    
-    # def Target(self,safe_sobol_sample,maximum_maxnorm_mean_constraints):
-    #     obj_fun = lambda x: self.lcb(x,0)
-    #     cons = copy.deepcopy(self.unsafe_set_cons)
-    #     cons.append(NonlinearConstraint(lambda x:self.optimistic_safeset_constraint(x,safe_sobol_sample,maximum_maxnorm_mean_constraints),0.,jnp.inf))
-    #     result = differential_evolution(obj_fun,self.bound,constraints=cons,tol=0.1)
-    #     return result.x, result.fun
 
     def explore_safeset(self,target):
         obj_fun = lambda x: cdist(x.reshape(1,-1),target.reshape(1,-1))[0][0]
