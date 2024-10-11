@@ -1,4 +1,4 @@
-# Real-Time-Optimization-with-Bayesian-Optimization
+# Safe Bayesian Optimization
 
 Repository on making Safe Bayesian Optimization for Real Time Optimization
 
