@@ -1,6 +1,6 @@
 # Real-Time-Optimization-with-Bayesian-Optimization
 
-Repository on making Safe Bayesian Optimization
+Repository on making Safe Bayesian Optimization for Real Time Optimization
 
 SafeOpt with Benoit Problem:
 
