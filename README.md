@@ -10,10 +10,6 @@ GoOSE with Benoit Problem:
 
 ![An animated GIF demonstrating my project](output/Benoit_GoOSE_Outputs.gif)
 
-StableOpt with Benoit Problem:
-
-![An animated GIF demonstrating my project](output/W_shaped_Outputs.gif)
-
 Source:
 
 [Gaussian Process from Scratch](https://github.com/AntonioE89/Gaussian-Process-from-scratch)
