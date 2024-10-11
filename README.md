@@ -3,13 +3,16 @@
 Repository on making Safe Bayesian Optimization for Real Time Optimization
 
 SafeOpt with Benoit Problem:
+
 ![An animated GIF demonstrating my project](output/Benoit_SafeOpt_Outputs.gif)
 
 GoOSE with Benoit Problem:
+
 ![An animated GIF demonstrating my project](output/Benoit_GoOSE_Outputs.gif)
 
 StableOpt with Benoit Problem:
-![An animated GIF demonstrating my project](output/Benoit_StableOpt_Outputs.gif)
+
+![An animated GIF demonstrating my project](output/W_shaped_Outputs.gif)
 
 Source:
 
