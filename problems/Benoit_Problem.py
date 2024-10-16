@@ -16,7 +16,6 @@ def Benoit_System_1(u, noise = 0):
     f = u[0] ** 2 + u[1] ** 2 + u[0] * u[1]
     if noise: 
         f += random.gauss(0., jnp.sqrt(noise))
-    
     return f
 
 def Benoit_System_2(u, noise = 0):
@@ -24,7 +23,6 @@ def Benoit_System_2(u, noise = 0):
     f = u[0] ** 2 + u[1] ** 2 + (1 - u[0] * u[1])**2
     if noise: 
         f += random.gauss(0., jnp.sqrt(noise))
-
     return f
 
 

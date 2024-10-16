@@ -39,10 +39,10 @@ class BO(GP):
         
         return min_value
 
-    def calculate_plant_outputs(self,x):
+    def calculate_plant_outputs(self,x,noise=0):
         plant_output            = []
         for plant in self.plant_system:
-            plant_output.append(plant(x)) 
+            plant_output.append(plant(x,noise)) 
 
         return jnp.array(plant_output)
     

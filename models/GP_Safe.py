@@ -48,7 +48,7 @@ class GP():
         d_init                      = r_i*r*points/norm
         return d_init
   
-    def Data_sampling(self,n_sample,x_0,r):
+    def Data_sampling(self,n_sample,x_0,r,noise=0.):
         '''
         Description:
             sample input X from a circle with radius r and center at x_0
@@ -71,7 +71,8 @@ class GP():
         n_fun                       = len(self.plant_system)
         Y                           = jnp.zeros((n_sample,n_fun))
         for i in range(n_fun):
-            Y                       = Y.at[:,i].set(vmap(self.plant_system[i])(X))
+            plant_system_vmap       = vmap(self.plant_system[i],in_axes=(0,None))
+            Y                       = Y.at[:,i].set(plant_system_vmap(X,noise))
 
         return X,Y
 

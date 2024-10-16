@@ -13,7 +13,6 @@ from models import SafeOpt
 from problems import Benoit_Problem
 jax.config.update("jax_enable_x64", True)
 
-
 def plot_obj_con_outputs(data):
     n_samples = []
     obj_fun_outputs = []
@@ -114,12 +113,6 @@ def plot_all_obj_fun():
     axs[1].set_ylabel('Constraint Output')
     axs[1].legend()
     plt.show()
-
-
-
-
-
-
 
 
 plant_system = [Benoit_Problem.Benoit_System_1,

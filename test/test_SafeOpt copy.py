@@ -29,6 +29,9 @@ noise = 0.
 X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
 
 GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
+# Create sobol_seq sample for Expander
+n_sample = 1000
+unsafe_sobol_sample = GP_m.unsafe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
 
 print(f"\n")
 print(f"Data Sample Input:")
@@ -111,17 +114,18 @@ def test_mean_grad_jit():
     print(f"predicted_mean_new_0: {predicted_mean_new_0}")
     print(f"predicted_mean_new_1: {predicted_mean_new_1} \n")
 
-def test_maximize_infnorm_mean_grad():
+def test_maxmimize_maxnorm_mean_grad():
     print(f"Test: lcb: check if maximum of max-norm mean gradient")
-    max_infnorm_mean_constraints = GP_m.maximize_infnorm_mean_grad(1)
-    print(f"max_infnorm_mean_constraints: {max_infnorm_mean_constraints} \n")
+    maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad(1)
+    print(f"maximum_maxnorm_mean_constraints: {maximum_maxnorm_mean_constraints} \n")
 
 def test_Expander():
+    maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
     start = time.time()
-    expander, std_expander,satisfied, count = GP_m.Expander()
+    expander, std_expander = GP_m.Expander(unsafe_sobol_sample,maximum_maxnorm_mean_constraints)
     end = time.time()
     print(f"Test: Expander")
-    print(f"expander, std_expander,satisfied, count: {expander, std_expander,satisfied, count}")
+    print(f"expander, std_expander: {expander, std_expander}")
     print(f"time: {end-start} \n")
 
     plant_output = GP_m.calculate_plant_outputs(expander)
@@ -139,10 +143,13 @@ def test_SafeOpt_Benoit():
 
     for i in range(n_iteration):
         # Create sobol_seq sample for Expander
+        n_sample = 1000
+        unsafe_sobol_sample = GP_m.unsafe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
+        maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
         start = time.time()
         minimizer,std_minimizer = GP_m.Minimizer()
         print(f"minimizer:{minimizer},std: {std_minimizer}")
-        expander,std_expander,satisfied,count = GP_m.Expander()
+        expander,std_expander,satisfied,count = GP_m.Expander(unsafe_sobol_sample,maximum_maxnorm_mean_constraints)
         print(f"expander: {expander},std: {std_expander}, satisfied: {satisfied}, count: {count}")
         end = time.time()
         lipschitz_continuous = False
@@ -319,10 +326,11 @@ if __name__ == "__main__":
     # test_minimize_obj_ucb()
     # test_Minimizer()
     # test_mean_grad_jit()
-    # test_maxmimize_maxnorm_mean_grad()
+    test_maxmimize_maxnorm_mean_grad()
     # test_unsafe_sobol_seq_sampling()
+    # test_Expander_constraint()
     # test_Expander() 
-    test_SafeOpt_Benoit() 
+    # test_SafeOpt_Benoit() 
     # test_multiple_Benoit()
     # test_GIF()
     pass

@@ -18,16 +18,12 @@ class BO(GP):
         self.bound = bound
         self.b = b
         self.GP_inference_jit = jit(self.GP_inference)
-        self.mean_grad_jit = jit(grad(self.mean,argnums=0))
-        self.safe_set_cons = []
-        for i in range(1, self.n_fun):
-            con = NonlinearConstraint(lambda x: self.lcb(x,i),0.,jnp.inf)
-            self.safe_set_cons.append(con)        
+        self.mean_grad_jit = jit(grad(self.mean,argnums=0))   
 
-    def calculate_plant_outputs(self,x):
+    def calculate_plant_outputs(self,x,noise=0):
         plant_output            = []
         for plant in self.plant_system:
-            plant_output.append(plant(x)) 
+            plant_output.append(plant(x,noise)) 
 
         return jnp.array(plant_output)
     
@@ -48,132 +44,100 @@ class BO(GP):
         value = mean - self.b*jnp.sqrt(var)
         return value
     
-    def minimize_obj_ucb(self):
+    def minimize_obj_ucb(self,safe_set_cons):
         obj_fun = lambda x: self.ucb(x,0)
-        result = differential_evolution(obj_fun,self.bound,constraints=self.safe_set_cons)
+        result = differential_evolution(obj_fun,self.bound,constraints=safe_set_cons)
 
         return result.x, result.fun
     
     def Minimizer(self):
         # Setting Optimization Problem
         obj_fun = lambda x: -self.GP_inference_jit(x,self.inference_datasets)[1][0] # objective function is -variance as differential equation finds min (convert to max)
-        cons = copy.deepcopy(self.safe_set_cons)
-        x_min, min_obj_ucb = self.minimize_obj_ucb()
-        con = NonlinearConstraint(lambda x: min_obj_ucb - self.lcb(x,0),0,jnp.inf)
-        cons.append(con)
+        
+        Minimizer_cons = []
+        for i in range(1, self.n_fun):
+            Minimizer_cons.append(NonlinearConstraint(lambda x: self.lcb(x,i),0.,jnp.inf)) 
+             
+        x_min, min_obj_ucb = self.minimize_obj_ucb(safe_set_cons=Minimizer_cons)
+        Minimizer_cons.append(NonlinearConstraint(lambda x: min_obj_ucb - self.lcb(x,0),0,jnp.inf))
 
         # Differential Evolution
-        result = differential_evolution(obj_fun,self.bound,constraints=cons)
+        result = differential_evolution(obj_fun,self.bound,constraints=Minimizer_cons)
 
         return result.x, jnp.array(-result.fun)
     
-    def maxnorm_mean_grad(self,x,i):
+    def infnorm_mean_grad(self,x,i):
         grad_mean = self.mean_grad_jit(x,i)
         return jnp.max(jnp.abs(grad_mean))
     
-    def unsafe_sobol_seq_sampling(self,x_dim,n_sample,bound,skip=0):
-        # Create sobol_seq sample for unsafe region
-        fraction = sobol_seq.i4_sobol_generate(x_dim,n_sample,skip)
-        lb = bound[:,0]
-        ub = bound[:,1]
-        sample = lb + (ub-lb) * fraction
+    def maximize_infnorm_mean_grad(self,i):
+        lcb_infnorm_grad_jit = jit(self.infnorm_mean_grad)
+        obj_fun = lambda x: -lcb_infnorm_grad_jit(x,i)
+        result = differential_evolution(obj_fun,self.bound)
+        return -result.fun
 
-        # Filter to create sample in unsafe region
-        lcb_vmap = vmap(self.lcb,in_axes=(0,None))
-        for i in range(1,self.n_fun):
-            mask_unsafe = lcb_vmap(jnp.array(sample),i) < 0.
-            sample = sample[mask_unsafe]
-
-        return jnp.array(sample)
+    def Lipschitz_continuity_constraint(self,x,i,max_infnorm_mean_constraints):
+        ucb_value = self.ucb(x[:self.nx_dim],i)       
+        value = ucb_value - max_infnorm_mean_constraints*cdist(x[:self.nx_dim].reshape(1,-1),x[self.nx_dim:].reshape(1,-1))   
+        return value.item()
     
-    def maxmimize_maxnorm_mean_grad(self):
-        lcb_maxnorm_grad_jit                = jit(self.maxnorm_mean_grad)
-        maximum_maxnorm_mean_constraints    = []
+    def lcb_constraint_min(self,x):
+        lcb_values = []
         for i in range(1,self.n_fun):
-            obj_fun = lambda x: -lcb_maxnorm_grad_jit(x,i)
-            result = differential_evolution(obj_fun,self.bound,tol=0.1)
-            maximum_maxnorm_mean_constraints.append(-result.fun)
-
-        return maximum_maxnorm_mean_constraints
-
-    def Expander_constraint(self,x,unsafe_sobol_sample,maximum_maxnorm_mean_constraints,eps):
-        min_val = jnp.inf
-        lcb_non_expander = []
-        for i in range(1,self.n_fun):
-            lcb_value = self.lcb(x,i)
-
-            if lcb_value <= eps and lcb_value >= 0.:
-                for j in range(len(unsafe_sobol_sample)):
-                    sobol_point = unsafe_sobol_sample[j]
-                    value = self.ucb(x,i) - maximum_maxnorm_mean_constraints*cdist(x.reshape(1, -1),sobol_point.reshape(1, -1))
-
-                    if value >= 0.:
-                        if j > int(0.05*len(unsafe_sobol_sample)):
-                            unsafe_sobol_sample = jnp.vstack((sobol_point,unsafe_sobol_sample[:j],unsafe_sobol_sample[j+1:]))
-                        return lcb_value
-                    else:
-                        if value < min_val:
-                            min_val = value.item()
-            else:
-                lcb_non_expander.append(-1*lcb_value)
-            
-        if len(lcb_non_expander)==0:
-            return min_val
-        else:
-            lcb_value = max(lcb_non_expander,key=abs)
-            if abs(lcb_value)>abs(min_val) or min_val==jnp.inf:
-                return lcb_value
-            else:
-                return min_val
-
-    # def Expander_constraint(self,x,unsafe_sobol_sample,maximum_maxnorm_mean_constraints,eps):
-    #     max_lcb = -jnp.inf
-    #     min_lcb = jnp.inf
-    #     max_val = -jnp.inf
-
-    #     for i in range(1,self.n_fun):
-    #         lcb_value = self.lcb(x,i)
-
-    #         if lcb_value > eps and lcb_value > max_lcb:
-    #             max_lcb = lcb_value
-    #         elif lcb_value < 0 and lcb_value < min_lcb:
-    #             min_lcb = lcb_value
-
-    #         else:
-    #             for j in range(len(unsafe_sobol_sample)):
-    #                 sobol_point = unsafe_sobol_sample[j]
-    #                 value = self.ucb(x,i) - maximum_maxnorm_mean_constraints*cdist(x.reshape(1, -1),sobol_point.reshape(1, -1))
-
-    #                 if value >= 0.:
-    #                     if j > int(0.05*len(unsafe_sobol_sample)):
-    #                         unsafe_sobol_sample = jnp.vstack((sobol_point,unsafe_sobol_sample[:j],unsafe_sobol_sample[j+1:]))
-    #                     return lcb_value
-    #                 else:
-    #                     if value > max_val:
-    #                         max_val = value.item()
+            lcb_values.append(self.lcb(x,i))
+        return max(lcb_values)
+    
+    def Expander(self):
+        eps = jnp.sqrt(jnp.finfo(jnp.float32).eps)
+        obj_fun = lambda x: -self.GP_inference_jit(x[:self.nx_dim],self.inference_datasets)[1][0] # objective function is -1*variance as differential equation finds min (convert to max)
+        bound = jnp.vstack((self.bound,self.bound))
+        safe_unsafe_cons = []
+        for i in range(1, self.n_fun):
+            safe_unsafe_cons.append(NonlinearConstraint(lambda x: self.lcb(x[:self.nx_dim],i),0.,jnp.inf)) 
+        safe_unsafe_cons.append(NonlinearConstraint(lambda x: self.lcb_constraint_min(x[self.nx_dim:]),-jnp.inf,0.))
         
-    #     values = jnp.array([max_lcb,min_lcb,max_val])
-    #     values = values[jnp.isfinite(values)]
-    #     print(max(values,key=abs))
-    #     return max(values,key=abs)
-    
-    def Expander(self,unsafe_sobol_sample,maximum_maxnorm_mean_constraints):
-        eps = jnp.sqrt(jnp.finfo(jnp.float64).eps)
-        obj_fun = lambda x: -self.GP_inference_jit(x,self.inference_datasets)[1][0] # objective function is -variance as differential equation finds min (convert to max)
-        cons = []
-        cons.append(NonlinearConstraint(lambda x: self.Expander_constraint(x,unsafe_sobol_sample,maximum_maxnorm_mean_constraints,eps),0.,eps))
-        satisfied = False
-        while not satisfied:
-            result = differential_evolution(obj_fun,self.bound,constraints=cons)
-            for i in range(1, self.n_fun):
-                lcb_value = self.lcb(result.x,i)
-                
-                if lcb_value < 0.:
-                    break
+        # Find expander for each constraint
+        for index in range(1,self.n_fun):
+            def callback(x,convergence):
+                lipschitz_constraint = self.Lipschitz_continuity_constraint(x,index,max_infnorm_mean_constraints)
+                if lipschitz_constraint >= 0.:
+                    self.feasible_found = True
+                    self.iterations_without_feasible = 0
+                else:
+                    self.iterations_without_feasible += 1
+                # print(self.iterations_without_feasible)
+                # Stop optimization if no feasible solution has been found after a certain number of iterations
+                if not self.feasible_found and self.iterations_without_feasible >= self.max_iter_without_feasible:
+                    print("Terminating early: No feasible solution found.")
+                    return True  # Returning True stops the optimization
+
+            Expander_cons = copy.deepcopy(safe_unsafe_cons)
+            Expander_cons.append(NonlinearConstraint(lambda x: self.lcb(x[:self.nx_dim],index),0,eps))
+            max_infnorm_mean_constraints = self.maximize_infnorm_mean_grad(index)
+            Expander_cons.append(NonlinearConstraint(lambda x: self.Lipschitz_continuity_constraint(x,index,max_infnorm_mean_constraints),0.,jnp.inf))
             
-            satisfied = True
-        return result.x, jnp.sqrt(-result.fun)
+            # Feasibility Checker
+            self.feasible_found = False
+            self.iterations_without_feasible = 0
+            self.max_iter_without_feasible = 100
+            satisfied = False
+            count = 0
     
+            while not satisfied and count < 10:       
+                result = differential_evolution(obj_fun,bound,constraints=Expander_cons,callback=callback)
+                lcb_constraint = self.lcb(result.x[:self.nx_dim],index)
+                
+                if lcb_constraint < 0.:
+                    self.feasible_found = False
+                    self.iterations_without_feasible = 0
+                    self.max_iter_without_feasible = 100
+                else:
+                    satisfied = True
+                
+                count += 1
+
+        return result.x[:self.nx_dim], jnp.sqrt(-result.fun),satisfied, count
+
     # Overall Algorithm
     def Safeminimize(self,n_sample,x_initial,radius,n_iter):
 
@@ -198,6 +162,3 @@ class BO(GP):
             self.add_sample(x_new,plant_output)
         
         return x_new, plant_output
-
-
-

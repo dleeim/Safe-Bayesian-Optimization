@@ -31,7 +31,8 @@ GP_m = GP_TR.BO(plant_system,bound,b,TR_parameters)
 n_sample = 4
 x_old = jnp.array([1.4,-.8])
 r_old = 0.3
-X,Y = GP_m.Data_sampling(n_sample,x_old,r_old)
+noise = 0.005
+X,Y = GP_m.Data_sampling(n_sample,x_old,r_old,noise)
 GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
 
 
@@ -82,8 +83,8 @@ def test_GP_TR():
     X,Y = GP_m.Data_sampling(n_sample,x_old,r_old)
     GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
 
-    plant_oldoutput = GP_m.calculate_plant_outputs(x_old)
-    n_iteration = 10
+    plant_oldoutput = GP_m.calculate_plant_outputs(x_old,noise)
+    n_iteration = 20
 
     def create_data_for_plot():
         x_0 = jnp.linspace(-0.6, 1.5, 400)
@@ -111,7 +112,7 @@ def test_GP_TR():
     # Iteration
     for i in range(n_iteration):
         x_new, obj = GP_m.minimize_obj_lcb(r_old,x_old)
-        plant_newoutput = GP_m.calculate_plant_outputs(x_new)
+        plant_newoutput = GP_m.calculate_plant_outputs(x_new,noise)
         x_update, r_new = GP_m.update_TR(x_old,x_new,r_old,plant_oldoutput,plant_newoutput)
 
         # Preparation for next iter:
@@ -135,8 +136,15 @@ def test_GP_TR():
 
         GP_m.add_sample(x_new,plant_newoutput)
 
-        if abs(plant_newoutput[0] - 0.145249) <= 0.005:
+        if abs(plant_system[0](x_new) - 0.145249) <= 0.005:
             break
+    
+    # Create GIF
+    frame_duration = 700
+    GIFname = 'Benoit_GP_TR_Outputs.gif'
+    utils_SafeOpt.create_GIF(frame_duration,filenames,GIFname)
+    # Create plot for outputs
+    utils_SafeOpt.plant_outputs_drawing(data['i'],data['obj'],data['con'],'Benoit_GP_TR_Outputs.png')
 
 def test_multiple_Benoit():
     plant_system = [Benoit_Problem.Benoit_System_1,
@@ -153,6 +161,7 @@ def test_multiple_Benoit():
     GP_m = GP_TR.BO(plant_system,bound,b,TR_parameters)
     n_start = 5
     data = {}
+    noise = 0.
 
     for i in range(n_start):
         print(f"iteration: {i}")
@@ -162,12 +171,12 @@ def test_multiple_Benoit():
         GP_m.key = jax.random.PRNGKey(random_number)
 
         # GP Initialization:
-        n_sample = 10
+        n_sample = 4
         x_old = jnp.array([1.4,-0.8])
         r_old = 0.3
-        X,Y = GP_m.Data_sampling(n_sample,x_old,r_old)
+        X,Y = GP_m.Data_sampling(n_sample,x_old,r_old,noise)
         GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
-        plant_oldoutput = GP_m.calculate_plant_outputs(x_old)
+        plant_oldoutput = GP_m.calculate_plant_outputs(x_old,noise)
         data[f'{i}']['sampled_x'] = X
         data[f'{i}']['sampled_output'] = Y
 
@@ -183,7 +192,7 @@ def test_multiple_Benoit():
 
         for j in range(n_iteration):
             x_new, obj = GP_m.minimize_obj_lcb(r_old,x_old)
-            plant_newoutput = GP_m.calculate_plant_outputs(x_new)
+            plant_newoutput = GP_m.calculate_plant_outputs(x_new,noise)
             x_update, r_new = GP_m.update_TR(x_old,x_new,r_old,plant_oldoutput,plant_newoutput)
 
             # Preparation for next iter:
@@ -198,7 +207,7 @@ def test_multiple_Benoit():
             data[f'{i}']['observed_x'].append(x_new)
             data[f'{i}']['observed_output'].append(plant_newoutput)
 
-            if abs(plant_newoutput[0] - 0.145249) <= 0.001:
+            if abs(plant_system[0](x_new) - 0.145249) <= 0.005:
                 break
     
     jnp.savez('data/data_multi_GP_TR_Benoit.npz',**data)
@@ -208,6 +217,6 @@ def test_multiple_Benoit():
 if __name__ == "__main__":
     # test_minimize_obj_lcb()
     # test_update_TR()
-    # test_GP_TR()
-    test_multiple_Benoit()
+    test_GP_TR()
+    # test_multiple_Benoit()
     pass

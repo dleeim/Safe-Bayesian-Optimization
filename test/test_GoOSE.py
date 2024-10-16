@@ -26,7 +26,8 @@ GP_m = GoOSE.BO(plant_system,bound,b)
 n_sample = 4
 x_i = jnp.array([1.4,-.8])
 r = 0.3
-X,Y = GP_m.Data_sampling(n_sample,x_i,r)
+noise = 0.
+X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
 GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
 # Create sobol_seq sample for Expander
 n_sample = 1000
@@ -146,7 +147,7 @@ def test_GoOSE():
     data = {'i':[],'obj':[],'con':[],'x_0':[],'x_1':[], 'x_target_0':[], 'x_target_1':[]}
 
     # GoOSE
-    n_iteration = 10
+    n_iteration = 20
 
     for i in range(n_iteration):
         print(f"Iteration: {i}")
@@ -167,7 +168,7 @@ def test_GoOSE():
             x_safe_observe = GP_m.explore_safeset(x_target_min)
             x_new = x_safe_observe
 
-        plant_output = GP_m.calculate_plant_outputs(x_new)
+        plant_output = GP_m.calculate_plant_outputs(x_new,noise)
 
         # Create frame
         data['i'].append(i)
@@ -185,7 +186,8 @@ def test_GoOSE():
 
         GP_m.add_sample(x_new,plant_output)
         print(plant_output[0])
-        if abs(plant_output[0] - 0.145249) <= 0.001:
+
+        if abs(plant_system[0](x_new) - 0.145249) <= 0.005:
             break
 
     # Create GIF
@@ -204,6 +206,7 @@ def test_multiple_Benoit():
     GP_m = GoOSE.BO(plant_system,bound,b)
     n_start = 5
     data = {}
+    noise = 0.005
 
     for i in range(n_start):
         print(f"iteration: {i}")
@@ -216,7 +219,7 @@ def test_multiple_Benoit():
         n_sample = 4
         x_i = jnp.array([1.4,-.8])
         r = 0.3
-        X,Y = GP_m.Data_sampling(n_sample,x_i,r)
+        X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
         GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
         data[f'{i}']['sampled_x'] = X
         data[f'{i}']['sampled_output'] = Y
@@ -250,14 +253,14 @@ def test_multiple_Benoit():
                 x_safe_observe = GP_m.explore_safeset(x_target_min)
                 x_new = x_safe_observe
 
-            plant_output = GP_m.calculate_plant_outputs(x_new)
+            plant_output = GP_m.calculate_plant_outputs(x_new,noise)
             GP_m.add_sample(x_new,plant_output)
 
             # Store Data
             data[f'{i}']['observed_x'].append(x_new)
             data[f'{i}']['observed_output'].append(plant_output)
 
-            if abs(plant_output[0] - 0.145249) <= 0.005:
+            if abs(plant_system[0](x_new) - 0.145249) <= 0.005:
                 break
     
     jnp.savez('data/data_multi_GoOSE_Benoit.npz',**data)
@@ -334,8 +337,8 @@ if __name__ == "__main__":
     # test_minimize_obj_lcb()
     # test_Target()
     # test_explore_safeset()
-    # test_GoOSE()
-    test_multiple_Benoit()
+    test_GoOSE()
+    # test_multiple_Benoit()
     # test_GIF()
     pass
 

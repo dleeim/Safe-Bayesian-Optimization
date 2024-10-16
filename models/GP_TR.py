@@ -21,10 +21,10 @@ class BO(GP):
             safe_con = NonlinearConstraint(lambda x: self.lcb(x,i),0.,jnp.inf)
             self.safe_set_cons.append(safe_con)
 
-    def calculate_plant_outputs(self,x):
+    def calculate_plant_outputs(self,x,noise=0.):
         plant_output            = []
         for plant in self.plant_system:
-            plant_output.append(plant(x)) 
+            plant_output.append(plant(x,noise)) 
 
         return jnp.array(plant_output)
     
