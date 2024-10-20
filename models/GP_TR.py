@@ -107,4 +107,3 @@ class BO(GP):
 
         else: # rho >= rho_ub
             return x_new, min(r*r_inc,r_max)
-        

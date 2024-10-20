@@ -3,7 +3,7 @@ import jax.numpy as jnp
 from jax import grad, vmap, jit
 import matplotlib.pyplot as plt
 import pandas as pd
-from models.GP_Robust import GP
+from models.GP_Safe import GP
 from problems import Benoit_Problem
 from problems import Rosenbrock_Problem 
 
@@ -52,4 +52,5 @@ if __name__ == "__main__":
     test_mean_var()
     test_GP_inference_arbitrary()
     test_check_mean_GP()
+    pass
 

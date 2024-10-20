@@ -17,8 +17,7 @@ class BO(GP):
         GP.__init__(self,plant_system)
         self.bound = bound
         self.b = b
-        self.GP_inference_jit = jit(self.GP_inference)
-        self.mean_grad_jit = jit(grad(self.mean,argnums=0))   
+        self.GP_inference_jit = jit(self.GP_inference)  
 
     def calculate_plant_outputs(self,x,noise=0):
         plant_output            = []
@@ -67,98 +66,62 @@ class BO(GP):
         return result.x, jnp.array(-result.fun)
     
     def infnorm_mean_grad(self,x,i):
-        grad_mean = self.mean_grad_jit(x,i)
+        mean_grad_jit = grad(self.mean,argnums=0)
+        grad_mean = mean_grad_jit(x,i)
         return jnp.max(jnp.abs(grad_mean))
     
-    def maximize_infnorm_mean_grad(self,i):
-        lcb_infnorm_grad_jit = jit(self.infnorm_mean_grad)
-        obj_fun = lambda x: -lcb_infnorm_grad_jit(x,i)
-        result = differential_evolution(obj_fun,self.bound)
-        return -result.fun
-
-    def Lipschitz_continuity_constraint(self,x,i,max_infnorm_mean_constraints):
-        ucb_value = self.ucb(x[:self.nx_dim],i)       
-        value = ucb_value - max_infnorm_mean_constraints*cdist(x[:self.nx_dim].reshape(1,-1),x[self.nx_dim:].reshape(1,-1))   
-        return value.item()
+    def maxmimize_infnorm_mean_grad(self,i):
+        lcb_maxnorm_grad_jit = jit(self.infnorm_mean_grad)
+        infnorm_mean_constraints = []
+        
+        for i in range(1,self.n_fun):
+            obj_fun = lambda x: -lcb_maxnorm_grad_jit(x,i)
+            result = differential_evolution(obj_fun,self.bound,tol=0.1)
+            infnorm_mean_constraints.append(-result.fun)
+        max_infnorm_mean_constraints = max(infnorm_mean_constraints)
+        
+        return max_infnorm_mean_constraints
     
     def lcb_constraint_min(self,x):
         lcb_values = []
         for i in range(1,self.n_fun):
             lcb_values.append(self.lcb(x,i))
         return max(lcb_values)
-    
+
+    def Lipschitz_continuity_constraint(self,x,i,maximum_infnorm_mean_constraints):
+        ucb_value = self.ucb(x[:self.nx_dim],i)    
+        value = ucb_value - maximum_infnorm_mean_constraints*cdist(x[:self.nx_dim].reshape(1,-1),x[self.nx_dim:].reshape(1,-1))  
+        return value.item()
+
     def Expander(self):
         eps = jnp.sqrt(jnp.finfo(jnp.float32).eps)
         obj_fun = lambda x: -self.GP_inference_jit(x[:self.nx_dim],self.inference_datasets)[1][0] # objective function is -1*variance as differential equation finds min (convert to max)
-        bound = jnp.vstack((self.bound,self.bound))
+        bound = jnp.vstack((self.bound,self.bound)) 
+        
         safe_unsafe_cons = []
         for i in range(1, self.n_fun):
-            safe_unsafe_cons.append(NonlinearConstraint(lambda x: self.lcb(x[:self.nx_dim],i),0.,jnp.inf)) 
-        safe_unsafe_cons.append(NonlinearConstraint(lambda x: self.lcb_constraint_min(x[self.nx_dim:]),-jnp.inf,0.))
+            safe_unsafe_cons.append(NonlinearConstraint(lambda x: self.lcb(x[:self.nx_dim],i),0.,jnp.inf)) # x[:self.nx_dim] represents input variable in safe region to be optimized for expander.
+        safe_unsafe_cons.append(NonlinearConstraint(lambda x: self.lcb_constraint_min(x[self.nx_dim:]),-jnp.inf,0.)) # x[self.nx_dim:] represents represents variable in unsafe region to be used for Lipschitz Continuity
         
-        # Find expander for each constraint
-        for index in range(1,self.n_fun):
-            def callback(x,convergence):
-                lipschitz_constraint = self.Lipschitz_continuity_constraint(x,index,max_infnorm_mean_constraints)
-                if lipschitz_constraint >= 0.:
-                    self.feasible_found = True
-                    self.iterations_without_feasible = 0
-                else:
-                    self.iterations_without_feasible += 1
-                # print(self.iterations_without_feasible)
-                # Stop optimization if no feasible solution has been found after a certain number of iterations
-                if not self.feasible_found and self.iterations_without_feasible >= self.max_iter_without_feasible:
-                    print("Terminating early: No feasible solution found.")
-                    return True  # Returning True stops the optimization
+        infnorm_mean_grad = jit(self.infnorm_mean_grad)
 
+        # Find expander for each constraint
+        expanders = []
+        std_expanders = []
+        for index in range(1,self.n_fun):
             Expander_cons = copy.deepcopy(safe_unsafe_cons)
             Expander_cons.append(NonlinearConstraint(lambda x: self.lcb(x[:self.nx_dim],index),0,eps))
-            max_infnorm_mean_constraints = self.maximize_infnorm_mean_grad(index)
-            Expander_cons.append(NonlinearConstraint(lambda x: self.Lipschitz_continuity_constraint(x,index,max_infnorm_mean_constraints),0.,jnp.inf))
-            
-            # Feasibility Checker
-            self.feasible_found = False
-            self.iterations_without_feasible = 0
-            self.max_iter_without_feasible = 100
-            satisfied = False
-            count = 0
-    
-            while not satisfied and count < 10:       
-                result = differential_evolution(obj_fun,bound,constraints=Expander_cons,callback=callback)
-                lcb_constraint = self.lcb(result.x[:self.nx_dim],index)
-                
-                if lcb_constraint < 0.:
-                    self.feasible_found = False
-                    self.iterations_without_feasible = 0
-                    self.max_iter_without_feasible = 100
-                else:
-                    satisfied = True
-                
-                count += 1
+            maximum_infnorm_mean_constraints = self.maxmimize_infnorm_mean_grad(index)
+            Expander_cons.append(NonlinearConstraint(lambda x: self.Lipschitz_continuity_constraint(x,index,maximum_infnorm_mean_constraints),0.,jnp.inf))    
+            result = differential_evolution(obj_fun,bound,constraints=Expander_cons)
 
-        return result.x[:self.nx_dim], jnp.sqrt(-result.fun),satisfied, count
+            # Collect optimal point and standard deviation
+            expanders.append(result.x[:self.nx_dim])
+            std_expanders.append(jnp.sqrt(-result.fun))
 
-    # Overall Algorithm
-    def Safeminimize(self,n_sample,x_initial,radius,n_iter):
+        # Find most uncertain expander
+        max_std = max(std_expanders)
+        max_index = std_expanders.index(max_std)
+        argmax_x = expanders[max_index]
 
-        # Initialization
-        X,Y = self.Data_sampling(n_sample,x_initial,radius)
-        self.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
-
-        # SafeOpt
-        for i in range(n_iter):
-            # Create sobol_seq sample for Expander
-            n_sample = 1000
-            unsafe_sobol_sample = self.unsafe_sobol_seq_sampling(self.nx_dim,n_sample,self.bound)
-            minimizer,std_minimizer = self.Minimizer()
-            expander,std_expander = self.Expander(unsafe_sobol_sample)
-
-            if std_minimizer > std_expander:
-                x_new = minimizer
-            else:
-                x_new = expander
-        
-            plant_output = self.calculate_plant_outputs(x_new)
-            self.add_sample(x_new,plant_output)
-        
-        return x_new, plant_output
+        return argmax_x, max_std

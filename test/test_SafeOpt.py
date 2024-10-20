@@ -142,17 +142,11 @@ def test_SafeOpt_Benoit():
         start = time.time()
         minimizer,std_minimizer = GP_m.Minimizer()
         print(f"minimizer:{minimizer},std: {std_minimizer}")
-        expander,std_expander,satisfied,count = GP_m.Expander()
-        print(f"expander: {expander},std: {std_expander}, satisfied: {satisfied}, count: {count}")
+        expander,std_expander = GP_m.Expander()
+        print(f"expander: {expander},std: {std_expander}")
         end = time.time()
-        lipschitz_continuous = False
-        for j in range(1,GP_m.n_fun):
-            lipschitz_constraint = GP_m.ucb(expander,j)
-            if lipschitz_constraint >= 0.:
-                lipschitz_continuous = True
-                print(lipschitz_constraint)
-                break
-        if std_minimizer > std_expander or lipschitz_continuous == False or not satisfied or count == 10:
+
+        if std_minimizer > std_expander:
             x_new = minimizer
             print(f"I am minimizing!: {x_new}")
         else:
@@ -208,7 +202,7 @@ def test_multiple_Benoit():
         n_sample = 4
         x_i = jnp.array([1.4,-.8])
         r = 0.3
-        noise = 0.
+        noise = 0.005
         X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
         GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
         data[f'{i}']['sampled_x'] = X
@@ -226,11 +220,8 @@ def test_multiple_Benoit():
 
         for j in range(n_iteration):
             # Create sobol_seq sample for Expander
-            n_sample = 1000
-            unsafe_sobol_sample = GP_m.unsafe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
-            maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
             minimizer,std_minimizer = GP_m.Minimizer()
-            expander,std_expander,satisfied,count = GP_m.Expander(unsafe_sobol_sample,maximum_maxnorm_mean_constraints)
+            expander,std_expander = GP_m.Expander()
             lipschitz_continuous = False
 
             for j in range(1,GP_m.n_fun):
@@ -239,7 +230,7 @@ def test_multiple_Benoit():
                     lipschitz_continuous = True
                     break
 
-            if std_minimizer > std_expander or lipschitz_continuous == False or not satisfied or count == 10:
+            if std_minimizer > std_expander or lipschitz_continuous == False:
                 x_new = minimizer
             else:
                 x_new = expander
@@ -322,8 +313,8 @@ if __name__ == "__main__":
     # test_maxmimize_maxnorm_mean_grad()
     # test_unsafe_sobol_seq_sampling()
     # test_Expander() 
-    test_SafeOpt_Benoit() 
-    # test_multiple_Benoit()
+    # test_SafeOpt_Benoit() 
+    test_multiple_Benoit()
     # test_GIF()
     pass
 

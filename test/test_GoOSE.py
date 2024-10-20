@@ -29,9 +29,6 @@ r = 0.3
 noise = 0.
 X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
 GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
-# Create sobol_seq sample for Expander
-n_sample = 1000
-safe_sobol_sample = GP_m.safe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
 
 print(f"\n")
 print(f"Data Sample Input:")
@@ -147,27 +144,21 @@ def test_GoOSE():
     data = {'i':[],'obj':[],'con':[],'x_0':[],'x_1':[], 'x_target_0':[], 'x_target_1':[]}
 
     # GoOSE
-    n_iteration = 20
+    n_iteration = 10
 
     for i in range(n_iteration):
         print(f"Iteration: {i}")
         x_safe_min,min_safe_lcb = GP_m.minimize_obj_lcb()
         print(f"x_safe_min, min_safe_lcb: {x_safe_min,min_safe_lcb}")
-        safe_sobol_sample = GP_m.safe_sobol_seq_sampling(GP_m.nx_dim,n_sample,GP_m.bound)
-        maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
-        x_target_min,min_target_lcb = GP_m.Target(safe_sobol_sample,maximum_maxnorm_mean_constraints)
-        print(f"x_target_min,min_target_lcb: {x_target_min,min_target_lcb}")
+        x_target,target_lcb = GP_m.Target()
+        print(f"x_target_min,min_target_lcb: {x_target,target_lcb}")
 
-        # check if target satisfied optimistic safe set condition:
-        value = GP_m.optimistic_safeset_constraint(x_target_min,safe_sobol_sample,maximum_maxnorm_mean_constraints)
-
-        if value > 0. or min_safe_lcb <= min_target_lcb:
+        if min_safe_lcb <= target_lcb:
             x_new = x_safe_min
-            x_target_min = jnp.array([jnp.nan]*GP_m.nx_dim)
+            x_target = jnp.array([jnp.nan]*GP_m.nx_dim)
         else:
-            x_safe_observe = GP_m.explore_safeset(x_target_min)
-            x_new = x_safe_observe
-
+            x_new = GP_m.explore_safeset(x_target)
+             
         plant_output = GP_m.calculate_plant_outputs(x_new,noise)
 
         # Create frame
@@ -176,8 +167,8 @@ def test_GoOSE():
         data['con'].append(plant_output[1])
         data['x_0'].append(x_new[0])
         data['x_1'].append(x_new[1])
-        data['x_target_0']=x_target_min[0]
-        data['x_target_1']=x_target_min[1]
+        data['x_target_0']=x_target[0]
+        data['x_target_1']=x_target[1]
         t = i*0.1
         filename = f'frame_{i:02d}.png'
         X_0, X_1, mask_safe, obj = create_data_for_plot()
@@ -206,7 +197,7 @@ def test_multiple_Benoit():
     GP_m = GoOSE.BO(plant_system,bound,b)
     n_start = 5
     data = {}
-    noise = 0.005
+    noise = 0.
 
     for i in range(n_start):
         print(f"iteration: {i}")
@@ -233,24 +224,14 @@ def test_multiple_Benoit():
 
         # GoOSE
         n_iteration = 10
-
         for j in range(n_iteration):
             x_safe_min,min_safe_lcb = GP_m.minimize_obj_lcb()
-            
-            # Create sobol_seq sample for Optimistic Safe Set
-            sobol_seq_n_sample = 1000
-            safe_sobol_sample = GP_m.safe_sobol_seq_sampling(GP_m.nx_dim,sobol_seq_n_sample,GP_m.bound)
-            maximum_maxnorm_mean_constraints = GP_m.maxmimize_maxnorm_mean_grad()
-            x_target_min,min_target_lcb = GP_m.Target(safe_sobol_sample,maximum_maxnorm_mean_constraints)
+            x_target,target_lcb = GP_m.Target()
 
-            # check if target satisfied optimistic safe set condition:
-            value = GP_m.optimistic_safeset_constraint(x_target_min,safe_sobol_sample,maximum_maxnorm_mean_constraints)
-
-            if value > 0. or min_safe_lcb <= min_target_lcb:
+            if min_safe_lcb <= target_lcb:
                 x_new = x_safe_min
-                x_target_min = jnp.array([jnp.nan]*GP_m.nx_dim)
             else:
-                x_safe_observe = GP_m.explore_safeset(x_target_min)
+                x_safe_observe = GP_m.explore_safeset(x_target)
                 x_new = x_safe_observe
 
             plant_output = GP_m.calculate_plant_outputs(x_new,noise)
@@ -337,8 +318,8 @@ if __name__ == "__main__":
     # test_minimize_obj_lcb()
     # test_Target()
     # test_explore_safeset()
-    test_GoOSE()
-    # test_multiple_Benoit()
+    # test_GoOSE()
+    test_multiple_Benoit()
     # test_GIF()
     pass
 

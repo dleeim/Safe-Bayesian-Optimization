@@ -163,4 +163,3 @@ def plant_outputs_drawing(iteration,output,constraint,figname,output_dir='output
     # Save
     output_path = os.path.join(output_dir, figname)
     plt.savefig(output_path)
-    

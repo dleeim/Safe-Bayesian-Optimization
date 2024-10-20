@@ -10,7 +10,7 @@ import imageio.v2 as imageio
 from IPython.display import Image
 import os
 from models import SafeOpt
-from problems import Benoit_Problem
+from problems import WillaimOttoReactor_Problem
 jax.config.update("jax_enable_x64", True)
 
 def plot_obj_con_outputs(data):
@@ -64,9 +64,9 @@ def plot_obj_con_outputs(data):
     plt.show()
     
 def plot_all_obj_fun():
-    data_SafeOpt = jnp.load('data/data_multi_SafeOpt_Benoit.npz', allow_pickle=True)
-    data_GoOSE = jnp.load('data/data_multi_GoOSE_Benoit.npz', allow_pickle=True)
-    data_GP_TR = jnp.load('data/data_multi_GP_TR_Benoit.npz', allow_pickle=True)
+    data_SafeOpt = jnp.load('data/data_multi_SafeOpt_WilliamOttoReactor.npz', allow_pickle=True)
+    data_GoOSE = jnp.load('data/data_multi_GoOSE_WilliamOttoReactor.npz', allow_pickle=True)
+    data_GP_TR = jnp.load('data/data_multi_GP_TR_WilliamOttoReactor.npz', allow_pickle=True)
 
     data_array = [data_SafeOpt,data_GoOSE,data_GP_TR]
     data_array_name = ["SafeOpt","GoOSE","GP_TR"]
@@ -114,21 +114,14 @@ def plot_all_obj_fun():
     axs[1].legend()
     plt.show()
 
-
-plant_system = [Benoit_Problem.Benoit_System_1,
-                Benoit_Problem.con1_system_tight]
-bound = jnp.array([[-.6,1.5],[-1.,1.]])
-b = 2.
-GP_m = SafeOpt.BO(plant_system,bound,b)
-
 # Load Data - Either SafeOpt, GoOSE, or GP_TR
-data_Safe = jnp.load('data/data_multi_GP_TR_Benoit.npz', allow_pickle=True)
+data_Safe = jnp.load('data/data_multi_GP_TR_WilliamOttoReactor.npz', allow_pickle=True)
 
 # Plot data
-# plot_obj_con_outputs(data_Safe)
+plot_obj_con_outputs(data_Safe)
 
 # Plot all data together
-plot_all_obj_fun()
+# plot_all_obj_fun()
 
 
 
