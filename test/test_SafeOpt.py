@@ -7,11 +7,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import time
 from models import SafeOpt
-from problems import Benoit_Problem
+from problems import Benoit_Problem, WilliamOttoReactor_Problem
 import warnings
 from utils import utils_SafeOpt
 jax.config.update("jax_enable_x64", True)
-warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
 
 # Class Initialization
 jax.config.update("jax_enable_x64", True)
@@ -216,7 +215,7 @@ def test_multiple_Benoit():
         print(f"")
 
         # SafeOpt
-        n_iteration = 10
+        n_iteration = 20
 
         for j in range(n_iteration):
             # Create sobol_seq sample for Expander
@@ -247,6 +246,78 @@ def test_multiple_Benoit():
                 break
     
     jnp.savez('data/data_multi_SafeOpt_Benoit.npz',**data)
+
+def test_multiple_WilliamOttoReactor():
+    # Class Initialization
+    Reactor = WilliamOttoReactor_Problem.WilliamOttoReactor()
+    plant_system = [Reactor.get_objective,
+                    Reactor.get_constraint1,
+                    Reactor.get_constraint2]
+    bound = jnp.array([[4.,7.],[70.,100.]])
+    b = 2.
+    GP_m = SafeOpt.BO(plant_system,bound,b)
+    n_start = 1
+    data = {}
+    noise = 0.
+
+    for i in range(n_start):
+        print(f"iteration: {i}")
+        # Data Storage
+        data[f'{i}'] = {'sampled_x':[],'sampled_output':[],'observed_x':[],'observed_output':[]}
+
+        # GP Initialization: 
+        n_sample = 4
+        x_i = jnp.array([6.8,80.])
+        r = 0.3
+        noise = 0.
+        X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
+        GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
+        data[f'{i}']['sampled_x'] = X
+        data[f'{i}']['sampled_output'] = Y
+
+        print(f"\n")
+        print(f"Data Sample Input:")
+        print(f"{X}")
+        print(f"Data Sample Output:")
+        print(f"{Y}")
+        print(f"")
+
+        # SafeOpt
+        n_iteration = 20
+
+        for j in range(n_iteration):
+            # Create sobol_seq sample for Expander
+            minimizer,std_minimizer = GP_m.Minimizer()
+            print(f"minimizer,std_minimizer: {minimizer,std_minimizer}")
+            expander,std_expander = GP_m.Expander()
+            lipschitz_continuous = False
+
+            for j in range(1,GP_m.n_fun):
+                lipschitz_constraint = GP_m.ucb(expander,j)
+                if lipschitz_constraint >= 0.:
+                    lipschitz_continuous = True
+                    break
+            
+            print(f"expander,std_expander: {expander,std_expander}")
+
+            if std_minimizer > std_expander or lipschitz_continuous == False:
+                x_new = minimizer
+            else:
+                x_new = expander
+            print(f"x_new: {x_new}")
+            Reactor.noise_generator()
+            plant_output = GP_m.calculate_plant_outputs(x_new,noise)
+            GP_m.add_sample(x_new,plant_output)
+
+            # Store Data
+            data[f'{i}']['observed_x'].append(x_new)
+            data[f'{i}']['observed_output'].append(plant_output)
+
+            # Finish the iteration early 
+            if std_expander < 0.04 and std_minimizer < 0.04:
+                break
+    
+    jnp.savez('data/data_multi_SafeOpt_WilliamOttoReactor.npz',**data)
 
 def create_data_for_plot():
     x_0 = jnp.linspace(-0.6, 1.5, 400)
@@ -314,7 +385,8 @@ if __name__ == "__main__":
     # test_unsafe_sobol_seq_sampling()
     # test_Expander() 
     # test_SafeOpt_Benoit() 
-    test_multiple_Benoit()
+    # test_multiple_Benoit()
+    test_multiple_WilliamOttoReactor()
     # test_GIF()
     pass
 

@@ -9,14 +9,14 @@ import time
 import imageio.v2 as imageio
 from IPython.display import Image
 import os
-from models import SafeOpt
-from problems import WillaimOttoReactor_Problem
+from problems import WilliamOttoReactor_Problem
 jax.config.update("jax_enable_x64", True)
 
 def plot_obj_con_outputs(data):
     n_samples = []
     obj_fun_outputs = []
-    con_fun_outputs = []
+    con1_fun_outputs = []
+    con2_fun_outputs = []
     n_start = len(data.items())
 
     for i in range(n_start):
@@ -30,18 +30,24 @@ def plot_obj_con_outputs(data):
         obj_fun_outputs.append(observed_output[:,0])
         output_nan = jnp.array((max_n_sample-len(obj_fun_outputs[i]))*[jnp.nan])
         obj_fun_outputs[i] = jnp.append(obj_fun_outputs[i],output_nan)
-        con_fun_outputs.append(observed_output[:,1])
-        con_fun_outputs[i] = jnp.append(con_fun_outputs[i],output_nan)
+        con1_fun_outputs.append(observed_output[:,1])
+        con1_fun_outputs[i] = jnp.append(con1_fun_outputs[i],output_nan)
+        con2_fun_outputs.append(observed_output[:,2])
+        con2_fun_outputs[i] = jnp.append(con2_fun_outputs[i],output_nan)
 
     obj_fun_outputs = jnp.array(obj_fun_outputs)
-    con_fun_outputs = jnp.array(con_fun_outputs)
+    con1_fun_outputs = jnp.array(con1_fun_outputs)
+    con2_fun_outputs = jnp.array(con2_fun_outputs)
 
     # Find mean and std
     obj_fun_mean = jnp.nanmean(obj_fun_outputs,axis=0)
     obj_fun_std = jnp.nanstd(obj_fun_outputs,axis=0,ddof=1)
 
-    con_fun_mean = jnp.nanmean(con_fun_outputs,axis=0)
-    con_fun_std = jnp.nanstd(con_fun_outputs,axis=0,ddof=2)
+    con1_fun_mean = jnp.nanmean(con1_fun_outputs,axis=0)
+    con1_fun_std = jnp.nanstd(con1_fun_outputs,axis=0,ddof=2)
+
+    con2_fun_mean = jnp.nanmean(con2_fun_outputs,axis=0)
+    con2_fun_std = jnp.nanstd(con2_fun_outputs,axis=0,ddof=2)
         
     # Find confidence interval
     degree_of_freedom = n_start-1
@@ -51,16 +57,23 @@ def plot_obj_con_outputs(data):
     obj_fun_upper = obj_fun_mean + t_value*obj_fun_std/jnp.sqrt(n_start)
     obj_fun_lower = obj_fun_mean - t_value*obj_fun_std/jnp.sqrt(n_start)
 
-    con_fun_upper = con_fun_mean + t_value*con_fun_std/jnp.sqrt(n_start)
-    con_fun_lower = con_fun_mean - t_value*con_fun_std/jnp.sqrt(n_start)
+    con1_fun_upper = con1_fun_mean + t_value*con1_fun_std/jnp.sqrt(n_start)
+    con1_fun_lower = con1_fun_mean - t_value*con1_fun_std/jnp.sqrt(n_start)
+
+    con2_fun_upper = con2_fun_mean + t_value*con2_fun_std/jnp.sqrt(n_start)
+    con2_fun_lower = con2_fun_mean - t_value*con2_fun_std/jnp.sqrt(n_start)
 
     n_iter = len(obj_fun_mean)
-    fig, axs = plt.subplots(1,2,figsize=(10,5))
+    fig, axs = plt.subplots(1,3,figsize=(15,5))
     axs[0].plot(range(n_iter),obj_fun_mean)
     axs[0].fill_between(range(n_iter),obj_fun_upper,obj_fun_lower,alpha=0.3)
-    axs[1].plot(range(n_iter),con_fun_mean)
-    axs[1].fill_between(range(n_iter),con_fun_lower,con_fun_upper,alpha=0.3)
-    axs[1].plot(np.array([0.]*n_iter),'r--',label='safety threshold')
+    axs[0].plot(jnp.array([-76.]*n_iter),'r--',label='minimun value')
+    axs[1].plot(range(n_iter),con1_fun_mean)
+    axs[1].fill_between(range(n_iter),con1_fun_lower,con1_fun_upper,alpha=0.3)
+    axs[1].plot(jnp.array([0.]*n_iter),'r--',label='safety threshold')
+    axs[2].plot(range(n_iter),con2_fun_mean)
+    axs[2].fill_between(range(n_iter),con2_fun_lower,con2_fun_upper,alpha=0.3)
+    axs[2].plot(jnp.array([0.]*n_iter),'r--',label='safety threshold')
     plt.show()
     
 def plot_all_obj_fun():
@@ -115,7 +128,7 @@ def plot_all_obj_fun():
     plt.show()
 
 # Load Data - Either SafeOpt, GoOSE, or GP_TR
-data_Safe = jnp.load('data/data_multi_GP_TR_WilliamOttoReactor.npz', allow_pickle=True)
+data_Safe = jnp.load('data/data_multi_GoOSE_WilliamOttoReactor.npz',allow_pickle=True)
 
 # Plot data
 plot_obj_con_outputs(data_Safe)

@@ -21,7 +21,7 @@ class BO(GP):
         
         self.safe_set_cons = []
         for i in range(1, self.n_fun):
-            safe_con = NonlinearConstraint(lambda x: self.lcb(x,i),0.,jnp.inf)
+            safe_con = NonlinearConstraint(lambda x, i=i: self.lcb(x,i),0.,jnp.inf)
             self.safe_set_cons.append(safe_con)
 
     def lcb_constraint_min(self,x):
@@ -52,10 +52,11 @@ class BO(GP):
         GP_inference = self.GP_inference_jit(x,self.inference_datasets)
         mean, var = GP_inference[0][i], GP_inference[1][i]
         value = mean - self.b*jnp.sqrt(var)
+        print(x,i,value)
         return value
     
     def infnorm_mean_grad(self,x,i):
-        mean_grad_jit = grad(self.mean,argnums=0)
+        mean_grad_jit = jit(grad(self.mean,argnums=0))
         grad_mean = mean_grad_jit(x,i)
         return jnp.max(jnp.abs(grad_mean))
     
@@ -64,8 +65,8 @@ class BO(GP):
         infnorm_mean_constraints = []
         
         for i in range(1,self.n_fun):
-            obj_fun = lambda x: -lcb_maxnorm_grad_jit(x,i)
-            result = differential_evolution(obj_fun,self.bound,tol=0.1)
+            obj_fun = lambda x, i=i: -lcb_maxnorm_grad_jit(x,i)
+            result = differential_evolution(obj_fun,self.bound,tol=0.1,polish=False)
             infnorm_mean_constraints.append(-result.fun)
         max_infnorm_mean_constraints = max(infnorm_mean_constraints)
         
@@ -73,14 +74,14 @@ class BO(GP):
     
     def minimize_obj_lcb(self):
         obj_fun = lambda x: self.lcb(x,0)
-        result = differential_evolution(obj_fun,self.bound,constraints=self.safe_set_cons)
+        result = differential_evolution(obj_fun,self.bound,constraints=self.safe_set_cons,polish=False)
 
         return result.x,result.fun
 
-    def Lipschitz_continuity_constraint(self,x,i,maximum_maxnorm_mean_constraints):
+    def Lipschitz_continuity_constraint(self,x,i,max_infnorm_mean_constraints):
         ucb_value = self.ucb(x[self.nx_dim:],i)
-        value = ucb_value - maximum_maxnorm_mean_constraints*cdist(x[:self.nx_dim].reshape(1,-1),x[self.nx_dim:].reshape(1,-1))
-        return value.item()
+        value = ucb_value - max_infnorm_mean_constraints*jnp.linalg.norm(x[:self.nx_dim]-x[self.nx_dim:])  
+        return value
 
     def Target(self):
         
@@ -90,18 +91,20 @@ class BO(GP):
 
         safe_unsafe_cons = []
         for i in range(1,self.n_fun):
-            safe_unsafe_cons.append(NonlinearConstraint(lambda x: self.lcb(x[:self.nx_dim],i),0.,jnp.inf))
+            safe_unsafe_cons.append(NonlinearConstraint(lambda x, i=i: self.lcb(x[:self.nx_dim],i),0.,jnp.inf))
         safe_unsafe_cons.append(NonlinearConstraint(lambda x: self.lcb_constraint_min(x[self.nx_dim:]),-jnp.inf,0.))
 
         # Find target for each constraint
         target = []
         lcb_target = []
+
         for index in range(1,self.n_fun):
+            Lipschitz_continuity_constraint_jit = jit(self.Lipschitz_continuity_constraint)
             target_cons = copy.deepcopy(safe_unsafe_cons)
-            maximum_infnorm_mean_constraints = self.maxmimize_infnorm_mean_grad(index)
-            target_cons.append(NonlinearConstraint(lambda x: self.lcb(x[:self.nx_dim],index),0,eps))
-            target_cons.append(NonlinearConstraint(lambda x: self.Lipschitz_continuity_constraint(x,index,maximum_infnorm_mean_constraints),0.,jnp.inf))
-            result = differential_evolution(obj_fun,bound,constraints=target_cons)
+            max_infnorm_mean_constraints = self.maxmimize_infnorm_mean_grad(index)
+            # target_cons.append(NonlinearConstraint(lambda x, index=index: self.lcb(x[:self.nx_dim],index),0,eps))
+            target_cons.append(NonlinearConstraint(lambda x, index=index: Lipschitz_continuity_constraint_jit(x,index,max_infnorm_mean_constraints),0.,jnp.inf))
+            result = differential_evolution(obj_fun,bound,constraints=target_cons,polish=False)
 
             # Collect optimal point and standard deviation
             target.append(result.x[self.nx_dim:])
@@ -117,6 +120,6 @@ class BO(GP):
     def explore_safeset(self,target):
         obj_fun = lambda x: cdist(x.reshape(1,-1),target.reshape(1,-1))[0][0]
         cons = copy.deepcopy(self.safe_set_cons)
-        result = differential_evolution(obj_fun,self.bound,constraints=cons)
+        result = differential_evolution(obj_fun,self.bound,constraints=cons,polish=False)
         return result.x
         

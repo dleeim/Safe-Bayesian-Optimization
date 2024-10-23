@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import time
 from models import GoOSE
-from problems import Benoit_Problem
+from problems import Benoit_Problem, WilliamOttoReactor_Problem
 import warnings
 from utils import utils_GoOSE
 from scipy.spatial.distance import cdist
@@ -157,8 +157,7 @@ def test_GoOSE():
             x_new = x_safe_min
             x_target = jnp.array([jnp.nan]*GP_m.nx_dim)
         else:
-            x_new = GP_m.explore_safeset(x_target)
-             
+            x_new = GP_m.explore_safeset(x_target) 
         plant_output = GP_m.calculate_plant_outputs(x_new,noise)
 
         # Create frame
@@ -246,6 +245,64 @@ def test_multiple_Benoit():
     
     jnp.savez('data/data_multi_GoOSE_Benoit.npz',**data)
 
+def test_multiple_WilliamOttoReactor():
+    Reactor = WilliamOttoReactor_Problem.WilliamOttoReactor()
+    plant_system = [Reactor.get_objective,
+                    Reactor.get_constraint1,
+                    Reactor.get_constraint2]
+    bound = jnp.array([[4.,7.],[70.,100.]])
+    b = 2.
+    GP_m = GoOSE.BO(plant_system,bound,b)
+    n_start = 1
+    data = {}
+    noise = 0.
+
+    for i in range(n_start):
+        print(f"iteration: {i}")
+        # Data Storage
+        data[f'{i}'] = {'sampled_x':[],'sampled_output':[],'observed_x':[],'observed_output':[]}
+
+        # GP Initialization: 
+        n_sample = 4
+        x_i = jnp.array([6.8,80.])
+        r = 0.3
+        X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
+        GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
+        data[f'{i}']['sampled_x'] = X
+        data[f'{i}']['sampled_output'] = Y
+
+        print(f"\n")
+        print(f"Data Sample Input:")
+        print(f"{X}")
+        print(f"Data Sample Output:")
+        print(f"{Y}")
+        print(f"")
+
+        # GoOSE
+        n_iteration = 20
+        for j in range(n_iteration):
+            x_safe_min,min_safe_lcb = GP_m.minimize_obj_lcb()
+            print(f"x_safe_min,min_safe_lcb: {x_safe_min,min_safe_lcb}")
+            x_target,target_lcb = GP_m.Target()
+            print(f"x_target,target_lcb: {x_target,target_lcb}")
+            if min_safe_lcb <= target_lcb:
+                x_new = x_safe_min
+            else:
+                x_safe_observe = GP_m.explore_safeset(x_target)
+                x_new = x_safe_observe
+            print(f"x_new: {x_new}")
+            Reactor.noise_generator()
+            plant_output = GP_m.calculate_plant_outputs(x_new,noise)
+            GP_m.add_sample(x_new,plant_output)
+
+            # Store Data
+            data[f'{i}']['observed_x'].append(x_new)
+            data[f'{i}']['observed_output'].append(plant_output)
+
+            if abs(plant_system[0](x_new) + 76.03600894648002) <= 0.001:
+                break
+    
+    jnp.savez('data/data_multi_GoOSE_WilliamOttoReactor.npz',**data)
 
 def create_data_for_plot():
     x_0 = jnp.linspace(-0.6, 1.5, 400)
@@ -319,7 +376,8 @@ if __name__ == "__main__":
     # test_Target()
     # test_explore_safeset()
     # test_GoOSE()
-    test_multiple_Benoit()
+    # test_multiple_Benoit()
+    test_multiple_WilliamOttoReactor()
     # test_GIF()
     pass
 

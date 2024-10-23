@@ -15,11 +15,6 @@ class BO(GP):
         self.b = b
         self.TR_parameters = TR_parameters
         self.GP_inference_jit = jit(self.GP_inference)
-        
-        self.safe_set_cons = []
-        for i in range(1,self.n_fun):
-            safe_con = NonlinearConstraint(lambda x: self.lcb(x,i),0.,jnp.inf)
-            self.safe_set_cons.append(safe_con)
 
     def calculate_plant_outputs(self,x,noise=0.):
         plant_output            = []
@@ -43,28 +38,16 @@ class BO(GP):
         GP_inference = self.GP_inference_jit(x,self.inference_datasets)
         mean, var = GP_inference[0][i], GP_inference[1][i]
         value = mean - self.b*jnp.sqrt(var)
-
         return value
 
     def minimize_obj_lcb(self,r,x_0):
-        satisfied = False
-
         obj_fun = lambda x: self.lcb(x,0)
-        safe_set_cons = copy.deepcopy(self.safe_set_cons)
-        safe_set_cons.append(NonlinearConstraint(lambda x: jnp.linalg.norm(x-x_0),0,r))
-        
-        while not satisfied:
-            result = differential_evolution(obj_fun,self.bound,constraints=safe_set_cons)
-            for i in range(1,self.n_fun):
-                lcb_value = self.lcb(result.x,i)
-                if lcb_value < -0.001:
-                    break
-            
-            if jnp.linalg.norm(result.x-x_0) > r:
-                continue
-
-            satisfied = True
-
+        safe_set_cons = []
+        for i in range(1,self.n_fun):
+            safe_con = NonlinearConstraint(lambda x, i=i: self.lcb(x,i),0,jnp.inf)
+            safe_set_cons.append(safe_con)
+        safe_set_cons.append(NonlinearConstraint(lambda x: jnp.linalg.norm(x-x_0),0.,r))
+        result = differential_evolution(obj_fun,self.bound,constraints=safe_set_cons,polish=False)
         return result.x, result.fun
 
     def TR_constraint(self,x,x_0,r):
@@ -87,7 +70,7 @@ class BO(GP):
 
         # Check plant constraints to update trust region
         for i in range(1,self.n_fun):
-            if plant_newoutput[i] < -0.001:
+            if plant_newoutput[i] < 0.:
                 return x_initial, r*r_red
             else:
                 pass

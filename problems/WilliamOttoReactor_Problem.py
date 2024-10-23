@@ -1,14 +1,20 @@
+import random 
 import jax
 from jax import vmap
 import jax.numpy as jnp
 from scipy.optimize import fsolve, differential_evolution, NonlinearConstraint
 import matplotlib.pyplot as plt
+jax.config.update("jax_enable_x64", True)
 
 class WilliamOttoReactor():
 
     def __init__(self):
-        self.key = jax.random.PRNGKey(42)
-        self.subkey = jnp.nan
+        random_seed = random.randint(0, 2**32 - 1)
+        self.key = jax.random.PRNGKey(random_seed)
+        self.subkey = 0.
+
+    def noise_generator(self):
+        self.key, self.subkey = jax.random.split(self.key) 
 
     def odecallback(self,w, x, normal_noise):
         xa, xb, xc, xp, xe, xg = w
@@ -37,23 +43,27 @@ class WilliamOttoReactor():
 
     def get_objective(self,u,noise=0.):
         x0 = jnp.array([0.1,0.1,0.1,0.1,0.1,0.1])
-        self.key, self.subkey = jax.random.split(self.key)
-        normal_noise = jnp.sqrt(noise)*jax.random.normal(self.subkey,(1,)).item()
+        normal_noise = jnp.sqrt(noise)*jax.random.normal(self.key,(1,)).item()
         Fa = 1.8275 + normal_noise
         Fb, _ = u
         fobj = lambda x: self.odecallback(x, u,normal_noise)
-        self.steady_state = fsolve(func=fobj, x0=x0)
-        xa, xb, xc, xp, xe, xg = self.steady_state
+        xa, xb, xc, xp, xe, xg = fsolve(func=fobj, x0=x0)
         fx = (1043.38*xp*(Fa+Fb)+20.92*xe*(Fa+Fb) - 79.23*Fa - 118.34*Fb)
         return -fx 
 
     def get_constraint1(self,u,noise=0.):
-        xa, _, _, _, _, _ = self.steady_state
+        x0 = jnp.array([0.1,0.1,0.1,0.1,0.1,0.1])
+        normal_noise = jnp.sqrt(noise)*jax.random.normal(self.key,(1,)).item()
+        fobj = lambda x: self.odecallback(x, u,normal_noise)
+        xa, xb, xc, xp, xe, xg = fsolve(func=fobj, x0=x0)
         g = jnp.array([0.12-xa])
         return g.item()
     
-    def get_constraint2(self,u,noise=None):
-        _, _, _, _, _, xg = self.steady_state
+    def get_constraint2(self,u,noise=0.):
+        x0 = jnp.array([0.1,0.1,0.1,0.1,0.1,0.1])
+        normal_noise = jnp.sqrt(noise)*jax.random.normal(self.key,(1,)).item()
+        fobj = lambda x: self.odecallback(x, u,normal_noise)
+        xa, xb, xc, xp, xe, xg = fsolve(func=fobj, x0=x0)
         g = jnp.array([0.08-xg])
         return g.item()
 

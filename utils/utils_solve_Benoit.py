@@ -122,13 +122,13 @@ b = 2.
 GP_m = SafeOpt.BO(plant_system,bound,b)
 
 # Load Data - Either SafeOpt, GoOSE, or GP_TR
-data_Safe = jnp.load('data/data_multi_GP_TR_Benoit.npz', allow_pickle=True)
+data_Safe = jnp.load('data/data_multi_SafeOpt_Benoit.npz', allow_pickle=True)
 
 # Plot data
-# plot_obj_con_outputs(data_Safe)
+plot_obj_con_outputs(data_Safe)
 
 # Plot all data together
-plot_all_obj_fun()
+# plot_all_obj_fun()
 
 
 

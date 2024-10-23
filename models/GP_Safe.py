@@ -70,9 +70,9 @@ class GP():
         # === Collect Training Dataset === #
         n_fun                       = len(self.plant_system)
         Y                           = jnp.zeros((n_sample,n_fun))
-        for i in range(n_fun):
-            plant_system_vmap       = vmap(self.plant_system[i],in_axes=(0,None))
-            Y                       = Y.at[:,i].set(plant_system_vmap(X,noise))
+        for i in range(len(X)):
+            for j in range(n_fun):
+                Y                       = Y.at[i,j].set(self.plant_system[j](X[i],noise))
 
         return X,Y
 
