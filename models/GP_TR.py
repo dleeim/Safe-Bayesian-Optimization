@@ -47,7 +47,7 @@ class BO(GP):
             safe_con = NonlinearConstraint(lambda x, i=i: self.lcb(x,i),0,jnp.inf)
             safe_set_cons.append(safe_con)
         safe_set_cons.append(NonlinearConstraint(lambda x: jnp.linalg.norm(x-x_0),0.,r))
-        result = differential_evolution(obj_fun,self.bound,constraints=safe_set_cons,polish=False)
+        result = differential_evolution(obj_fun,self.bound,constraints=safe_set_cons,polish=False,maxiter=10000)
         return result.x, result.fun
 
     def TR_constraint(self,x,x_0,r):

@@ -11,7 +11,7 @@ class WilliamOttoReactor():
     def __init__(self):
         random_seed = random.randint(0, 2**32 - 1)
         self.key = jax.random.PRNGKey(random_seed)
-        self.subkey = 0.
+        self.subkey = self.key
 
     def noise_generator(self):
         self.key, self.subkey = jax.random.split(self.key) 
@@ -43,7 +43,9 @@ class WilliamOttoReactor():
 
     def get_objective(self,u,noise=0.):
         x0 = jnp.array([0.1,0.1,0.1,0.1,0.1,0.1])
-        normal_noise = jnp.sqrt(noise)*jax.random.normal(self.key,(1,)).item()
+        normal_noise = jax.random.normal(self.subkey)
+        normal_noise = jnp.clip(normal_noise,-2.05,2.05)
+        normal_noise = normal_noise * jnp.sqrt(noise)
         Fa = 1.8275 + normal_noise
         Fb, _ = u
         fobj = lambda x: self.odecallback(x, u,normal_noise)
@@ -53,7 +55,7 @@ class WilliamOttoReactor():
 
     def get_constraint1(self,u,noise=0.):
         x0 = jnp.array([0.1,0.1,0.1,0.1,0.1,0.1])
-        normal_noise = jnp.sqrt(noise)*jax.random.normal(self.key,(1,)).item()
+        normal_noise = jnp.sqrt(noise)*jax.random.normal(self.subkey,(1,)).item()
         fobj = lambda x: self.odecallback(x, u,normal_noise)
         xa, xb, xc, xp, xe, xg = fsolve(func=fobj, x0=x0)
         g = jnp.array([0.12-xa])
@@ -61,7 +63,7 @@ class WilliamOttoReactor():
     
     def get_constraint2(self,u,noise=0.):
         x0 = jnp.array([0.1,0.1,0.1,0.1,0.1,0.1])
-        normal_noise = jnp.sqrt(noise)*jax.random.normal(self.key,(1,)).item()
+        normal_noise = jnp.sqrt(noise)*jax.random.normal(self.subkey,(1,)).item()
         fobj = lambda x: self.odecallback(x, u,normal_noise)
         xa, xb, xc, xp, xe, xg = fsolve(func=fobj, x0=x0)
         g = jnp.array([0.08-xg])
@@ -88,11 +90,19 @@ class WilliamOttoReactor():
 if __name__ == "__main__":
     Reactor = WilliamOttoReactor()
     u = jnp.array([4.5,80.])
-    fx = Reactor.get_objective(u)
-    g1 = Reactor.get_constraint1(u)
-    g2 = Reactor.get_constraint2(u)
-    print(fx,g1,g2)
-    # plt.figure()
-    # Reactor.reactor_drawing()
-    # plt.show()
+    sample_mean = []
+    sample_con1 = []
+    sample_con2 = []
+    noise = 0.0002
+    for i in range(10000):
+        sample_mean.append(Reactor.get_objective(u,noise))
+        sample_con1.append(Reactor.get_constraint1(u,noise))
+        sample_con2.append(Reactor.get_constraint2(u,noise))
+        Reactor.noise_generator()
+    sample_mean = jnp.array(sample_mean)
+    sample_con1 = jnp.array(sample_con1)
+    sample_con2 = jnp.array(sample_con2)
+    print('obj:',jnp.mean(sample_mean),jnp.std(sample_mean))
+    print('con1:',jnp.mean(sample_con1),jnp.std(sample_con1))
+    print('con2:',jnp.mean(sample_con2),jnp.std(sample_con2))
 

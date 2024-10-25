@@ -187,6 +187,29 @@ def test_GoOSE():
     # Create plot for outputs
     utils_GoOSE.plant_outputs_drawing(data['i'],data['obj'],data['con'],'Benoit_GoOSE_Outputs.png')
 
+def create_data_for_plot():
+    x_0 = jnp.linspace(-0.6, 1.5, 400)
+    x_1 = jnp.linspace(-1.0, 1.0, 400)
+    X_0, X_1 = jnp.meshgrid(x_0, x_1)
+
+    # Flatten the meshgrid arrays
+    X_0_flat = X_0.ravel()
+    X_1_flat = X_1.ravel()
+
+    # Stack them to create points for lcb function
+    points = jnp.column_stack((X_0_flat, X_1_flat))
+
+    # Apply lcb function using vmap
+    lcb_vmap = vmap(GP_m.lcb, in_axes=(0, None))
+    mask_safe = lcb_vmap(points, 1).reshape(X_0.shape) > 0.
+
+    # Create points for plant system
+    plant_obj_vmap = vmap(plant_system[0])
+    plant_con_vmap = vmap(plant_system[1])
+    obj = jnp.array(plant_obj_vmap(points)).reshape(X_0.shape)
+
+    return X_0, X_1, mask_safe, obj
+
 def test_multiple_Benoit():
     # Class Initialization
     plant_system = [Benoit_Problem.Benoit_System_1,
@@ -246,6 +269,7 @@ def test_multiple_Benoit():
     jnp.savez('data/data_multi_GoOSE_Benoit.npz',**data)
 
 def test_multiple_WilliamOttoReactor():
+    # Class Initialization
     Reactor = WilliamOttoReactor_Problem.WilliamOttoReactor()
     plant_system = [Reactor.get_objective,
                     Reactor.get_constraint1,
@@ -253,9 +277,10 @@ def test_multiple_WilliamOttoReactor():
     bound = jnp.array([[4.,7.],[70.,100.]])
     b = 2.
     GP_m = GoOSE.BO(plant_system,bound,b)
-    n_start = 1
+    n_start = 10
     data = {}
-    noise = 0.
+    noise = 0.001
+    # noise = 0.
 
     for i in range(n_start):
         print(f"iteration: {i}")
@@ -263,19 +288,27 @@ def test_multiple_WilliamOttoReactor():
         data[f'{i}'] = {'sampled_x':[],'sampled_output':[],'observed_x':[],'observed_output':[]}
 
         # GP Initialization: 
-        n_sample = 4
         x_i = jnp.array([6.8,80.])
         r = 0.3
-        X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
-        GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
-        data[f'{i}']['sampled_x'] = X
-        data[f'{i}']['sampled_output'] = Y
+        n_sample = 5
+        X_sample = jnp.empty((0,len(x_i)))
+        Y_sample = jnp.empty((0,len(plant_system)))
+        for count in range(n_sample):
+            X,Y = GP_m.Data_sampling(1,x_i,r,noise)
+            # Reactor.noise_generator
+            X_sample=jnp.append(X_sample,X,axis=0)
+            Y_sample=jnp.append(Y_sample,Y,axis=0)
+        
+        GP_m.GP_initialization(X_sample, Y_sample, 'RBF', multi_hyper=5, var_out=True)
+        
+        data[f'{i}']['sampled_x'] = X_sample
+        data[f'{i}']['sampled_output'] = Y_sample
 
         print(f"\n")
         print(f"Data Sample Input:")
-        print(f"{X}")
+        print(f"{X_sample}")
         print(f"Data Sample Output:")
-        print(f"{Y}")
+        print(f"{Y_sample}")
         print(f"")
 
         # GoOSE
@@ -285,12 +318,13 @@ def test_multiple_WilliamOttoReactor():
             print(f"x_safe_min,min_safe_lcb: {x_safe_min,min_safe_lcb}")
             x_target,target_lcb = GP_m.Target()
             print(f"x_target,target_lcb: {x_target,target_lcb}")
-            if min_safe_lcb <= target_lcb:
+            if min_safe_lcb <= target_lcb or target_lcb == np.inf:
                 x_new = x_safe_min
             else:
                 x_safe_observe = GP_m.explore_safeset(x_target)
                 x_new = x_safe_observe
             print(f"x_new: {x_new}")
+
             Reactor.noise_generator()
             plant_output = GP_m.calculate_plant_outputs(x_new,noise)
             GP_m.add_sample(x_new,plant_output)
@@ -303,66 +337,6 @@ def test_multiple_WilliamOttoReactor():
                 break
     
     jnp.savez('data/data_multi_GoOSE_WilliamOttoReactor.npz',**data)
-
-def create_data_for_plot():
-    x_0 = jnp.linspace(-0.6, 1.5, 400)
-    x_1 = jnp.linspace(-1.0, 1.0, 400)
-    X_0, X_1 = jnp.meshgrid(x_0, x_1)
-
-    # Flatten the meshgrid arrays
-    X_0_flat = X_0.ravel()
-    X_1_flat = X_1.ravel()
-
-    # Stack them to create points for lcb function
-    points = jnp.column_stack((X_0_flat, X_1_flat))
-
-    # Apply lcb function using vmap
-    lcb_vmap = vmap(GP_m.lcb, in_axes=(0, None))
-    mask_safe = lcb_vmap(points, 1).reshape(X_0.shape) > 0.
-
-    # Create points for plant system
-    plant_obj_vmap = vmap(plant_system[0])
-    plant_con_vmap = vmap(plant_system[1])
-    obj = jnp.array(plant_obj_vmap(points)).reshape(X_0.shape)
-
-    return X_0, X_1, mask_safe, obj
-
-def test_GIF():
-    # Preparation for plot
-    filenames = []
-    data = {'i':[],'obj':[],'con':[],'x_0':[],'x_1':[], 'x_target_0':[], 'x_target_1':[]}
-    points = jnp.array([[0.98963043, -0.42596487],[0.44,-1.]])
-    targets = jnp.array([[1.,0.8],[jnp.nan,jnp.nan]])
-
-    for i in range(2):
-        x_new = points[i]
-        target = targets[i]
-        plant_output = GP_m.calculate_plant_outputs(x_new)
-
-        # Create frame
-        data['i'].append(i)
-        data['obj'].append(plant_output[0])
-        data['con'].append(plant_output[1])
-        data['x_0'].append(x_new[0])
-        data['x_1'].append(x_new[1])
-        data['x_target_0']=target[0]
-        data['x_target_1']=target[1]
-
-        t = i*0.1
-        filename = f'frame_{i:02d}.png'
-        X_0, X_1, mask_safe, obj = create_data_for_plot()
-        utils_GoOSE.create_frame(utils_GoOSE.plot_safe_region_Benoit(X,X_0,X_1, mask_safe,obj,bound,data),filename)
-        filenames.append(filename)
-
-        GP_m.add_sample(x_new,plant_output)
-
-    # Create GIF
-    frame_duration = 700
-    GIFname = 'Benoit_GoOSE_Outputs.gif'
-    utils_GoOSE.create_GIF(frame_duration,filenames,GIFname)
-    # Create plot for outputs
-    utils_GoOSE.plant_outputs_drawing(data['i'],data['obj'],data['con'],'Benoit_GoOSE_Outputs.png')
-    
 
 
 if __name__ == "__main__":

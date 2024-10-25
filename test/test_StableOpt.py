@@ -8,8 +8,7 @@ import pandas as pd
 import json
 import time
 from models import StableOpt
-from problems import W_shape_Problem
-from problems import Benoit_Problem
+from problems import W_shape_Problem, WilliamOttoReactor_Problem
 import warnings
 from utils import utils_SafeOpt
 jax.config.update("jax_enable_x64", True)
@@ -89,8 +88,7 @@ def test_Maximize_d_with_constraints():
 
 def test_StableOpt_W_shape():
     # Class Initialization
-    plant_system = [W_shape_Problem.W_shape,
-                    W_shape_Problem.W_shape_constraint]
+    plant_system = [W_shape_Problem.W_shape]
     bound = jnp.array([[-1,2]])
     bound_d = jnp.array([[2,4]])
     b = 2.
@@ -111,9 +109,10 @@ def test_StableOpt_W_shape():
 
     for i in range(n_iter):
         # Find x and d for sample
-        xc0_sample = GP_m.xc0_sampling(n_sample=5)
-        xcmin, fmin = GP_m.Minimize_Maximise(GP_m.lcb,xc0_sample)
+        xcmin, fmin = GP_m.Minimize_Maximise(GP_m.lcb)
+        print(f"xcmin, fmin: {xcmin, fmin}")
         dmax, fdmax = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin)
+        print(f"dmax, fdmax: {dmax, fdmax}")
         plant_output = GP_m.calculate_plant_outputs(xcmin,dmax)[0]
 
         # Add sample into GP
@@ -137,13 +136,79 @@ def test_draw_robust():
     plt.plot(x,outputs)
     plt.show()
 
+def test_multiple_WilliamOttoReactor():
+    # Class Initialization
+    Reactor = WilliamOttoReactor_Problem.WilliamOttoReactor()
+    plant_system = [Reactor.get_objective,
+                    Reactor.get_constraint1,
+                    Reactor.get_constraint2]
+    bound = jnp.array([[4.,7.],[70.,100.]])
+    b = 2.
+    n_start = 1
+    data = {}
+    noise = 0.001
+    Fa = 1.8275
+    bound_d = jnp.array([[Fa-noise*b,Fa+noise*b]])
+    GP_m = StableOpt.BO(plant_system,bound,bound_d,b)
+
+    for i in range(n_start):
+        print(f"iteration: {i}")
+        # Data Storage
+        data[f'{i}'] = {'sampled_x':[],'sampled_output':[],'observed_x':[],'observed_output':[]}
+
+        # GP Initialization: 
+        x_i = jnp.array([6.8,80.])
+        r = 0.3
+        n_sample = 5
+        X_sample = jnp.empty((0,len(x_i)))
+        Y_sample = jnp.empty((0,len(plant_system)))
+        for count in range(n_sample):
+            X,Y = GP_m.Data_sampling(1,x_i,r,noise)
+            Reactor.noise_generator
+            X_sample=jnp.append(X_sample,X,axis=0)
+            Y_sample=jnp.append(Y_sample,Y,axis=0)
+        
+        GP_m.GP_initialization(X_sample, Y_sample, 'RBF', multi_hyper=5, var_out=True)
+        
+        data[f'{i}']['sampled_x'] = X_sample
+        data[f'{i}']['sampled_output'] = Y_sample
+
+        print(f"\n")
+        print(f"Data Sample Input:")
+        print(f"{X_sample}")
+        print(f"Data Sample Output:")
+        print(f"{Y_sample}")
+        print(f"")
+
+        # StableOpt
+        n_iter = 10
+
+        for i in range(n_iter):
+            xcmin, fmin = GP_m.Minimize_Maximise(GP_m.lcb)
+            print(f"xcmin, fmin: {xcmin, fmin}")
+            dmax, fdmax = GP_m.Maximise_d_with_constraints(GP_m.ucb,xcmin)
+            print(f"dmax, fdmax: {dmax, fdmax}")
+            plant_output = GP_m.calculate_plant_outputs(xcmin,dmax)[0]
+
+            # Add sample into GP
+            x = jnp.concatenate((xcmin,dmax))
+            GP_m.add_sample(x,plant_output)
+
+            # Store data
+            data['observed_x'].append(xcmin)
+            data['observed_output'].append(plant_output)
+        
+        jnp.savez('data/data_StableOpt_WilliamOttoReactor.npz', **data)
+        
+
 if __name__ == "__main__":
     # test_GP_inference()
     # test_lcb()
     # test_Maximize_d()
     # test_Minimize_Maximise()
     # test_Maximize_d_with_constraints()
-    test_StableOpt_W_shape()
+    # test_StableOpt_W_shape()
     # test_draw_robust()
+    test_multiple_WilliamOttoReactor()
     pass
 

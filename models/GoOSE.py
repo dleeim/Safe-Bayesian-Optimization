@@ -52,7 +52,10 @@ class BO(GP):
         GP_inference = self.GP_inference_jit(x,self.inference_datasets)
         mean, var = GP_inference[0][i], GP_inference[1][i]
         value = mean - self.b*jnp.sqrt(var)
-        print(x,i,value)
+        if jnp.isnan(mean) or jnp.isnan(var):
+            print(f"NaN detected in LCB at x={x}")
+        elif jnp.isinf(mean) or jnp.isinf(var):
+            print(f"inf detected in LCB at x={x}")
         return value
     
     def infnorm_mean_grad(self,x,i):
@@ -62,15 +65,9 @@ class BO(GP):
     
     def maxmimize_infnorm_mean_grad(self,i):
         lcb_maxnorm_grad_jit = jit(self.infnorm_mean_grad)
-        infnorm_mean_constraints = []
-        
-        for i in range(1,self.n_fun):
-            obj_fun = lambda x, i=i: -lcb_maxnorm_grad_jit(x,i)
-            result = differential_evolution(obj_fun,self.bound,tol=0.1,polish=False)
-            infnorm_mean_constraints.append(-result.fun)
-        max_infnorm_mean_constraints = max(infnorm_mean_constraints)
-        
-        return max_infnorm_mean_constraints
+        obj_fun = lambda x, i=i: -lcb_maxnorm_grad_jit(x,i)
+        result = differential_evolution(obj_fun,self.bound,polish=False)
+        return -result.fun
     
     def minimize_obj_lcb(self):
         obj_fun = lambda x: self.lcb(x,0)
@@ -84,7 +81,6 @@ class BO(GP):
         return value
 
     def Target(self):
-        
         eps = jnp.sqrt(jnp.finfo(jnp.float32).eps)
         obj_fun = lambda x: self.lcb(x[self.nx_dim:],0)
         bound = jnp.vstack((self.bound,self.bound))
@@ -102,11 +98,10 @@ class BO(GP):
             Lipschitz_continuity_constraint_jit = jit(self.Lipschitz_continuity_constraint)
             target_cons = copy.deepcopy(safe_unsafe_cons)
             max_infnorm_mean_constraints = self.maxmimize_infnorm_mean_grad(index)
-            # target_cons.append(NonlinearConstraint(lambda x, index=index: self.lcb(x[:self.nx_dim],index),0,eps))
+            target_cons.append(NonlinearConstraint(lambda x, index=index: self.lcb(x[:self.nx_dim],index),0,eps))
             target_cons.append(NonlinearConstraint(lambda x, index=index: Lipschitz_continuity_constraint_jit(x,index,max_infnorm_mean_constraints),0.,jnp.inf))
-            result = differential_evolution(obj_fun,bound,constraints=target_cons,polish=False)
-
-            # Collect optimal point and standard deviation
+            result = differential_evolution(obj_fun,bound,constraints=target_cons,polish=False,popsize=30)
+            print(result.x,result.fun)
             target.append(result.x[self.nx_dim:])
             lcb_target.append(result.fun)
         
@@ -119,7 +114,6 @@ class BO(GP):
 
     def explore_safeset(self,target):
         obj_fun = lambda x: cdist(x.reshape(1,-1),target.reshape(1,-1))[0][0]
-        cons = copy.deepcopy(self.safe_set_cons)
-        result = differential_evolution(obj_fun,self.bound,constraints=cons,polish=False)
+        result = differential_evolution(obj_fun,self.bound,constraints=self.safe_set_cons,polish=False)
         return result.x
         

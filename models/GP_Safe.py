@@ -201,8 +201,8 @@ class GP():
             - hypopt                : optimal hyperparameter (W,sf2,sn2)
             - invKopt               : inverse of covariance matrix with optimal hyperparameters 
         ''' 
-        lb                          = jnp.array([-1.5] * (self.nx_dim) + [1.] + [-8.])  # lb on parameters (this is inside the exponential)
-        ub                          = jnp.array([1.5] * (self.nx_dim) + [1.] + [-2.])   # ub on parameters (this is inside the exponential)
+        lb                          = jnp.array([-1.5] * (self.nx_dim + 1) + [-5.])  # lb on parameters (this is inside the exponential)
+        ub                          = jnp.array([1.5] * (self.nx_dim + 1) + [-2.])   # ub on parameters (this is inside the exponential)
         bounds                      = jnp.hstack((lb.reshape(self.nx_dim+2,1),
                                                   ub.reshape(self.nx_dim+2,1)))
         

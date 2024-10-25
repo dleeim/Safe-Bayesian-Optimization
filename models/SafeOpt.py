@@ -60,8 +60,7 @@ class BO(GP):
         Minimizer_cons.append(NonlinearConstraint(lambda x: min_obj_ucb - self.lcb(x,0),0,jnp.inf))
 
         # Differential Evolution
-        result = differential_evolution(obj_fun,self.bound,constraints=Minimizer_cons,polish=False)
-
+        result = differential_evolution(obj_fun,self.bound,constraints=Minimizer_cons,polish=False,popsize=30)
         return result.x, jnp.sqrt(-result.fun)
     
     def infnorm_mean_grad(self,x,i):
@@ -71,15 +70,9 @@ class BO(GP):
     
     def maxmimize_infnorm_mean_grad(self,i):
         lcb_maxnorm_grad_jit = jit(self.infnorm_mean_grad)
-        infnorm_mean_constraints = []
-        
-        for i in range(1,self.n_fun):
-            obj_fun = lambda x: -lcb_maxnorm_grad_jit(x,i)
-            result = differential_evolution(obj_fun,self.bound,polish=False)
-            infnorm_mean_constraints.append(-result.fun)
-        max_infnorm_mean_constraints = max(infnorm_mean_constraints)
-        
-        return max_infnorm_mean_constraints
+        obj_fun = lambda x: -lcb_maxnorm_grad_jit(x,i)
+        result = differential_evolution(obj_fun,self.bound,polish=False)        
+        return -result.fun
     
     def lcb_constraint_min(self,x):
         lcb_values = []
@@ -99,11 +92,9 @@ class BO(GP):
         
         safe_unsafe_cons = []
         for i in range(1, self.n_fun):
-            safe_unsafe_cons.append(NonlinearConstraint(lambda x, i=i: self.lcb(x[:self.nx_dim],i)*self.Y_mean[0]/self.Y_mean[i],0.,jnp.inf)) # x[:self.nx_dim] represents input variable in safe region to be optimized for expander.
+            safe_unsafe_cons.append(NonlinearConstraint(lambda x, i=i: self.lcb(x[:self.nx_dim],i),0.,jnp.inf)) # x[:self.nx_dim] represents input variable in safe region to be optimized for expander.
         safe_unsafe_cons.append(NonlinearConstraint(lambda x: self.lcb_constraint_min(x[self.nx_dim:]),-jnp.inf,0.)) # x[self.nx_dim:] represents represents variable in unsafe region to be used for Lipschitz Continuity
         
-        infnorm_mean_grad = jit(self.infnorm_mean_grad)
-
         # Find expander for each constraint
         expanders = []
         std_expanders = []
@@ -114,7 +105,7 @@ class BO(GP):
             maximum_infnorm_mean_constraints = self.maxmimize_infnorm_mean_grad(index)
             Expander_cons.append(NonlinearConstraint(lambda x, index=index: self.lcb(x[:self.nx_dim],index),0,eps))
             Expander_cons.append(NonlinearConstraint(lambda x, index=index: Lipschitz_continuity_constraint_jit(x,index,maximum_infnorm_mean_constraints),0.,jnp.inf))    
-            result = differential_evolution(obj_fun,bound,constraints=Expander_cons,polish=False)
+            result = differential_evolution(obj_fun,bound,constraints=Expander_cons,polish=False,popsize=30)
             
             # Collect optimal point and standard deviation
             expanders.append(result.x[:self.nx_dim])

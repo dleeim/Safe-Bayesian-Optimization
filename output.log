@@ -1,0 +1,21 @@
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+
+
+Data Sample Input:
+[[ 1.35573002 -0.85001718]
+ [ 1.50476178 -0.58181135]
+ [ 1.50770167 -0.87797256]
+ [ 1.33485685 -0.77715299]]
+Data Sample Output:
+[[1.40813929 1.33323518]
+ [1.72732497 1.32988003]
+ [1.72027944 1.49281097]
+ [1.34842158 1.28519605]]
+Y norm
+[[-0.82097368 -0.34307824]
+ [ 1.01275147 -0.38563921]
+ [ 0.97227479  1.68118543]
+ [-1.16405258 -0.95246798]]
+
+/Users/donggyulee/anaconda3/envs/myenv/bin/python: Error while finding module specification for 'test.test_GoOSE.py' (ModuleNotFoundError: __path__ attribute not found on 'test.test_GoOSE' while trying to find 'test.test_GoOSE.py'). Try using 'test.test_GoOSE' instead of 'test.test_GoOSE.py' as the module name.

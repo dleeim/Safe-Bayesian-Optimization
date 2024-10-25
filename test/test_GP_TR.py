@@ -214,6 +214,7 @@ def test_multiple_Benoit():
     jnp.savez('data/data_multi_GP_TR_Benoit.npz',**data)
 
 def test_multiple_WilliamOttoReactor():
+    # Class Initialization
     Reactor = WilliamOttoReactor_Problem.WilliamOttoReactor()
     plant_system = [Reactor.get_objective,
                     Reactor.get_constraint1,
@@ -228,31 +229,37 @@ def test_multiple_WilliamOttoReactor():
         'rho_ub': 0.8
     }
     GP_m = GP_TR.BO(plant_system,bound,b,TR_parameters)
-    n_start = 10
+    n_start = 1
     data = {}
-    noise = 0.
+    noise = 0.001
 
     for i in range(n_start):
         print(f"iteration: {i}")
         # Data Storage
         data[f'{i}'] = {'sampled_x':[],'sampled_output':[],'observed_x':[],'observed_output':[]}
-        
-        # GP Initialization:
-        n_sample = 4
+
+        # GP Initialization: 
         x_old = jnp.array([6.8,80.])
         r_old = 0.3
-        X,Y = GP_m.Data_sampling(n_sample,x_old,r_old,noise)
-        GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
+        n_sample = 5
+        X_sample = jnp.empty((0,len(x_old)))
+        Y_sample = jnp.empty((0,len(plant_system)))
+        for count in range(n_sample):
+            X,Y = GP_m.Data_sampling(1,x_old,r_old,noise)
+            Reactor.noise_generator
+            X_sample=jnp.append(X_sample,X,axis=0)
+            Y_sample=jnp.append(Y_sample,Y,axis=0)
+        
+        GP_m.GP_initialization(X_sample, Y_sample, 'RBF', multi_hyper=5, var_out=True)
         plant_oldoutput = GP_m.calculate_plant_outputs(x_old,noise)
-        print(f"plant_oldoutput: {plant_oldoutput}")
-        data[f'{i}']['sampled_x'] = X
-        data[f'{i}']['sampled_output'] = Y
+        data[f'{i}']['sampled_x'] = X_sample
+        data[f'{i}']['sampled_output'] = Y_sample
 
         print(f"\n")
         print(f"Data Sample Input:")
-        print(f"{X}")
+        print(f"{X_sample}")
         print(f"Data Sample Output:")
-        print(f"{Y}")
+        print(f"{Y_sample}")
         print(f"")
 
         # GP_TR
@@ -275,9 +282,6 @@ def test_multiple_WilliamOttoReactor():
             # Store Data
             data[f'{i}']['observed_x'].append(x_new)
             data[f'{i}']['observed_output'].append(plant_newoutput)
-
-            if abs(plant_system[0](x_new) + 76.03600894648002) <= 0.001:
-                break
             
             # print(x_new,plant_newoutput,r_new)
     jnp.savez('data/data_multi_GP_TR_WilliamOttoReactor.npz',**data)
@@ -289,4 +293,4 @@ if __name__ == "__main__":
     # test_GP_TR_Benoit()
     # test_multiple_Benoit()
     test_multiple_WilliamOttoReactor()
-    pass
+

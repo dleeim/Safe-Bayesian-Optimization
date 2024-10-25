@@ -45,7 +45,7 @@ class GP():
         d_init                      = r_i*r*x/norm
         return d_init
   
-    def Data_sampling(self,n_sample,x_0,r):
+    def Data_sampling(self,n_sample,x_0,r,noise=0.):
         '''
         Description:
             sample input X from a circle with radius r and center at x_0
@@ -67,8 +67,9 @@ class GP():
         # === Collect Training Dataset === #
         n_fun                       = len(self.plant_system)
         Y                           = jnp.zeros((n_sample,n_fun))
-        for i in range(n_fun):
-            Y                       = Y.at[:,i].set(vmap(self.plant_system[i])(X))
+        for i in range(len(X)):
+            for j in range(n_fun):
+                Y                       = Y.at[i,j].set(self.plant_system[j](X[i],noise))
 
         return X,Y
 
@@ -197,8 +198,8 @@ class GP():
             - hypopt                : optimal hyperparameter (W,sf2,sn2)
             - invKopt               : inverse of covariance matrix with optimal hyperparameters 
         ''' 
-        lb                          = jnp.array([-2.] * (self.nx_dim) + [1.] + [-8.])  # lb on parameters (this is inside the exponential)
-        ub                          = jnp.array([2.] * (self.nx_dim) + [1.] + [-2.])   # ub on parameters (this is inside the exponential)
+        lb                          = jnp.array([-1.5] * (self.nx_dim + 1) + [-8.])  # lb on parameters (this is inside the exponential)
+        ub                          = jnp.array([1.5] * (self.nx_dim + 1) + [-2.])   # ub on parameters (this is inside the exponential)
         bounds                      = jnp.hstack((lb.reshape(self.nx_dim+2,1),
                                                   ub.reshape(self.nx_dim+2,1)))
         

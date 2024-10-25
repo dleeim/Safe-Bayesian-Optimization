@@ -74,6 +74,16 @@ def plot_obj_con_outputs(data):
     axs[2].plot(range(n_iter),con2_fun_mean)
     axs[2].fill_between(range(n_iter),con2_fun_lower,con2_fun_upper,alpha=0.3)
     axs[2].plot(jnp.array([0.]*n_iter),'r--',label='safety threshold')
+
+    axs[0].legend()
+    axs[0].set_xlabel('Iteration')
+    axs[0].set_ylabel('Objective Function')
+    axs[1].legend()
+    axs[1].set_xlabel('Iteration')
+    axs[1].set_ylabel('Constraint 1')
+    axs[2].legend()
+    axs[2].set_xlabel('Iteration')
+    axs[2].set_ylabel('Constraint 2')
     plt.show()
     
 def plot_all_obj_fun():
@@ -121,10 +131,14 @@ def plot_all_obj_fun():
 
     axs[0].legend()
     axs[0].set_xlabel('Iteration')
-    axs[0].set_ylabel('Plant Output')
-    axs[1].set_xlabel('Iteration')
-    axs[1].set_ylabel('Constraint Output')
+    axs[0].set_ylabel('Objective Function')
     axs[1].legend()
+    axs[1].set_xlabel('Iteration')
+    axs[1].set_ylabel('Constraint 1')
+    axs[2].legend()
+    axs[2].set_xlabel('Iteration')
+    axs[2].set_ylabel('Constraint 2')
+
     plt.show()
 
 # Load Data - Either SafeOpt, GoOSE, or GP_TR

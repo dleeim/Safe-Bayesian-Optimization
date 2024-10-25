@@ -21,19 +21,24 @@ b = 2.
 GP_m = SafeOpt.BO(plant_system,bound,b)
 
 # GP Initialization: 
-n_sample = 4
+n_sample = 1
 x_i = jnp.array([1.4,-.8])
 r = 0.3
 noise = 0.
-X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
+X_sample = jnp.empty((0,len(x_i)))
+Y_sample = jnp.empty((0,len(plant_system)))
+for i in range(5):
+    X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
+    X_sample=jnp.append(X_sample,X,axis=0)
+    Y_sample=jnp.append(Y_sample,Y,axis=0)
 
 GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
 
 print(f"\n")
 print(f"Data Sample Input:")
-print(f"{X}")
+print(f"{X_sample}")
 print(f"Data Sample Output:")
-print(f"{Y}")
+print(f"{Y_sample}")
 print(f"")
 
 # Tests
@@ -258,7 +263,7 @@ def test_multiple_WilliamOttoReactor():
     GP_m = SafeOpt.BO(plant_system,bound,b)
     n_start = 1
     data = {}
-    noise = 0.
+    noise = 0.001
 
     for i in range(n_start):
         print(f"iteration: {i}")
@@ -266,20 +271,27 @@ def test_multiple_WilliamOttoReactor():
         data[f'{i}'] = {'sampled_x':[],'sampled_output':[],'observed_x':[],'observed_output':[]}
 
         # GP Initialization: 
-        n_sample = 4
         x_i = jnp.array([6.8,80.])
         r = 0.3
-        noise = 0.
-        X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
-        GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
-        data[f'{i}']['sampled_x'] = X
-        data[f'{i}']['sampled_output'] = Y
+        n_sample = 5
+        X_sample = jnp.empty((0,len(x_i)))
+        Y_sample = jnp.empty((0,len(plant_system)))
+        for count in range(n_sample):
+            X,Y = GP_m.Data_sampling(1,x_i,r,noise)
+            Reactor.noise_generator
+            X_sample=jnp.append(X_sample,X,axis=0)
+            Y_sample=jnp.append(Y_sample,Y,axis=0)
+        
+        GP_m.GP_initialization(X_sample, Y_sample, 'RBF', multi_hyper=5, var_out=True)
+        
+        data[f'{i}']['sampled_x'] = X_sample
+        data[f'{i}']['sampled_output'] = Y_sample
 
         print(f"\n")
         print(f"Data Sample Input:")
-        print(f"{X}")
+        print(f"{X_sample}")
         print(f"Data Sample Output:")
-        print(f"{Y}")
+        print(f"{Y_sample}")
         print(f"")
 
         # SafeOpt
@@ -290,17 +302,9 @@ def test_multiple_WilliamOttoReactor():
             minimizer,std_minimizer = GP_m.Minimizer()
             print(f"minimizer,std_minimizer: {minimizer,std_minimizer}")
             expander,std_expander = GP_m.Expander()
-            lipschitz_continuous = False
-
-            for j in range(1,GP_m.n_fun):
-                lipschitz_constraint = GP_m.ucb(expander,j)
-                if lipschitz_constraint >= 0.:
-                    lipschitz_continuous = True
-                    break
-            
             print(f"expander,std_expander: {expander,std_expander}")
 
-            if std_minimizer > std_expander or lipschitz_continuous == False:
+            if std_minimizer > std_expander or std_expander == np.inf or std_expander == np.nan:
                 x_new = minimizer
             else:
                 x_new = expander
