@@ -1,21 +1,551 @@
+
+
+Data Sample Input:
+[[ 1.53711872 -0.67997939]
+ [ 1.20603358 -0.99326013]
+ [ 1.39554766 -0.60839122]
+ [ 1.4110632  -1.00348829]]
+Data Sample Output:
+[[1.77989689 1.43470553]
+ [1.24317762 1.20598816]
+ [1.4686542  1.24219022]
+ [1.5821027  1.41105103]]
+
+iteration: 0
 /Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
   fx = wrapped_fun(x)
 
 
 Data Sample Input:
-[[ 1.35573002 -0.85001718]
- [ 1.50476178 -0.58181135]
- [ 1.50770167 -0.87797256]
- [ 1.33485685 -0.77715299]]
+[[ 7.48203348 80.59698686]
+ [ 6.71507975 79.92687924]
+ [ 6.91638938 79.9933921 ]
+ [ 7.25367117 79.47071407]
+ [ 6.63332051 80.12849759]]
 Data Sample Output:
-[[1.40813929 1.33323518]
- [1.72732497 1.32988003]
- [1.72027944 1.49281097]
- [1.34842158 1.28519605]]
-Y norm
-[[-0.82097368 -0.34307824]
- [ 1.01275147 -0.38563921]
- [ 0.97227479  1.68118543]
- [-1.16405258 -0.95246798]]
+[[1.44421506e+02 3.78165811e-02 4.87058406e-02]
+ [7.84308213e+01 2.98764269e-02 4.28008386e-02]
+ [9.64696375e+01 3.18667206e-02 4.47457814e-02]
+ [1.36194232e+02 3.34964425e-02 4.90049807e-02]
+ [6.86591180e+01 2.95848617e-02 4.14245206e-02]]
 
-/Users/donggyulee/anaconda3/envs/myenv/bin/python: Error while finding module specification for 'test.test_GoOSE.py' (ModuleNotFoundError: __path__ attribute not found on 'test.test_GoOSE' while trying to find 'test.test_GoOSE.py'). Try using 'test.test_GoOSE' instead of 'test.test_GoOSE.py' as the module name.
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+iteration: 1
+
+
+Data Sample Input:
+[[ 7.28639184 79.74715196]
+ [ 6.79482441 80.00361404]
+ [ 6.82152594 79.89907944]
+ [ 7.34184764 80.68390673]
+ [ 7.09911246 79.71690313]]
+Data Sample Output:
+[[1.43809846e+02 3.69601264e-02 4.96655809e-02]
+ [9.21398992e+01 3.35133990e-02 4.45279642e-02]
+ [9.59164995e+01 3.35035530e-02 4.50317361e-02]
+ [1.37443192e+02 3.94655845e-02 4.82968649e-02]
+ [1.25279628e+02 3.54174604e-02 4.80818815e-02]]
+
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+iteration: 2
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+
+
+Data Sample Input:
+[[ 6.80692977 80.00382564]
+ [ 6.53120133 79.96773972]
+ [ 7.53895529 80.35217606]
+ [ 7.2057347  80.42244351]
+ [ 5.99832419 79.95815934]]
+Data Sample Output:
+[[9.11684748e+01 3.28444293e-02 4.43483325e-02]
+ [6.61023513e+01 3.02046051e-02 4.14389507e-02]
+ [1.59420910e+02 3.94499080e-02 5.03231364e-02]
+ [1.24745613e+02 3.71238893e-02 4.73218984e-02]
+ [2.07324898e+01 2.45326714e-02 3.47209600e-02]]
+
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+iteration: 3
+
+
+Data Sample Input:
+[[ 6.67031894 79.93674573]
+ [ 7.30555607 80.03289143]
+ [ 6.88480482 80.00901502]
+ [ 6.53620921 79.72154202]
+ [ 6.67907141 80.11263218]]
+Data Sample Output:
+[[8.06174911e+01 3.20087888e-02 4.32776957e-02]
+ [1.41363880e+02 3.75348379e-02 4.91886959e-02]
+ [1.00040496e+02 3.40836761e-02 4.53408094e-02]
+ [7.07168567e+01 3.02333579e-02 4.23042148e-02]
+ [7.94174394e+01 3.25047384e-02 4.29690217e-02]]
+
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+iteration: 4
+
+
+Data Sample Input:
+[[ 6.74454988 79.94675546]
+ [ 7.0877834  80.71410831]
+ [ 6.84606625 79.96437403]
+ [ 7.04646882 79.38845959]
+ [ 7.49859211 79.93161294]]
+Data Sample Output:
+[[8.07837783e+01 3.01470261e-02 4.30507321e-02]
+ [1.03958678e+02 3.49565895e-02 4.48408080e-02]
+ [9.00373392e+01 3.11193518e-02 4.40754929e-02]
+ [1.16486183e+02 3.15258535e-02 4.72993093e-02]
+ [1.54799052e+02 3.64019104e-02 5.01314663e-02]]
+
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+iteration: 5
+
+
+Data Sample Input:
+[[ 7.37328089 80.66965333]
+ [ 6.82261126 80.00090717]
+ [ 7.33416116 79.96596842]
+ [ 6.81171899 79.91073225]
+ [ 7.05504268 79.62704023]]
+Data Sample Output:
+[[1.40159081e+02 3.94758174e-02 4.85238120e-02]
+ [9.42485345e+01 3.35460789e-02 4.47386124e-02]
+ [1.45210201e+02 3.76207646e-02 4.95710940e-02]
+ [9.42796931e+01 3.32398062e-02 4.48266709e-02]
+ [1.21434721e+02 3.46527423e-02 4.77900303e-02]]
+
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+iteration: 6
+
+
+Data Sample Input:
+[[ 6.83377557 80.75546939]
+ [ 7.21056221 80.72392816]
+ [ 6.65275113 80.81329231]
+ [ 7.24173413 79.99040303]
+ [ 6.78144785 79.79712445]]
+Data Sample Output:
+[[9.52426590e+01 3.86766425e-02 4.45588006e-02]
+ [1.32573366e+02 4.15102024e-02 4.82381333e-02]
+ [7.75919229e+01 3.72918043e-02 4.25025556e-02]
+ [1.44817208e+02 4.01317891e-02 4.99327368e-02]
+ [1.01207752e+02 3.60634692e-02 4.60799701e-02]]
+
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+iteration: 7
+
+
+Data Sample Input:
+[[ 7.65964857 79.61396314]
+ [ 6.93050137 79.89383909]
+ [ 6.52029101 80.18673507]
+ [ 6.70274131 79.89671953]
+ [ 7.18170748 79.6375956 ]]
+Data Sample Output:
+[[1.81682633e+02 3.85478937e-02 5.25799388e-02]
+ [1.03892740e+02 3.35191189e-02 4.57772885e-02]
+ [6.23347388e+01 3.04730037e-02 4.07268650e-02]
+ [8.22557920e+01 3.15026905e-02 4.34393320e-02]
+ [1.31885908e+02 3.50113290e-02 4.86537115e-02]]
+
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+iteration: 8
+
+
+Data Sample Input:
+[[ 7.2862148  80.47655347]
+ [ 6.14340906 79.42016134]
+ [ 5.97686661 80.13270734]
+ [ 6.85510809 79.94529786]
+ [ 7.0427936  80.45050158]]
+Data Sample Output:
+[[1.31907902e+02 3.78097612e-02 4.79148177e-02]
+ [3.79785671e+01 2.47649121e-02 3.80758629e-02]
+ [1.72224334e+01 2.46563039e-02 3.39111254e-02]
+ [9.62765302e+01 3.30722322e-02 4.49471391e-02]
+ [1.08253354e+02 3.58294206e-02 4.57080268e-02]]
+
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+iteration: 9
+
+
+Data Sample Input:
+[[ 6.34809901 80.04089506]
+ [ 6.46188312 80.17486465]
+ [ 6.6463204  79.93485067]
+ [ 6.7373604  79.98887605]
+ [ 6.94967127 79.75913981]]
+Data Sample Output:
+[[4.39616128e+01 2.62155175e-02 3.81554409e-02]
+ [5.23118843e+01 2.77268771e-02 3.92086121e-02]
+ [7.13826534e+01 2.89688145e-02 4.19251229e-02]
+ [7.90768268e+01 2.99629957e-02 4.27919819e-02]
+ [1.01809631e+02 3.13434783e-02 4.54957877e-02]]
+
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:438: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  g = append(wrapped_grad(x), 0.0)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)
+/Users/donggyulee/anaconda3/envs/myenv/lib/python3.12/site-packages/scipy/optimize/_slsqp_py.py:434: RuntimeWarning: Values in x were outside bounds during a minimize step, clipping to bounds
+  fx = wrapped_fun(x)

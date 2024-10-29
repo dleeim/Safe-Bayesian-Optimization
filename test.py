@@ -12,6 +12,4 @@ from problems import Benoit_Problem, WilliamOttoReactor_Problem
 from problems import Rosenbrock_Problem
 from utils import utils_SafeOpt
 key = jax.random.PRNGKey(0)
-a = np.inf
-if jnp.isinf(a):
-    print("IT IS")
+print(int(key))

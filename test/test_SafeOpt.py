@@ -12,34 +12,32 @@ import warnings
 from utils import utils_SafeOpt
 jax.config.update("jax_enable_x64", True)
 
+warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
+
 # Class Initialization
 jax.config.update("jax_enable_x64", True)
 plant_system = [Benoit_Problem.Benoit_System_1,
                 Benoit_Problem.con1_system_tight]
 bound = jnp.array([[-.6,1.5],[-1.,1.]])
-b = 2.
+b = 3.
 GP_m = SafeOpt.BO(plant_system,bound,b)
 
 # GP Initialization: 
-n_sample = 1
+n_sample = 4
 x_i = jnp.array([1.4,-.8])
 r = 0.3
 noise = 0.
-X_sample = jnp.empty((0,len(x_i)))
-Y_sample = jnp.empty((0,len(plant_system)))
-for i in range(5):
-    X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
-    X_sample=jnp.append(X_sample,X,axis=0)
-    Y_sample=jnp.append(Y_sample,Y,axis=0)
-
+X,Y = GP_m.Data_sampling(n_sample,x_i,r,noise)
 GP_m.GP_initialization(X, Y, 'RBF', multi_hyper=5, var_out=True)
 
 print(f"\n")
 print(f"Data Sample Input:")
-print(f"{X_sample}")
+print(f"{X}")
 print(f"Data Sample Output:")
-print(f"{Y_sample}")
-print(f"")
+print(f"{Y}")
+print(f"Y norm")
+print(f"{GP_m.Y_norm}")
+print()
 
 # Tests
 def test_GP_inference():
@@ -140,7 +138,7 @@ def test_SafeOpt_Benoit():
 
     # SafeOpt
     n_iteration = 10
-
+    print("Im here")
     for i in range(n_iteration):
         # Create sobol_seq sample for Expander
         start = time.time()
@@ -261,18 +259,19 @@ def test_multiple_WilliamOttoReactor():
     bound = jnp.array([[4.,7.],[70.,100.]])
     b = 2.
     GP_m = SafeOpt.BO(plant_system,bound,b)
-    n_start = 1
+    n_start = 10
     data = {}
     noise = 0.001
 
     for i in range(n_start):
         print(f"iteration: {i}")
+
         # Data Storage
         data[f'{i}'] = {'sampled_x':[],'sampled_output':[],'observed_x':[],'observed_output':[]}
 
         # GP Initialization: 
         x_i = jnp.array([6.8,80.])
-        r = 0.3
+        r = 1.
         n_sample = 5
         X_sample = jnp.empty((0,len(x_i)))
         Y_sample = jnp.empty((0,len(plant_system)))
@@ -303,12 +302,14 @@ def test_multiple_WilliamOttoReactor():
             print(f"minimizer,std_minimizer: {minimizer,std_minimizer}")
             expander,std_expander = GP_m.Expander()
             print(f"expander,std_expander: {expander,std_expander}")
+            print(type(std_expander))
 
-            if std_minimizer > std_expander or std_expander == np.inf or std_expander == np.nan:
+            if std_minimizer > std_expander or std_expander == np.inf or std_expander == np.nan or std_expander == np.inf or std_expander == np.nan:
                 x_new = minimizer
             else:
                 x_new = expander
             print(f"x_new: {x_new}")
+            
             Reactor.noise_generator()
             plant_output = GP_m.calculate_plant_outputs(x_new,noise)
             GP_m.add_sample(x_new,plant_output)
@@ -316,10 +317,6 @@ def test_multiple_WilliamOttoReactor():
             # Store Data
             data[f'{i}']['observed_x'].append(x_new)
             data[f'{i}']['observed_output'].append(plant_output)
-
-            # Finish the iteration early 
-            if std_expander < 0.04 and std_minimizer < 0.04:
-                break
     
     jnp.savez('data/data_multi_SafeOpt_WilliamOttoReactor.npz',**data)
 
@@ -379,10 +376,10 @@ def test_GIF():
 
     
 if __name__ == "__main__":
-    # test_GP_inference()
-    # test_ucb()
-    # test_lcb()
-    # test_minimize_obj_ucb()
+#     test_GP_inference()
+#     test_ucb()
+#     test_lcb()
+#     test_minimize_obj_ucb()
     # test_Minimizer()
     # test_mean_grad_jit()
     # test_maxmimize_maxnorm_mean_grad()

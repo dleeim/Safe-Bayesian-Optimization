@@ -284,18 +284,23 @@ def test_multiple_WilliamOttoReactor():
 
     for i in range(n_start):
         print(f"iteration: {i}")
+        
         # Data Storage
         data[f'{i}'] = {'sampled_x':[],'sampled_output':[],'observed_x':[],'observed_output':[]}
 
         # GP Initialization: 
         x_i = jnp.array([6.8,80.])
-        r = 0.3
+        r = 1.
+        n_sample = 5
+        # GP Initialization: 
+        x_i = jnp.array([6.8,80.])
+        r = 1
         n_sample = 5
         X_sample = jnp.empty((0,len(x_i)))
         Y_sample = jnp.empty((0,len(plant_system)))
         for count in range(n_sample):
             X,Y = GP_m.Data_sampling(1,x_i,r,noise)
-            # Reactor.noise_generator
+            Reactor.noise_generator
             X_sample=jnp.append(X_sample,X,axis=0)
             Y_sample=jnp.append(Y_sample,Y,axis=0)
         
@@ -313,11 +318,13 @@ def test_multiple_WilliamOttoReactor():
 
         # GoOSE
         n_iteration = 20
+
         for j in range(n_iteration):
             x_safe_min,min_safe_lcb = GP_m.minimize_obj_lcb()
             print(f"x_safe_min,min_safe_lcb: {x_safe_min,min_safe_lcb}")
             x_target,target_lcb = GP_m.Target()
             print(f"x_target,target_lcb: {x_target,target_lcb}")
+            
             if min_safe_lcb <= target_lcb or target_lcb == np.inf:
                 x_new = x_safe_min
             else:
@@ -332,9 +339,6 @@ def test_multiple_WilliamOttoReactor():
             # Store Data
             data[f'{i}']['observed_x'].append(x_new)
             data[f'{i}']['observed_output'].append(plant_output)
-
-            if abs(plant_system[0](x_new) + 76.03600894648002) <= 0.001:
-                break
     
     jnp.savez('data/data_multi_GoOSE_WilliamOttoReactor.npz',**data)
 
@@ -354,5 +358,3 @@ if __name__ == "__main__":
     test_multiple_WilliamOttoReactor()
     # test_GIF()
     pass
-
-

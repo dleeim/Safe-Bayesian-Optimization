@@ -40,11 +40,12 @@ class GP():
         Returns: 
             - d_init                : sampled distances from (0,0)
         '''
-        # points                           = jax.random.normal(key, (n_sample,x_dim))
-        sampler                     = qmc.Sobol(d=x_dim, scramble=True)
+        seed                        = int(jax.random.randint(key, (), 0, 1e6))
+        sampler                     = qmc.Sobol(d=x_dim, scramble=True, seed=seed)
         points                      = sampler.random(n=n_sample) * 2 - 1
         norm                        = jnp.linalg.norm(points,axis=-1).reshape(-1,1)
-        r                           = (jax.random.uniform(key, (n_sample,1))) 
+        key, subkey                 = jax.random.split(key)
+        r                           = (jax.random.uniform(subkey, (n_sample,1))) 
         d_init                      = r_i*r*points/norm
         return d_init
   
@@ -72,12 +73,12 @@ class GP():
         Y                           = jnp.zeros((n_sample,n_fun))
         for i in range(len(X)):
             for j in range(n_fun):
-                Y                       = Y.at[i,j].set(self.plant_system[j](X[i],noise))
+                Y                   = Y.at[i,j].set(self.plant_system[j](X[i],noise))
 
         return X,Y
 
     #########################################
-        # --- GP Initialization --- #
+        # --- GP Operations --- #
     #########################################
 
     def data_normalization(self):
@@ -240,15 +241,19 @@ class GP():
         return hypopt, invKopt
 
     def update_inference_dataset(self):
-        inference_datasets = self.inference_datasets
-        inference_datasets["X_mean"]   = self.X_mean
-        inference_datasets["X_std"]    = self.X_std
-        inference_datasets["Y_mean"]   = self.Y_mean
-        inference_datasets["Y_std"]    = self.Y_std
-        inference_datasets["X_norm"]   = self.X_norm
-        inference_datasets["Y_norm"]   = self.Y_norm
-        inference_datasets["invKopt"]  = self.invKopt
-        inference_datasets["hypopt"]   = self.hypopt
+        inference_datasets              = self.inference_datasets
+        inference_datasets["X_mean"]    = self.X_mean
+        inference_datasets["X_std"]     = self.X_std
+        inference_datasets["Y_mean"]    = self.Y_mean
+        inference_datasets["Y_std"]     = self.Y_std
+        inference_datasets["X_norm"]    = self.X_norm
+        inference_datasets["Y_norm"]    = self.Y_norm
+        inference_datasets["invKopt"]   = self.invKopt
+        inference_datasets["hypopt"]    = self.hypopt
+
+    ###################################################
+                # --- GP Initialization --- #
+    ###################################################
             
     def GP_initialization(self, X, Y, kernel, multi_hyper, var_out=True):
         '''
@@ -277,7 +282,11 @@ class GP():
         # Find optimal hyperparameter and inverse of covariance matrix
         self.hypopt, self.invKopt   = self.determine_hyperparameters(self.X_norm,self.Y_norm)
         self.update_inference_dataset()
-    
+
+    ###################################################
+                # --- GP Add Sample --- #
+    ###################################################
+
     def add_sample(self,x_new,y_new):
         '''
         Description:

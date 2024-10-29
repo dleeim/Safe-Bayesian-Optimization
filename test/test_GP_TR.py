@@ -222,14 +222,14 @@ def test_multiple_WilliamOttoReactor():
     bound = jnp.array([[4.,7.],[70.,100.]])
     b = 2.
     TR_parameters = {
-        'radius_max': 1,
+        'radius_max': 1.5,
         'radius_red': 0.8,
         'radius_inc': 1.1,
         'rho_lb': 0.2,
         'rho_ub': 0.8
     }
     GP_m = GP_TR.BO(plant_system,bound,b,TR_parameters)
-    n_start = 1
+    n_start = 10
     data = {}
     noise = 0.001
 
@@ -240,7 +240,7 @@ def test_multiple_WilliamOttoReactor():
 
         # GP Initialization: 
         x_old = jnp.array([6.8,80.])
-        r_old = 0.3
+        r_old = 1.
         n_sample = 5
         X_sample = jnp.empty((0,len(x_old)))
         Y_sample = jnp.empty((0,len(plant_system)))
@@ -252,6 +252,7 @@ def test_multiple_WilliamOttoReactor():
         
         GP_m.GP_initialization(X_sample, Y_sample, 'RBF', multi_hyper=5, var_out=True)
         plant_oldoutput = GP_m.calculate_plant_outputs(x_old,noise)
+        
         data[f'{i}']['sampled_x'] = X_sample
         data[f'{i}']['sampled_output'] = Y_sample
 

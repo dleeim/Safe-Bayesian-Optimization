@@ -93,13 +93,14 @@ def plot_all_obj_fun():
 
     data_array = [data_SafeOpt,data_GoOSE,data_GP_TR]
     data_array_name = ["SafeOpt","GoOSE","GP_TR"]
-    fig, axs = plt.subplots(1,2,figsize=(10,5))
+    fig, axs = plt.subplots(1,3,figsize=(15,5))
     
     for i in range(len(data_array)):
         data = data_array[i]
         n_samples = []
         obj_fun_outputs = []
-        con_fun_outputs = []
+        con1_fun_outputs = []
+        con2_fun_outputs = []
         n_start = len(data.items())
 
         for j in range(n_start):
@@ -113,42 +114,49 @@ def plot_all_obj_fun():
             obj_fun_outputs.append(observed_output[:,0])
             output_nan = jnp.array((max_n_sample-len(obj_fun_outputs[k]))*[jnp.nan])
             obj_fun_outputs[k] = jnp.append(obj_fun_outputs[k],output_nan)
-            con_fun_outputs.append(observed_output[:,1])
-            con_fun_outputs[k] = jnp.append(con_fun_outputs[k],output_nan)
+            con1_fun_outputs.append(observed_output[:,1])
+            con1_fun_outputs[k] = jnp.append(con1_fun_outputs[k],output_nan)
+            con2_fun_outputs.append(observed_output[:,2])
+            con2_fun_outputs[k] = jnp.append(con2_fun_outputs[k],output_nan)
 
         obj_fun_outputs = jnp.array(obj_fun_outputs)
-        con_fun_outputs = jnp.array(con_fun_outputs)
+        con1_fun_outputs = jnp.array(con1_fun_outputs)
+        con2_fun_outputs = jnp.array(con2_fun_outputs)
 
         # Find mean and std
         obj_fun_mean = jnp.nanmean(obj_fun_outputs,axis=0)
-        con_fun_mean = jnp.nanmean(con_fun_outputs,axis=0)
+        con1_fun_mean = jnp.nanmean(con1_fun_outputs,axis=0)
+        con2_fun_mean = jnp.nanmean(con2_fun_outputs,axis=0)
 
         n_iter = len(obj_fun_mean)
 
         axs[0].plot(range(n_iter),obj_fun_mean,label=data_array_name[i])
-        axs[1].plot(range(n_iter),con_fun_mean,label=data_array_name[i])
-        axs[1].plot(np.array([0.]*n_iter),'r--',label='safety threshold')
+        axs[1].plot(range(n_iter),con1_fun_mean,label=data_array_name[i])
+        axs[2].plot(range(n_iter),con2_fun_mean,label=data_array_name[i])
 
-    axs[0].legend()
     axs[0].set_xlabel('Iteration')
     axs[0].set_ylabel('Objective Function')
-    axs[1].legend()
+    axs[0].plot(jnp.array([-76.]*n_iter),'r--',label='minimun value')
+    axs[0].legend()
     axs[1].set_xlabel('Iteration')
     axs[1].set_ylabel('Constraint 1')
-    axs[2].legend()
+    axs[1].plot(np.array([0.]*n_iter),'r--',label='safety threshold')
+    axs[1].legend()
     axs[2].set_xlabel('Iteration')
     axs[2].set_ylabel('Constraint 2')
+    axs[2].plot(np.array([0.]*n_iter),'r--',label='safety threshold') 
+    axs[2].legend()
 
     plt.show()
 
 # Load Data - Either SafeOpt, GoOSE, or GP_TR
-data_Safe = jnp.load('data/data_multi_GoOSE_WilliamOttoReactor.npz',allow_pickle=True)
+data_Safe = jnp.load('data/data_multi_GP_TR_WilliamOttoReactor.npz',allow_pickle=True)
 
 # Plot data
-plot_obj_con_outputs(data_Safe)
+# plot_obj_con_outputs(data_Safe)
 
 # Plot all data together
-# plot_all_obj_fun()
+plot_all_obj_fun()
 
 
 

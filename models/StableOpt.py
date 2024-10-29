@@ -104,7 +104,7 @@ class BO(GP):
 
         obj_fun = lambda xc: self.Maximise_d(fun,xc,0)
 
-        res = differential_evolution(obj_fun,self.bound,constraints=max_safe_cons,polish=False,popsize=30)
+        res = differential_evolution(obj_fun,self.bound,constraints=max_safe_cons,polish=False)
         return res.x, res.fun
     
     def Maximise_d_with_constraints(self,fun,xc):
@@ -115,6 +115,6 @@ class BO(GP):
             con = NonlinearConstraint(lambda xc, index=index: self.Maximise_d(self.lcb,xc,index),0.,jnp.inf)
             max_safe_cons.append(con) 
         obj_fun = lambda d: -1*fun(xc,d,0)
-        res_best = differential_evolution(obj_fun,self.bound_d,constraints=max_safe_cons,polish=False,popsize=30)
+        res_best = differential_evolution(obj_fun,self.bound_d,constraints=max_safe_cons,polish=False)
         return res_best.x, -res_best.fun
         
