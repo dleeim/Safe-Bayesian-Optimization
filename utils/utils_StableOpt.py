@@ -128,63 +128,6 @@ def create_W_Shape_outcomes():
     # Create plot for robust regret
     create_Robust_Regret_Plot(Robust_Regret)
 
-
-# def play():
-#     plant_system = [W_shape_Problem.W_shape]
-#     bound = jnp.array([[-1,2]])
-#     bound_d = jnp.array([[2,4]])
-#     b = 2.
-#     GP_m = StableOpt.BO(plant_system,bound,bound_d,b)
-#     GP_m.GP_initialization(data['sampled_x'],data['sampled_output'],'RBF',multi_hyper=5,var_out=True)
-#     for i in range(1,data['observed_x'].shape[0]+1):
-#         print(data['observed_x'][i-1])
-#         GP_m.add_sample(data['observed_x'][i-1],data['observed_output'][i-1])
-    
-
-#     for j in data['observed_x'][:i]:
-#         xc_min = jnp.array([j[0]])
-#         d0_sample = GP_m.d0_sampling(n_sample=5)
-#         dmax, value = GP_m.Maximise_d_with_constraints(GP_m.ucb,xc_min)
-        
-#         output = GP_m.calculate_plant_outputs(xc_min,dmax)
-        
-#         print(f"xc_min,dmax,output:{xc_min,dmax,output}")
-
-#     xc = jnp.array([-0.3371355])
-#     output_max = -100.
-
-#     for w in jnp.linspace(GP_m.bound_d[:,0],GP_m.bound_d[:,1],100):
-#         output = GP_m.ucb(xc,w,0)
-#         if output > output_max:
-#             output_max = output
-#             d_max = w
-    
-#     print(output_max)
-#     print(d_max)
-
-#     # Store data for robust regret
-#     output_min = jnp.inf
-#     for j in data['observed_x'][:i+1]:
-#         xc_min = jnp.array([j[0]])
-#         dmax, value = GP_m.Maximise_d_with_constraints(GP_m.ucb,xc_min)
-        
-#         output = GP_m.calculate_plant_outputs(xc_min,dmax)
-        
-#         print(f"xc_min,dmax,output:{xc_min,dmax,output}")
-        
-#         if output < output_min:
-#             output_min = output.item()
-#             xc_min_of_min = xc_min
-#             dmax_for_min = dmax
-    
-#     print(f"_____xc_min_of_min,dmax_for_min,output_min {xc_min_of_min,dmax_for_min,output_min}")
-
-#     fig, axs = plt.subplots(1, 2,figsize=(12,6))
-#     plot_contour_W_shape(fig,axs,GP_m)
-#     plt.show()
-
-
-
 # Load Data
 data = jnp.load('data/data_StableOpt.npz')
 

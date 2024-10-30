@@ -21,14 +21,16 @@ class BO(GP):
         self.b = b
         self.GP_inference_jit = jit(self.GP_inference) 
 
-    def calculate_plant_outputs(self,x,d):
+    def calculate_plant_outputs(self,x,noise=0):
         plant_output            = []
+        disturbance             = 0.
         for plant in self.plant_system:
-            plant_output.append(plant(x,d)) 
+            output,disturbance = plant(x,noise)
+            plant_output.append(output) 
 
-        return jnp.array(plant_output)
+        return jnp.array(plant_output), disturbance
     
-    def Data_sampling_with_perbutation(self,n_sample,x=1.,r=1.):
+    def Data_sampling_with_perbutation(self,n_sample,x=None,r=None):
         if x==None and r==None:
             fraction_x = sobol_seq.i4_sobol_generate(self.nxc_dim,n_sample)
             fraction_d = sobol_seq.i4_sobol_generate(self.nd_dim,n_sample)
@@ -40,6 +42,24 @@ class BO(GP):
             x_samples = jnp.hstack((xc_samples,d_samples))
         
         return x_samples,plant_output
+
+    def Data_sampling_output_and_perturbation(self,n_sample,x_0,r,noise=0.):
+        # === Collect Training Dataset (Input) === #
+        self.key, subkey            = jax.random.split(self.key) 
+        x_dim                       = jnp.shape(x_0)[0]                           
+        X                           = self.Ball_sampling(x_dim,n_sample,r,subkey)
+        X                           += x_0
+
+        # === Collect Training Dataset === #
+        n_fun                       = len(self.plant_system)
+        Y                           = jnp.zeros((n_sample,n_fun))
+        D                           = jnp.zeros((n_sample,len(self.bound_d)))
+        for i in range(len(X)):
+            for j in range(n_fun):
+                y, d                = self.plant_system[j](X[i],noise)
+                Y                   = Y.at[i,j].set(y)
+            D                       = D.at[i].set(d)
+        return X,Y,D
 
     def mean(self,xc,d,i):
         if xc.ndim != 1 or d.ndim != 1:
@@ -84,8 +104,7 @@ class BO(GP):
         obj_fun = lambda d, i=i: -fun(xc,d,i) # negative sign for maximization
         n_start = 5
         max_val = -jnp.inf
-        fun_grad_jit = jit(grad(fun,argnums=1))
-        # obj_grad = lambda d, i=i: fun_grad_jit(xc,d,i)
+
         for x0 in jnp.linspace(self.bound_d[:,0],self.bound_d[:,1],n_start):
             res = minimize(obj_fun,x0,bounds=self.bound_d,jac='3-point',method='SLSQP')
 
@@ -93,13 +112,29 @@ class BO(GP):
                 max_val = -res.fun
     
         return max_val
+    
+    def Minimise_d(self,fun,xc,i):
+        if fun not in [self.ucb, self.lcb, self.mean]:
+            raise ValueError("fun needs to be either self.ucb, lcb or mean")
+
+        obj_fun = lambda d, i=i: fun(xc,d,i) # negative sign for maximization
+        n_start = 5
+        min_val = jnp.inf
+
+        for x0 in jnp.linspace(self.bound_d[:,0],self.bound_d[:,1],n_start):
+            res = minimize(obj_fun,x0,bounds=self.bound_d,jac='3-point',method='SLSQP')
+
+            if res.fun < min_val:
+                min_val = res.fun
+    
+        return min_val
 
     def Minimize_Maximise(self,fun): # NEED TO FILTER OUT START VALUE TO BE IN SAFE SET
         if fun not in [self.ucb, self.lcb, self.mean]:
             raise ValueError("fun needs to be either self.ucb, lcb or mean")
         max_safe_cons = []
         for index in range(1, self.n_fun):
-            con = NonlinearConstraint(lambda xc, index=index: self.Maximise_d(self.lcb,xc,index),0.,jnp.inf)
+            con = NonlinearConstraint(lambda xc, index=index: self.Minimise_d(self.lcb,xc,index),0.,jnp.inf)
             max_safe_cons.append(con) 
 
         obj_fun = lambda xc: self.Maximise_d(fun,xc,0)
@@ -112,9 +147,8 @@ class BO(GP):
             raise ValueError("fun needs to be either self.ucb, lcb or mean")
         max_safe_cons = []
         for index in range(1, self.n_fun):
-            con = NonlinearConstraint(lambda xc, index=index: self.Maximise_d(self.lcb,xc,index),0.,jnp.inf)
+            con = NonlinearConstraint(lambda d, index=index: self.lcb(xc,d,index),0.,jnp.inf)
             max_safe_cons.append(con) 
-        obj_fun = lambda d: -1*fun(xc,d,0)
-        res_best = differential_evolution(obj_fun,self.bound_d,constraints=max_safe_cons,polish=False)
-        return res_best.x, -res_best.fun
-        
+        obj_fun = lambda d: -fun(xc,d,0)
+        res = differential_evolution(obj_fun,self.bound_d,constraints=max_safe_cons,polish=False)
+        return res.x, -res.fun

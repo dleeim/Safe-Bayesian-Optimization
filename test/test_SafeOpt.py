@@ -277,7 +277,7 @@ def test_multiple_WilliamOttoReactor():
         Y_sample = jnp.empty((0,len(plant_system)))
         for count in range(n_sample):
             X,Y = GP_m.Data_sampling(1,x_i,r,noise)
-            Reactor.noise_generator
+            Reactor.noise_generator()
             X_sample=jnp.append(X_sample,X,axis=0)
             Y_sample=jnp.append(Y_sample,Y,axis=0)
         
@@ -294,7 +294,7 @@ def test_multiple_WilliamOttoReactor():
         print(f"")
 
         # SafeOpt
-        n_iteration = 20
+        n_iteration = 30
 
         for j in range(n_iteration):
             # Create sobol_seq sample for Expander

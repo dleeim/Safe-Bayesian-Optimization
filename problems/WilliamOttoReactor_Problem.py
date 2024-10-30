@@ -8,17 +8,18 @@ jax.config.update("jax_enable_x64", True)
 
 class WilliamOttoReactor():
 
-    def __init__(self):
+    def __init__(self,measure_disturbance=False):
         random_seed = random.randint(0, 2**32 - 1)
         self.key = jax.random.PRNGKey(random_seed)
         self.subkey = self.key
+        self.measure_disturbance = measure_disturbance
 
     def noise_generator(self):
         self.key, self.subkey = jax.random.split(self.key) 
 
     def odecallback(self,w, x, normal_noise):
         xa, xb, xc, xp, xe, xg = w
-        Fa = 1.8275 + normal_noise
+        Fa = 1.8275 
         Fb, Tr = x
         Fr = Fa + Fb
 
@@ -46,28 +47,50 @@ class WilliamOttoReactor():
         normal_noise = jax.random.normal(self.subkey)
         normal_noise = jnp.clip(normal_noise,-2.05,2.05)
         normal_noise = normal_noise * jnp.sqrt(noise)
+
         Fa = 1.8275 + normal_noise
         Fb, _ = u
+
         fobj = lambda x: self.odecallback(x, u,normal_noise)
         xa, xb, xc, xp, xe, xg = fsolve(func=fobj, x0=x0)
         fx = (1043.38*xp*(Fa+Fb)+20.92*xe*(Fa+Fb) - 79.23*Fa - 118.34*Fb)
-        return -fx 
+        
+        if not self.measure_disturbance:
+            return -fx
+        if self.measure_disturbance:
+            return -fx, Fa
 
     def get_constraint1(self,u,noise=0.):
         x0 = jnp.array([0.1,0.1,0.1,0.1,0.1,0.1])
-        normal_noise = jnp.sqrt(noise)*jax.random.normal(self.subkey,(1,)).item()
+        normal_noise = jax.random.normal(self.subkey)
+        normal_noise = jnp.clip(normal_noise,-2.05,2.05)
+        normal_noise = normal_noise * jnp.sqrt(noise)
+        Fa = 1.8275 + normal_noise
+
         fobj = lambda x: self.odecallback(x, u,normal_noise)
         xa, xb, xc, xp, xe, xg = fsolve(func=fobj, x0=x0)
         g = jnp.array([0.12-xa])
-        return g.item()
+        
+        if not self.measure_disturbance:
+            return g.item()
+        if self.measure_disturbance:
+            return g.item(), Fa
     
     def get_constraint2(self,u,noise=0.):
         x0 = jnp.array([0.1,0.1,0.1,0.1,0.1,0.1])
-        normal_noise = jnp.sqrt(noise)*jax.random.normal(self.subkey,(1,)).item()
+        normal_noise = jax.random.normal(self.subkey)
+        normal_noise = jnp.clip(normal_noise,-2.05,2.05)
+        normal_noise = normal_noise * jnp.sqrt(noise)
+        Fa = 1.8275 + normal_noise
+
         fobj = lambda x: self.odecallback(x, u,normal_noise)
         xa, xb, xc, xp, xe, xg = fsolve(func=fobj, x0=x0)
         g = jnp.array([0.08-xg])
-        return g.item()
+        
+        if not self.measure_disturbance:
+            return g.item()
+        if self.measure_disturbance:
+            return g.item(), Fa
 
     def reactor_drawing(self):
         n_sample = 50

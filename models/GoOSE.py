@@ -52,6 +52,7 @@ class BO(GP):
         GP_inference = self.GP_inference_jit(x,self.inference_datasets)
         mean, var = GP_inference[0][i], GP_inference[1][i]
         value = mean - self.b*jnp.sqrt(var)
+        # print(x,i,value)
         return value
     
     def infnorm_mean_grad(self,x,i):
@@ -71,7 +72,7 @@ class BO(GP):
         return value
     
     def Target(self):
-        eps = jnp.sqrt(jnp.finfo(jnp.float32).eps)
+        eps = jnp.sqrt(jnp.finfo(jnp.float16).eps)
         obj_fun = lambda x: self.lcb(x[self.nx_dim:],0)
         bound = jnp.vstack((self.bound,self.bound))
 

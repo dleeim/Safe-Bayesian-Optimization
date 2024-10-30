@@ -12,6 +12,7 @@ from utils import utils_SafeOpt
 import warnings
 jax.config.update("jax_enable_x64", True)
 warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
+warnings.filterwarnings("ignore", message="Values in x were outside bounds during a minimize step, clipping to bounds")
 
 plant_system = [Benoit_Problem.Benoit_System_1,
                 Benoit_Problem.con1_system_tight]
@@ -246,7 +247,7 @@ def test_multiple_WilliamOttoReactor():
         Y_sample = jnp.empty((0,len(plant_system)))
         for count in range(n_sample):
             X,Y = GP_m.Data_sampling(1,x_old,r_old,noise)
-            Reactor.noise_generator
+            Reactor.noise_generator()
             X_sample=jnp.append(X_sample,X,axis=0)
             Y_sample=jnp.append(Y_sample,Y,axis=0)
         
@@ -264,14 +265,16 @@ def test_multiple_WilliamOttoReactor():
         print(f"")
 
         # GP_TR
-        n_iteration = 20
+        n_iteration = 30
 
         for j in range(n_iteration):
             x_new, obj = GP_m.minimize_obj_lcb(r_old,x_old)
+            print(f"after: minimization x_new: {x_new}")
             Reactor.noise_generator()
             plant_newoutput = GP_m.calculate_plant_outputs(x_new,noise)
+            print(f"after plant_newoutput = {plant_newoutput}")
             x_update, r_new = GP_m.update_TR(x_old,x_new,r_old,plant_oldoutput,plant_newoutput)
-            
+            print(f"after update TR x_update, r_new: {x_update,r_new}")
             # Preparation for next iter:
             x_old = x_update
             r_old = r_new
@@ -283,6 +286,7 @@ def test_multiple_WilliamOttoReactor():
             # Store Data
             data[f'{i}']['observed_x'].append(x_new)
             data[f'{i}']['observed_output'].append(plant_newoutput)
+            print(x_new, plant_newoutput)
             
             # print(x_new,plant_newoutput,r_new)
     jnp.savez('data/data_multi_GP_TR_WilliamOttoReactor.npz',**data)

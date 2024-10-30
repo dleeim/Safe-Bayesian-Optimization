@@ -81,7 +81,7 @@ class BO(GP):
         return value
 
     def Expander(self):
-        eps = jnp.sqrt(jnp.finfo(jnp.float32).eps)
+        eps = jnp.sqrt(jnp.finfo(jnp.float16).eps)
         obj_fun = lambda x: -self.GP_inference_jit(x[:self.nx_dim],self.inference_datasets)[1][0] # objective function is -1*variance as differential equation finds min (convert to max)
         bound = jnp.vstack((self.bound,self.bound)) 
         

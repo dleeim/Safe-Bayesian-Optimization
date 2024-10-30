@@ -153,7 +153,7 @@ def plot_all_obj_fun():
 data_Safe = jnp.load('data/data_multi_GP_TR_WilliamOttoReactor.npz',allow_pickle=True)
 
 # Plot data
-# plot_obj_con_outputs(data_Safe)
+plot_obj_con_outputs(data_Safe)
 
 # Plot all data together
 plot_all_obj_fun()

@@ -3,6 +3,7 @@ import numpy as np
 import jax.numpy as jnp
 from jax import grad, vmap, jit
 from scipy.optimize import minimize
+from scipy.stats import qmc
 import sobol_seq
 jax.config.update("jax_enable_x64", True)
 
@@ -39,10 +40,13 @@ class GP():
         Returns: 
             - d_init                : sampled distances from (0,0)
         '''
-        x                           = jax.random.normal(key, (n_sample,x_dim))
-        norm                        = jnp.linalg.norm(x,axis=-1).reshape(-1,1)
-        r                           = (jax.random.uniform(key, (n_sample,1))) 
-        d_init                      = r_i*r*x/norm
+        seed                        = int(jax.random.randint(key, (), 0, 1e6))
+        sampler                     = qmc.Sobol(d=x_dim, scramble=True, seed=seed)
+        points                      = sampler.random(n=n_sample) * 2 - 1
+        norm                        = jnp.linalg.norm(points,axis=-1).reshape(-1,1)
+        key, subkey                 = jax.random.split(key)
+        r                           = (jax.random.uniform(subkey, (n_sample,1))) 
+        d_init                      = r_i*r*points/norm
         return d_init
   
     def Data_sampling(self,n_sample,x_0,r,noise=0.):
@@ -324,7 +328,8 @@ class GP():
         var                         = jnp.zeros((self.ny_dim))
         
         # --- Set mean of constraints to be below 0 --- #
-        mean_prior                  = (-2*Y_mean)/Y_std        
+        mean_prior                  = (-2*Y_mean)/Y_std   
+        # mean_prior                  = mean_prior.at[0].set(0.)
         
         # --- Loop over each output (GP) --- #
         for i in range(self.ny_dim):
