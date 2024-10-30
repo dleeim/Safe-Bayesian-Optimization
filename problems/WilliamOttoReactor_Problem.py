@@ -19,7 +19,7 @@ class WilliamOttoReactor():
 
     def odecallback(self,w, x, normal_noise):
         xa, xb, xc, xp, xe, xg = w
-        Fa = 1.8275 
+        Fa = 1.8275 + normal_noise
         Fb, Tr = x
         Fr = Fa + Fb
 
