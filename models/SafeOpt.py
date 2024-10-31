@@ -41,6 +41,7 @@ class BO(GP):
         GP_inference = self.GP_inference_jit(x,self.inference_datasets)
         mean, var = GP_inference[0][i], GP_inference[1][i]
         value = mean - self.b*jnp.sqrt(var)
+        # print(x,i,value)
         return value
     
     def minimize_obj_ucb(self,safe_set_cons):
@@ -74,10 +75,58 @@ class BO(GP):
         for i in range(1,self.n_fun):
             lcb_values.append(self.lcb(x,i))
         return max(lcb_values)
+    
+    ######______ Not using max_infnorm ______######
 
-    def Lipschitz_continuity_constraint(self,x,i):
+    # def Lipschitz_continuity_constraint(self,x,i):
+    #     ucb_value = self.ucb(x[:self.nx_dim],i)    
+    #     value = ucb_value - self.infnorm_mean_grad(x[:self.nx_dim],i)*jnp.linalg.norm(x[:self.nx_dim]-x[self.nx_dim:]+1e-8)  
+    #     return value
+
+    # def Expander(self):
+    #     eps = jnp.sqrt(jnp.finfo(jnp.float16).eps)
+    #     obj_fun = lambda x: -self.GP_inference_jit(x[:self.nx_dim],self.inference_datasets)[1][0] # objective function is -1*variance as differential equation finds min (convert to max)
+    #     bound = jnp.vstack((self.bound,self.bound)) 
+        
+    #     # Find expander for each constraint
+    #     expanders = []
+    #     std_expanders = []
+
+    #     for index in range(1,self.n_fun):
+    #         Lipschitz_continuity_constraint_jit = jit(self.Lipschitz_continuity_constraint)
+    #         Expander_cons = []
+
+    #         for i in range(1,self.n_fun):
+    #             if i == index:
+    #                 Expander_cons.append(NonlinearConstraint(lambda x, i=i: self.lcb(x[:self.nx_dim],i),0,eps))
+    #             else:
+    #                 Expander_cons.append(NonlinearConstraint(lambda x, i=i: self.lcb(x[:self.nx_dim],i),0,jnp.inf))
+
+    #         Expander_cons.append(NonlinearConstraint(lambda x: self.lcb_constraint_min(x[self.nx_dim:]),-jnp.inf,0.))
+    #         Expander_cons.append(NonlinearConstraint(lambda x, index=index: Lipschitz_continuity_constraint_jit(x,index),0.,jnp.inf))    
+    #         result = differential_evolution(obj_fun,bound,constraints=Expander_cons,polish=False,popsize=30)
+    #         print(result.x,result.fun)
+
+    #         # Collect optimal point and standard deviation
+    #         expanders.append(result.x[:self.nx_dim])
+    #         std_expanders.append(jnp.sqrt(-result.fun))
+
+    #     # Find most uncertain expander
+    #     max_std = max(std_expanders)
+    #     max_index = std_expanders.index(max_std)
+    #     argmax_x = expanders[max_index]
+
+    #     return argmax_x, max_std
+
+    def maximize_infnorm_mean_grad(self,i):
+        infnorm_mean_grad_jit = jit(self.infnorm_mean_grad)
+        obj_fun = lambda x, i=i: -infnorm_mean_grad_jit(x,i)
+        result = differential_evolution(obj_fun,self.bound,polish=False)
+        return -result.fun
+
+    def Lipschitz_continuity_constraint(self,x,i,max_infnorm_mean_grad):
         ucb_value = self.ucb(x[:self.nx_dim],i)    
-        value = ucb_value - self.infnorm_mean_grad(x[:self.nx_dim],i)*jnp.linalg.norm(x[:self.nx_dim]-x[self.nx_dim:]+1e-8)  
+        value = ucb_value - max_infnorm_mean_grad*jnp.linalg.norm(x[:self.nx_dim]-x[self.nx_dim:]+1e-8)  
         return value
 
     def Expander(self):
@@ -100,9 +149,10 @@ class BO(GP):
                     Expander_cons.append(NonlinearConstraint(lambda x, i=i: self.lcb(x[:self.nx_dim],i),0,jnp.inf))
 
             Expander_cons.append(NonlinearConstraint(lambda x: self.lcb_constraint_min(x[self.nx_dim:]),-jnp.inf,0.))
-            Expander_cons.append(NonlinearConstraint(lambda x, index=index: Lipschitz_continuity_constraint_jit(x,index),0.,jnp.inf))    
-            result = differential_evolution(obj_fun,bound,constraints=Expander_cons,polish=False,popsize=30)
-            print(result.x,result.fun)
+            max_inform_mean_grad = self.maximize_infnorm_mean_grad(i)
+            Expander_cons.append(NonlinearConstraint(lambda x, index=index: Lipschitz_continuity_constraint_jit(x,index,max_inform_mean_grad),0.,jnp.inf))    
+            result = differential_evolution(obj_fun,bound,constraints=Expander_cons,polish=False)
+            print(result.x,-result.fun)
 
             # Collect optimal point and standard deviation
             expanders.append(result.x[:self.nx_dim])

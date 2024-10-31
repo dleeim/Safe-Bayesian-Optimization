@@ -44,10 +44,10 @@ def plot_obj_con_outputs(data):
     obj_fun_std = jnp.nanstd(obj_fun_outputs,axis=0,ddof=1)
 
     con1_fun_mean = jnp.nanmean(con1_fun_outputs,axis=0)
-    con1_fun_std = jnp.nanstd(con1_fun_outputs,axis=0,ddof=2)
+    con1_fun_std = jnp.nanstd(con1_fun_outputs,axis=0,ddof=1)
 
     con2_fun_mean = jnp.nanmean(con2_fun_outputs,axis=0)
-    con2_fun_std = jnp.nanstd(con2_fun_outputs,axis=0,ddof=2)
+    con2_fun_std = jnp.nanstd(con2_fun_outputs,axis=0,ddof=1)
         
     # Find confidence interval
     degree_of_freedom = n_start-1
@@ -125,14 +125,35 @@ def plot_all_obj_fun():
 
         # Find mean and std
         obj_fun_mean = jnp.nanmean(obj_fun_outputs,axis=0)
+        obj_fun_std = jnp.nanstd(obj_fun_outputs,axis=0,ddof=1)
+
         con1_fun_mean = jnp.nanmean(con1_fun_outputs,axis=0)
+        con1_fun_std = jnp.nanstd(con1_fun_outputs,axis=0,ddof=1)
+
         con2_fun_mean = jnp.nanmean(con2_fun_outputs,axis=0)
+        con2_fun_std = jnp.nanstd(con2_fun_outputs,axis=0,ddof=1)
+
+        # Find confidence interval
+        degree_of_freedom = n_start-1
+        confidence_interval = 0.975
+        t_value = t.ppf(confidence_interval,degree_of_freedom)
+
+        obj_fun_upper = obj_fun_mean + t_value*obj_fun_std/jnp.sqrt(n_start)
+        obj_fun_lower = obj_fun_mean - t_value*obj_fun_std/jnp.sqrt(n_start)
+
+        con1_fun_upper = con1_fun_mean + t_value*con1_fun_std/jnp.sqrt(n_start)
+        con1_fun_lower = con1_fun_mean - t_value*con1_fun_std/jnp.sqrt(n_start)
+
+        con2_fun_upper = con2_fun_mean + t_value*con2_fun_std/jnp.sqrt(n_start)
+        con2_fun_lower = con2_fun_mean - t_value*con2_fun_std/jnp.sqrt(n_start)
 
         n_iter = len(obj_fun_mean)
-
         axs[0].plot(range(n_iter),obj_fun_mean,label=data_array_name[i])
+        axs[0].fill_between(range(n_iter),obj_fun_upper,obj_fun_lower,alpha=0.3)
         axs[1].plot(range(n_iter),con1_fun_mean,label=data_array_name[i])
+        axs[1].fill_between(range(n_iter),con1_fun_lower,con1_fun_upper,alpha=0.3)
         axs[2].plot(range(n_iter),con2_fun_mean,label=data_array_name[i])
+        axs[2].fill_between(range(n_iter),con2_fun_lower,con2_fun_upper,alpha=0.3)
 
     axs[0].set_xlabel('Iteration')
     axs[0].set_ylabel('Objective Function')
@@ -153,10 +174,11 @@ def plot_all_obj_fun():
 data_Safe = jnp.load('data/data_multi_GP_TR_WilliamOttoReactor.npz',allow_pickle=True)
 
 # Plot data
-plot_obj_con_outputs(data_Safe)
+# plot_obj_con_outputs(data_Safe)
 
 # Plot all data together
 plot_all_obj_fun()
+
 
 
 

@@ -6,30 +6,42 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import random
 from scipy.optimize import differential_evolution, NonlinearConstraint
-from models import GP_TR, SafeOpt,GoOSE
+from models import GP_TR, SafeOpt,GoOSE, StableOpt
 from problems import Benoit_Problem, WilliamOttoReactor_Problem
 from problems import Rosenbrock_Problem
 from utils import utils_SafeOpt
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="Values in x were outside bounds during a minimize step, clipping to bounds")
 
+# Class Initialization
+Reactor = WilliamOttoReactor_Problem.WilliamOttoReactor()
+plant_system = [Reactor.get_objective,
+                Reactor.get_constraint1,
+                Reactor.get_constraint2]
+bound = jnp.array([[4.,7.],[70.,100.]])
+b = 2.
+GP_m = SafeOpt.BO(plant_system,bound,b)
+n_start = 10
+data = {}
+noise = 0.01
 
-# Reactor = WilliamOttoReactor_Problem.WilliamOttoReactor()
-# plant_system = [Reactor.get_objective,
-#                 Reactor.get_constraint1,
-#                 Reactor.get_constraint2]
-# bound = jnp.array([[4.,7.],[70.,100.]])
+for i in range(n_start):
+    print(f"iteration: {i}")
+    # Data Storage
+    data[f'{i}'] = {'sampled_x':[],'sampled_output':[],'observed_x':[],'observed_output':[]}
 
-# obj_fun = lambda x: plant_system[0](x)
-# cons = [NonlinearConstraint(lambda x: plant_system[1](x),0.,jnp.inf),
-#         NonlinearConstraint(lambda x: p
-# lant_system[2](x),0.,jnp.inf)]
-# result = differential_evolution(obj_fun,bound,constraints=cons)
-# print(result.x,result.fun)
+    # GP Initialization: 
+    x_i = jnp.array([6.8,80.])
+    r = 0.3
+    n_sample = 5
+    X_sample = jnp.empty((0,len(x_i)))
+    Y_sample = jnp.empty((0,len(plant_system)))
+    for count in range(n_sample):
+        X,Y = GP_m.Data_sampling(1,x_i,r,noise)
+        Reactor.noise_generator
+        X_sample=jnp.append(X_sample,X,axis=0)
+        Y_sample=jnp.append(Y_sample,Y,axis=0)
 
-# result = jnp.array([4.38893395, 80.64981093])
-# for i in range(1,len(plant_system)):
-#     print(plant_system[i](result))
 
 def test_multiple_WilliamOttoReactor_GP_TR():
     # Class Initialization

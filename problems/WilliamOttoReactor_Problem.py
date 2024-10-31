@@ -19,8 +19,9 @@ class WilliamOttoReactor():
 
     def odecallback(self,w, x, normal_noise):
         xa, xb, xc, xp, xe, xg = w
-        Fa = 1.8275 + normal_noise
+        Fa = 1.8275 
         Fb, Tr = x
+        Fb += normal_noise
         Fr = Fa + Fb
 
         Vr = 2105.2 
@@ -48,8 +49,9 @@ class WilliamOttoReactor():
         normal_noise = jnp.clip(normal_noise,-2.05,2.05)
         normal_noise = normal_noise * jnp.sqrt(noise)
 
-        Fa = 1.8275 + normal_noise
+        Fa = 1.8275
         Fb, _ = u
+        Fb += normal_noise
 
         fobj = lambda x: self.odecallback(x, u,normal_noise)
         xa, xb, xc, xp, xe, xg = fsolve(func=fobj, x0=x0)
@@ -58,30 +60,29 @@ class WilliamOttoReactor():
         if not self.measure_disturbance:
             return -fx
         if self.measure_disturbance:
-            return -fx, Fa
+            return -fx, normal_noise
+
 
     def get_constraint1(self,u,noise=0.):
         x0 = jnp.array([0.1,0.1,0.1,0.1,0.1,0.1])
         normal_noise = jax.random.normal(self.subkey)
         normal_noise = jnp.clip(normal_noise,-2.05,2.05)
         normal_noise = normal_noise * jnp.sqrt(noise)
-        Fa = 1.8275 + normal_noise
 
         fobj = lambda x: self.odecallback(x, u,normal_noise)
         xa, xb, xc, xp, xe, xg = fsolve(func=fobj, x0=x0)
         g = jnp.array([0.12-xa])
-        
+
         if not self.measure_disturbance:
             return g.item()
         if self.measure_disturbance:
-            return g.item(), Fa
+            return g.item()
     
     def get_constraint2(self,u,noise=0.):
         x0 = jnp.array([0.1,0.1,0.1,0.1,0.1,0.1])
         normal_noise = jax.random.normal(self.subkey)
         normal_noise = jnp.clip(normal_noise,-2.05,2.05)
         normal_noise = normal_noise * jnp.sqrt(noise)
-        Fa = 1.8275 + normal_noise
 
         fobj = lambda x: self.odecallback(x, u,normal_noise)
         xa, xb, xc, xp, xe, xg = fsolve(func=fobj, x0=x0)
@@ -90,7 +91,7 @@ class WilliamOttoReactor():
         if not self.measure_disturbance:
             return g.item()
         if self.measure_disturbance:
-            return g.item(), Fa
+            return g.item()
 
     def reactor_drawing(self):
         n_sample = 50

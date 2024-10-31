@@ -27,26 +27,26 @@ class GP():
         # --- Data Sampling --- #
     ##################################
     
-    def Ball_sampling(self,x_dim,n_sample,r_i,key):
+    def Ball_sampling(self, x_dim, n_sample, r_i, key):
         '''
-        Description:
-            This function samples randomly at (0,0) within a ball of radius r_i.
-            By adding sampled point onto initial point (u1,u2) you will get 
-            randomly sampled points around (u1,u2)
-        Arguments:
-            - x_dim                 : no of dimensions required for sampled point
-            - n_sample              : number of sample required to create
-            - r_i                   : radius from (0,0) of circle area for sampling
-        Returns: 
-            - d_init                : sampled distances from (0,0)
+        Samples uniformly at random within a ball of radius r_i centered at (0,0,...,0)
         '''
-        seed                        = int(jax.random.randint(key, (), 0, 1e6))
-        sampler                     = qmc.Sobol(d=x_dim, scramble=True, seed=seed)
-        points                      = sampler.random(n=n_sample) * 2 - 1
-        norm                        = jnp.linalg.norm(points,axis=-1).reshape(-1,1)
-        key, subkey                 = jax.random.split(key)
-        r                           = (jax.random.uniform(subkey, (n_sample,1))) 
-        d_init                      = r_i*r*points/norm
+        # Generate n_sample x x_dim standard normal random variables
+        key, subkey = jax.random.split(key)
+        xi = jax.random.normal(subkey, (n_sample, x_dim))
+
+        # Normalize xi to unit vectors
+        norm = jnp.linalg.norm(xi, axis=1, keepdims=True)
+        unit_vectors = xi / norm
+
+        # Sample radii proportional to U^{1/x_dim}
+        key, subkey = jax.random.split(key)
+        u = jax.random.uniform(subkey, (n_sample, 1))
+        r = u ** (1 / x_dim)
+
+        # Scale unit vectors by radii to get points in the ball
+        d_init = r_i * r * unit_vectors
+
         return d_init
   
     def Data_sampling(self,n_sample,x_0,r,noise=0.):

@@ -13,6 +13,8 @@ from utils import utils_SafeOpt
 jax.config.update("jax_enable_x64", True)
 
 warnings.filterwarnings("ignore", message="delta_grad == 0.0. Check if the approximated function is linear.")
+warnings.filterwarnings("ignore", message="Values in x were outside bounds during a minimize step, clipping to bounds")
+
 
 # Class Initialization
 jax.config.update("jax_enable_x64", True)
@@ -261,7 +263,7 @@ def test_multiple_WilliamOttoReactor():
     GP_m = SafeOpt.BO(plant_system,bound,b)
     n_start = 10
     data = {}
-    noise = 0.001
+    noise = 0.01
 
     for i in range(n_start):
         print(f"iteration: {i}")
@@ -302,7 +304,6 @@ def test_multiple_WilliamOttoReactor():
             print(f"minimizer,std_minimizer: {minimizer,std_minimizer}")
             expander,std_expander = GP_m.Expander()
             print(f"expander,std_expander: {expander,std_expander}")
-            print(type(std_expander))
 
             if std_minimizer > std_expander or std_expander == np.inf or std_expander == np.nan or std_expander == np.inf or std_expander == np.nan:
                 x_new = minimizer
