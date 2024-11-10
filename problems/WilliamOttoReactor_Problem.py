@@ -9,8 +9,7 @@ jax.config.update("jax_enable_x64", True)
 class WilliamOttoReactor():
 
     def __init__(self,measure_disturbance=False):
-        random_seed = random.randint(0, 2**32 - 1)
-        self.key = jax.random.PRNGKey(random_seed)
+        self.key = jax.random.PRNGKey(42)
         self.subkey = self.key
         self.measure_disturbance = measure_disturbance
 
@@ -76,7 +75,7 @@ class WilliamOttoReactor():
         if not self.measure_disturbance:
             return g.item()
         if self.measure_disturbance:
-            return g.item()
+            return g.item(), normal_noise
     
     def get_constraint2(self,u,noise=0.):
         x0 = jnp.array([0.1,0.1,0.1,0.1,0.1,0.1])
@@ -91,7 +90,7 @@ class WilliamOttoReactor():
         if not self.measure_disturbance:
             return g.item()
         if self.measure_disturbance:
-            return g.item()
+            return g.item(), normal_noise
 
     def reactor_drawing(self):
         n_sample = 50

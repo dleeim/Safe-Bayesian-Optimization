@@ -230,7 +230,7 @@ def test_multiple_WilliamOttoReactor():
         'rho_ub': 0.8
     }
     GP_m = GP_TR.BO(plant_system,bound,b,TR_parameters)
-    n_start = 5
+    n_start = 10
     data = {}
     noise = 0.01
 

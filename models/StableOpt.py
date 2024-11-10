@@ -1,9 +1,9 @@
 import time
-import copy
+import random
 import numpy as np
 import jax
 import jax.numpy as jnp
-from jax import grad, vmap, jit, random
+from jax import grad, vmap, jit
 from scipy.optimize import minimize, differential_evolution, NonlinearConstraint
 from scipy.spatial.distance import cdist
 import sobol_seq
@@ -54,11 +54,13 @@ class BO(GP):
         n_fun                       = len(self.plant_system)
         Y                           = jnp.zeros((n_sample,n_fun))
         D                           = jnp.zeros((n_sample,len(self.bound_d)))
+
         for i in range(len(X)):
             for j in range(n_fun):
                 y, d                = self.plant_system[j](X[i],noise)
                 Y                   = Y.at[i,j].set(y)
             D                       = D.at[i].set(d)
+
         return X,Y,D
 
     def mean(self,xc,d,i):
@@ -92,11 +94,6 @@ class BO(GP):
         value = mean - self.b*jnp.sqrt(var)
         return value
     
-    def lcb_grad(self,xc,d,i):
-        lcb_grad = grad(self.lcb,argnums=1)
-        value = lcb_grad(xc,d,i)
-        return value
-    
     def Maximise_d(self,fun,xc,i):
         if fun not in [self.ucb, self.lcb, self.mean]:
             raise ValueError("fun needs to be either self.ucb, lcb or mean")
@@ -110,14 +107,19 @@ class BO(GP):
 
             if -res.fun > max_val:
                 max_val = -res.fun
-    
+        
+        if max_val == jnp.inf or max_val == np.inf:
+            res = differential_evolution(obj_fun,bounds=self.bound_d)
+            max_val = -res.fun
+
+        # print(xc,i,max_val)
         return max_val
     
     def Minimise_d(self,fun,xc,i):
         if fun not in [self.ucb, self.lcb, self.mean]:
             raise ValueError("fun needs to be either self.ucb, lcb or mean")
 
-        obj_fun = lambda d, i=i: fun(xc,d,i) # negative sign for maximization
+        obj_fun = lambda d, i=i: fun(xc,d,i)
         n_start = 5
         min_val = jnp.inf
 
@@ -126,13 +128,19 @@ class BO(GP):
 
             if res.fun < min_val:
                 min_val = res.fun
-    
+        
+        if min_val == jnp.inf or min_val == np.inf:
+            res = differential_evolution(obj_fun,bounds=self.bound_d)
+            min_val = res.fun
+
+        # print(xc,i,min_val)
         return min_val
 
     def Minimize_Maximise(self,fun): # NEED TO FILTER OUT START VALUE TO BE IN SAFE SET
         if fun not in [self.ucb, self.lcb, self.mean]:
             raise ValueError("fun needs to be either self.ucb, lcb or mean")
         max_safe_cons = []
+
         for index in range(1, self.n_fun):
             con = NonlinearConstraint(lambda xc, index=index: self.Minimise_d(self.lcb,xc,index),0.,jnp.inf)
             max_safe_cons.append(con) 
@@ -140,6 +148,7 @@ class BO(GP):
         obj_fun = lambda xc: self.Maximise_d(fun,xc,0)
 
         res = differential_evolution(obj_fun,self.bound,constraints=max_safe_cons,polish=False)
+        
         return res.x, res.fun
     
     def Maximise_d_with_constraints(self,fun,xc):
@@ -150,5 +159,7 @@ class BO(GP):
             con = NonlinearConstraint(lambda d, index=index: self.lcb(xc,d,index),0.,jnp.inf)
             max_safe_cons.append(con) 
         obj_fun = lambda d: -fun(xc,d,0)
-        res = differential_evolution(obj_fun,self.bound_d,constraints=max_safe_cons,polish=False)
+        # res = differential_evolution(obj_fun,self.bound_d,constraints=max_safe_cons,polish=False)
+        res = differential_evolution(obj_fun,self.bound_d,polish=False,popsize=100)
+        
         return res.x, -res.fun

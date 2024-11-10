@@ -67,7 +67,7 @@ class BO(GP):
         return result.x,result.fun
 
     ######______ Not using max_infnorm ______######
-
+    
     # def Lipschitz_continuity_constraint(self,x,i):
     #     ucb_value = self.ucb(x[self.nx_dim:],i)
     #     value = ucb_value - self.infnorm_mean_grad(x[:self.nx_dim],i)*jnp.linalg.norm(x[:self.nx_dim]-x[self.nx_dim:]+1e-8)  

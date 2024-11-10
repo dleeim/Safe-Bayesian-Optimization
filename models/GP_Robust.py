@@ -2,7 +2,7 @@ import jax
 import numpy as np
 import jax.numpy as jnp
 from jax import grad, vmap, jit
-from scipy.optimize import minimize
+from scipy.optimize import minimize, differential_evolution
 from scipy.stats import qmc
 import sobol_seq
 jax.config.update("jax_enable_x64", True)
@@ -221,17 +221,9 @@ class GP():
 
         
         for i in range(self.ny_dim):
-            for j in range(multi_start):
-                hyp_init            = jnp.array(lb + (ub - lb) * multi_startvec[j,:])
-
-                res                 = minimize(NLL_jit, hyp_init, args=(X_norm, Y_norm[:,i:i+1]),
-                                               method='SLSQP', options=options,bounds=bounds, jac=NLL_grad, tol=jnp.finfo(jnp.float32).eps)
-                localsol[j]         = res.x
-                localval            = localval.at[j].set(res.fun)
-
+            res = differential_evolution(NLL_jit,args=(X_norm, Y_norm[:,i:i+1]),bounds=bounds)
             # --- choosing best solution --- #
-            minindex                = jnp.argmin(localval)
-            hypopt                  = hypopt.at[:,i].set(localsol[minindex])
+            hypopt                  = hypopt.at[:,i].set(res.x)
             ellopt                  = jnp.exp(2. * hypopt[:self.nx_dim,i])
             sf2opt                  = jnp.exp(2.*hypopt[self.nx_dim,i])
             sn2opt                  = jnp.exp(2.*hypopt[self.nx_dim+1,i]) + jnp.finfo(jnp.float32).eps
@@ -327,10 +319,9 @@ class GP():
         mean                        = jnp.zeros((self.ny_dim))
         var                         = jnp.zeros((self.ny_dim))
         
-        # --- Set mean of constraints to be below 0 --- #
-        mean_prior                  = (-2*Y_mean)/Y_std   
-        # mean_prior                  = mean_prior.at[0].set(0.)
-        
+        # --- Set mean of constraints to be at 0 --- #
+        mean_prior                  = jnp.zeros((self.ny_dim))
+
         # --- Loop over each output (GP) --- #
         for i in range(self.ny_dim):
             invK                    = invKopt[i]
