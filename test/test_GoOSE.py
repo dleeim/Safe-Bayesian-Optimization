@@ -350,8 +350,8 @@ if __name__ == "__main__":
     # test_minimize_obj_lcb()
     # test_Target()
     # test_explore_safeset()
-    # test_GoOSE()
+    test_GoOSE()
     # test_multiple_Benoit()
-    test_multiple_WilliamOttoReactor()
+    # test_multiple_WilliamOttoReactor()
     # test_GIF()
     pass
