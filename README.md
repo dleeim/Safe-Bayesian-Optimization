@@ -1,4 +1,4 @@
-# Safe Bayesian Optimization
+# Gaussian Process Regression (Machine Learning) on Safe Bayesian Optimization in Process System Engineering
 
 Repository on making Safe Bayesian Optimization for Real Time Optimization
 
